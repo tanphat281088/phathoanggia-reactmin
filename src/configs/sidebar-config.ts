@@ -218,6 +218,14 @@ export const sidebarConfig = (navigate: NavigateFunction) => {
       icon: React.createElement(MessageCircle, { style: iconStyle }),
       onClick: () => navigate(URL_CONSTANTS.UTILITIES_FB_INBOX),
     },
+
+        {
+      key: "zl-inbox",
+      label: "Tư vấn Zalo",
+      icon: React.createElement(MessageCircle, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.UTILITIES_ZL_INBOX),
+    },
+
   ],
 },
 

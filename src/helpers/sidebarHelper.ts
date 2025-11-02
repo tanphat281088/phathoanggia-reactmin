@@ -69,6 +69,9 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "diem-thanh-vien",
     // Gợi ý: nếu child FB Inbox có key riêng, thêm luôn vào đây:
     "utilities-fb",   // hoặc "fb-inbox" tuỳ bạn đặt key
+
+      "zl-inbox",
+
   ];
 
   // Alias quyền → key menu
@@ -91,6 +94,10 @@ export const getSidebar = (items: any, phan_quyen: any) => {
 
     // Utilities (không đổi tên quyền)
     "utilities-fb": "utilities-fb",
+
+      "zl-inbox": "utilities-zl",
+  "utilities-zl": "utilities-zl",
+
   };
 
   const checkRole = items.map((item: any) => {

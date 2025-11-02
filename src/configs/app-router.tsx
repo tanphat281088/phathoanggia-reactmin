@@ -61,6 +61,9 @@ import CashflowPage from "../pages/thu-chi/CashflowPage";
 
 import FbInboxPage from "../pages/utilities/FbInboxPage";
 
+import ZaloInboxPage from "../pages/utilities/ZaloInboxPage";
+
+
 
 export const router = createBrowserRouter([
   {
@@ -254,6 +257,14 @@ export const router = createBrowserRouter([
   path: "utilities/fb-inbox",
   element: <MainLayout />,
   children: [{ index: true, element: <FbInboxPage /> }],
+},
+
+
+// ✅ Quản lý tiện ích → Tư vấn Zalo
+{
+  path: "utilities/zl-inbox", // (tương ứng URL_CONSTANTS.UTILITIES_ZL_INBOX)
+  element: <MainLayout />,
+  children: [{ index: true, element: <ZaloInboxPage /> }],
 },
 
 

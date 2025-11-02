@@ -131,6 +131,13 @@ export const API_ROUTE_CONFIG = {
   CASH_TRANSFERS: "/cash/internal-transfers",
 
 
+  // ===== Tiện ích → Tư vấn Zalo =====
+  ZL_HEALTH: "/utilities/zl/health",
+  ZL_CONVERSATIONS: "/utilities/zl/conversations",
+  ZL_CONVERSATION_ID: (id: number | string) => `/utilities/zl/conversations/${id}`,
+  ZL_REPLY: (id: number | string) => `/utilities/zl/conversations/${id}/reply`,
+  ZL_ASSIGN: (id: number | string) => `/utilities/zl/conversations/${id}/assign`,
+  ZL_STATUS: (id: number | string) => `/utilities/zl/conversations/${id}/status`,
 
 
 } as const;
@@ -172,6 +179,9 @@ export const URL_CONSTANTS = {
   VT_STOCKS: "/admin/quan-ly-vat-tu/stocks",
 
   UTILITIES_FB_INBOX: "/admin/utilities/fb-inbox",
+
+  UTILITIES_ZL_INBOX: "/admin/utilities/zl-inbox",
+
 
 
   PHIEU_THU: "/admin/quan-ly-thu-chi/phieu-thu",

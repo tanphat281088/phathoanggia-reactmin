@@ -27,6 +27,8 @@ const EXTRA_WHITELIST = [
   "/admin/quan-ly-thu-chi/cashflow",
 
     "/admin/utilities/fb-inbox",
+      "/admin/utilities/zl-inbox",
+
 
 
 
@@ -49,6 +51,8 @@ const MODULE_ALIAS: Record<string, string> = {
     // Utilities → Tư vấn Facebook
   "utilities": "utilities",
   "fb-inbox": "utilities-fb",
+    "zl-inbox": "utilities-zl",
+
 
 };
 
