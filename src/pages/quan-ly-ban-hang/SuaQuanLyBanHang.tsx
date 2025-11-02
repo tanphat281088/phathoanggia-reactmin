@@ -63,8 +63,23 @@ const SuaQuanLyBanHang = ({
       }));
     }
 
+    // ===== NEW: Thuế (tương thích ngược) =====
+    // Đơn cũ chưa có trường thuế -> mặc định Không thuế.
+    const tax_mode =
+      data?.tax_mode === 0 || data?.tax_mode === 1
+        ? Number(data.tax_mode)
+        : 0;
+    const vat_rate =
+      tax_mode === 1
+        ? (data?.vat_rate !== undefined && data?.vat_rate !== null
+            ? Number(data.vat_rate)
+            : 8)
+        : undefined;
+
     form.setFieldsValue({
       ...data,
+      tax_mode,
+      vat_rate,
       danh_sach_san_pham: danhSachSanPham,
     });
 
@@ -100,9 +115,23 @@ const SuaQuanLyBanHang = ({
             : null
           : null;
 
+      // ===== NEW: chỉ gửi thuế khi Có thuế =====
+      const taxModeNum = Number(values?.tax_mode ?? 0);
+      const taxPatch =
+        taxModeNum === 1
+          ? {
+              tax_mode: 1,
+              vat_rate:
+                values?.vat_rate !== undefined && values?.vat_rate !== null
+                  ? Number(values.vat_rate)
+                  : 8,
+            }
+          : {};
+
       // Không bắt buộc phải đính kèm danh_sach_san_pham khi chỉ sửa thông tin người nhận
       const payload: any = {
         ...rest,
+        ...taxPatch, // ⬅️ chỉ có khi tax_mode=1
         ngay_tao_don_hang: ngayTao,
         nguoi_nhan_thoi_gian: tgNhan,
         so_tien_da_thanh_toan: values?.so_tien_da_thanh_toan

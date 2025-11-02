@@ -38,6 +38,12 @@ const CLIENT_DATETIME_FORMAT = "DD/MM/YYYY HH:mm";
 const SERVER_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 /** =============================================== */
 
+/** ====== THUẾ: 0=Không thuế (mặc định), 1=Có VAT ====== */
+const TAX_MODE_OPTIONS = [
+  { label: "Không thuế", value: 0 },
+  { label: "Có thuế", value: 1 },
+] as const;
+
 const FormQuanLyBanHang = ({
   form,
   isDetail = false,
@@ -53,15 +59,43 @@ const FormQuanLyBanHang = ({
   // Theo dõi thay đổi trong danh sách sản phẩm
   const danhSachSanPham = Form.useWatch("danh_sach_san_pham", form) || [];
 
-  // ĐƠN GIÁ ĐÃ GỒM VAT → KHÔNG dùng VAT
+  /** ---------------- GIỮ BIẾN CŨ (tương thích ngược) ---------------- */
+  // ĐƠN GIÁ ĐÃ GỒM VAT → KHÔNG dùng VAT (logic cũ)
   const chiPhi = Form.useWatch("chi_phi", form) || 0;
   const giamGia = Form.useWatch("giam_gia", form) || 0;
 
-  // Tổng tiền thanh toán = Tổng hàng - Giảm giá + Chi phí (kẹp ≥ 0)
+  // Tổng tiền thanh toán (CŨ) = Tổng hàng - Giảm giá + Chi phí (kẹp ≥ 0)
+  // (Vẫn giữ để không phá những chỗ có thể đang dùng biến này trong UI khác)
   const tongTienThanhToan = useMemo(() => {
     const tong = (tongTienHang || 0) - (giamGia || 0) + (chiPhi || 0);
     return Math.max(0, tong);
   }, [tongTienHang, chiPhi, giamGia]);
+
+  /** ---------------- THUẾ (MỚI) ---------------- */
+  // Thuế (mặc định KHÔNG THUẾ để giữ y như cũ)
+  const taxMode = Form.useWatch("tax_mode", form) ?? 0; // 0|1
+  const vatRate = Form.useWatch("vat_rate", form);      // %
+
+  // Subtotal = Tổng hàng - Giảm giá + Chi phí (kẹp ≥ 0)
+  const subtotal = useMemo(() => {
+    const tong = (tongTienHang || 0) - (giamGia || 0) + (chiPhi || 0);
+    return Math.max(0, tong);
+  }, [tongTienHang, chiPhi, giamGia]);
+
+  // VAT chỉ áp dụng khi tax_mode=1 và vat_rate hợp lệ
+  const vatAmount = useMemo(() => {
+    if (Number(taxMode) !== 1) return 0;
+    const rate = Number(vatRate ?? 0);
+    if (!(rate > 0)) return 0;
+    return Math.round(subtotal * rate / 100);
+  }, [taxMode, vatRate, subtotal]);
+
+  // Tổng tiền thanh toán cuối cùng
+  const grandTotal = useMemo(() => {
+    if (Number(taxMode) === 1) return subtotal + vatAmount;
+    // giữ hành vi cũ khi Không thuế
+    return subtotal;
+  }, [taxMode, subtotal, vatAmount]);
 
   // Theo dõi số tiền đã thanh toán để tính "còn lại"
   const soTienDaThanhToan = Form.useWatch("so_tien_da_thanh_toan", form) || 0;
@@ -73,24 +107,24 @@ const FormQuanLyBanHang = ({
       form.setFieldsValue({ so_tien_da_thanh_toan: 0 });
     } else if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[2].value) {
       // 2 = Thanh toán toàn bộ
-      form.setFieldsValue({ so_tien_da_thanh_toan: tongTienThanhToan || 0 });
+      form.setFieldsValue({ so_tien_da_thanh_toan: grandTotal || 0 });
     }
-  }, [loaiThanhToan, tongTienThanhToan, form]);
+  }, [loaiThanhToan, grandTotal, form]);
 
   // Tính số tiền còn lại (kẹp ≥ 0) — phụ thuộc trực tiếp vào loại thanh toán
   const tongConLai = useMemo(() => {
     if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[0].value) {
       // 0 = Chưa thanh toán
-      return Math.max(0, tongTienThanhToan || 0);
+      return Math.max(0, grandTotal || 0);
     }
     if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[2].value) {
       // 2 = Thanh toán toàn bộ
       return 0;
     }
     // 1 = Thanh toán một phần
-    const remain = (tongTienThanhToan || 0) - (soTienDaThanhToan || 0);
+    const remain = (grandTotal || 0) - (soTienDaThanhToan || 0);
     return Math.max(0, remain);
-  }, [loaiThanhToan, tongTienThanhToan, soTienDaThanhToan]);
+  }, [loaiThanhToan, grandTotal, soTienDaThanhToan]);
 
   // Tính toán tổng tiền cho từng sản phẩm
   const calculatedProducts = useMemo(() => {
@@ -212,27 +246,26 @@ const FormQuanLyBanHang = ({
         </Form.Item>
       </Col>
 
-<Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-  <Form.Item
-    name="loai_khach_hang"
-    label="Loại khách hàng"
-    rules={[{ required: true, message: "Loại khách hàng không được bỏ trống!" }]}
-    initialValue={0}
-  >
-    <Select
-      options={OPTIONS_LOAI_KHACH_HANG}
-      placeholder="Chọn loại khách hàng"
-      disabled={isDetail}
-      /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
-      getPopupContainer={(trigger) =>
-        (trigger && trigger.closest(".ant-modal")) || document.body
-      }
-      dropdownMatchSelectWidth={false}
-      popupClassName="phg-dd"   /* để CSS nâng z-index */
-    />
-  </Form.Item>
-</Col>
-
+      <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
+        <Form.Item
+          name="loai_khach_hang"
+          label="Loại khách hàng"
+          rules={[{ required: true, message: "Loại khách hàng không được bỏ trống!" }]}
+          initialValue={0}
+        >
+          <Select
+            options={OPTIONS_LOAI_KHACH_HANG}
+            placeholder="Chọn loại khách hàng"
+            disabled={isDetail}
+            /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
+            getPopupContainer={(trigger) =>
+              (trigger && trigger.closest(".ant-modal")) || document.body
+            }
+            dropdownMatchSelectWidth={false}
+            popupClassName="phg-dd"   /* để CSS nâng z-index */
+          />
+        </Form.Item>
+      </Col>
 
       {/* ===== TRẠNG THÁI ĐƠN HÀNG (0=Chưa giao,1=Đang giao,2=Đã giao,3=Đã hủy) ===== */}
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
@@ -257,25 +290,24 @@ const FormQuanLyBanHang = ({
       {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[0].value && (
         <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
           <SelectFormApi
-  name="khach_hang_id"
-  label="Khách hàng"
-  path={API_ROUTE_CONFIG.KHACH_HANG + "/options"}
-  placeholder="Chọn khách hàng"
-  rules={[
-    {
-      required: loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[0].value,
-      message: "Khách hàng không được bỏ trống!",
-    },
-  ]}
-  disabled={isDetail}
-  /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
-  getPopupContainer={(trigger) =>
-    (trigger && trigger.closest(".ant-modal")) || document.body
-  }
-  dropdownMatchSelectWidth={false}
-  popupClassName="phg-dd"
-/>
-
+            name="khach_hang_id"
+            label="Khách hàng"
+            path={API_ROUTE_CONFIG.KHACH_HANG + "/options"}
+            placeholder="Chọn khách hàng"
+            rules={[
+              {
+                required: loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[0].value,
+                message: "Khách hàng không được bỏ trống!",
+              },
+            ]}
+            disabled={isDetail}
+            /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
+            getPopupContainer={(trigger) =>
+              (trigger && trigger.closest(".ant-modal")) || document.body
+            }
+            dropdownMatchSelectWidth={false}
+            popupClassName="phg-dd"
+          />
         </Col>
       )}
 
@@ -381,132 +413,198 @@ const FormQuanLyBanHang = ({
         <DanhSachSanPham form={form} isDetail={isDetail} />
       </Col>
 
-      <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-        <Form.Item
-          name="giam_gia"
-          label="Giảm giá"
-          rules={[{ required: true, message: "Giảm giá không được bỏ trống!" }]}
-          initialValue={0}
-        >
-          <InputNumber
-            placeholder="Nhập giảm giá"
-            disabled={isDetail}
-            style={{ width: "100%" }}
-            addonAfter="đ"
-            formatter={formatter}
-            parser={parser}
-            min={0}
-            inputMode="numeric"
-          />
-        </Form.Item>
-      </Col>
-
-      <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-        <Form.Item
-          name="chi_phi"
-          label="Chi phí vận chuyển"
-          rules={[{ required: true, message: "Chi phí không được bỏ trống!" }]}
-          initialValue={0}
-        >
-          <InputNumber
-            placeholder="Nhập chi phí vận chuyển"
-            disabled={isDetail}
-            style={{ width: "100%" }}
-            addonAfter="đ"
-            formatter={formatter}
-            parser={parser}
-            min={0}
-            inputMode="numeric"
-          />
-        </Form.Item>
-      </Col>
-
-      {/* Tổng tiền thanh toán (giữ nguyên vị trí) */}
-      <Col
-        span={5}
-        xs={24}
-        sm={12}
-        md={5}
-        lg={5}
-        xl={5}
-        style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}
+{/* ===== HÀNG 1: GIẢM GIÁ / CHI PHÍ / THUẾ / VAT (4 CỘT — KHÔNG RỚT) ===== */}
+<Col span={24}>
+  <Row gutter={[16, 8]} align="middle" wrap={false}>
+    {/* Giảm giá */}
+    <Col flex="0 0 25%">
+      <Form.Item
+        name="giam_gia"
+        label="Giảm giá"
+        rules={[{ required: true, message: "Giảm giá không được bỏ trống!" }]}
+        initialValue={0}
+        style={{ marginBottom: 0 }}
       >
-        <Typography.Title level={5}>Tổng tiền thanh toán</Typography.Title>
-        <Typography.Text style={{ fontSize: 20 }}>
-          {formatter(tongTienThanhToan) || 0} đ
-        </Typography.Text>
-      </Col>
+        <InputNumber
+          placeholder="Nhập giảm giá"
+          disabled={isDetail}
+          style={{ width: "100%" }}
+          addonAfter="đ"
+          formatter={formatter}
+          parser={parser}
+          min={0}
+          inputMode="numeric"
+        />
+      </Form.Item>
+    </Col>
 
-      {/* ======= ĐỔI VỊ TRÍ: đưa "Loại thanh toán" lên trước "Tổng tiền còn lại" ======= */}
-<Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-  <Form.Item
-    name="loai_thanh_toan"
-    label="Loại thanh toán"
-    rules={[{ required: true, message: "Loại thanh toán không được bỏ trống!" }]}
-    initialValue={0}
-  >
-    <Select
-      options={OPTIONS_LOAI_THANH_TOAN}
-      placeholder="Chọn loại thanh toán"
-      disabled={isDetail}
-      /* ⬇️ render dropdown TRONG modal, tránh lớp khác ăn click */
-      getPopupContainer={(trigger) =>
-        (trigger && trigger.closest(".ant-modal")) || document.body
-      }
-      dropdownMatchSelectWidth={false}
-      popupClassName="phg-dd"   /* để set z-index “chắc” */
-    />
-  </Form.Item>
+    {/* Chi phí vận chuyển */}
+    <Col flex="0 0 25%">
+      <Form.Item
+        name="chi_phi"
+        label="Chi phí vận chuyển"
+        rules={[{ required: true, message: "Chi phí không được bỏ trống!" }]}
+        initialValue={0}
+        style={{ marginBottom: 0 }}
+      >
+        <InputNumber
+          placeholder="Nhập chi phí vận chuyển"
+          disabled={isDetail}
+          style={{ width: "100%" }}
+          addonAfter="đ"
+          formatter={formatter}
+          parser={parser}
+          min={0}
+          inputMode="numeric"
+        />
+      </Form.Item>
+    </Col>
+
+    {/* Thuế */}
+    <Col flex="0 0 25%">
+      <Form.Item
+        name="tax_mode"
+        label="Thuế"
+        initialValue={0}
+        style={{ marginBottom: 0 }}
+      >
+        <Select
+          options={TAX_MODE_OPTIONS as any}
+          placeholder="Chọn"
+          disabled={isDetail}
+          getPopupContainer={(trigger) =>
+            (trigger && trigger.closest(".ant-modal")) || document.body
+          }
+          dropdownMatchSelectWidth={false}
+          popupClassName="phg-dd"
+          onChange={(v) => {
+            if (v !== 1) {
+              form.setFieldsValue({ vat_rate: undefined });
+            } else {
+              form.setFieldsValue({ vat_rate: 8 }); // mặc định 8%
+            }
+          }}
+        />
+      </Form.Item>
+    </Col>
+
+    {/* VAT (%) — chỉ render khi Có thuế, Không thuế render cột trống để giữ 4 cột cân */}
+    {Number(taxMode) === 1 ? (
+      <Col flex="0 0 25%">
+        <Form.Item
+          name="vat_rate"
+          label="VAT (%)"
+          initialValue={8}
+          style={{ marginBottom: 0 }}
+        >
+          <InputNumber
+            disabled
+            style={{ width: "100%" }}
+            addonAfter="%"
+            min={0}
+            max={20}
+            step={0.5}
+            inputMode="decimal"
+          />
+        </Form.Item>
+      </Col>
+    ) : (
+      <Col flex="0 0 25%" />
+    )}
+  </Row>
 </Col>
 
-      {/* Tổng tiền thanh toán còn lại (giữ nguyên style, chỉ đổi vị trí) */}
-      <Col
-        span={5}
-        xs={24}
-        sm={12}
-        md={5}
-        lg={5}
-        xl={5}
-        style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}
-      >
-        <Typography.Title level={5}>Tổng tiền thanh toán còn lại</Typography.Title>
-        <Typography.Text style={{ fontSize: 20 }}>
-          {formatter(tongConLai) || 0} đ
-        </Typography.Text>
-      </Col>
+{/* ===== HÀNG 2: TỔNG TIỀN / LOẠI THANH TOÁN / SỐ TIỀN ĐÃ THANH TOÁN (3 CỘT — KHÔNG RỚT) ===== */}
+<Col span={24}>
+  <Row gutter={[16, 8]} align="middle" wrap={false} style={{ marginTop: 8 }}>
+    {/* Tổng tiền thanh toán — trái */}
+    <Col flex="0 0 33.33%">
+      <div style={{ textAlign: "left" }}>
+        <div style={{ fontWeight: 600, whiteSpace: "nowrap", marginBottom: 6 }}>
+          Tổng tiền thanh toán
+        </div>
+        <div style={{ fontSize: 20 }}>
+          {formatter(grandTotal) || 0} đ
+        </div>
+      </div>
+    </Col>
 
-      {/* Số tiền đã thanh toán — chỉ hiện khi Thanh toán một phần (value = 1) */}
-      {loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[1].value && (
-        <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-          <Form.Item
-            name="so_tien_da_thanh_toan"
-            label="Số tiền đã thanh toán"
-            rules={[
-              { required: true, message: "Số tiền đã thanh toán không được bỏ trống!" },
-              ({ getFieldValue }) => ({
-                validator(_, val) {
-                  const max = Number(tongTienThanhToan || 0);
-                  const num = Number(val || 0);
-                  return num >= 0 && num <= max
-                    ? Promise.resolve()
-                    : Promise.reject(new Error(`Tối đa ${formatter(max)} đ`));
-                },
-              }),
-            ]}
-          >
-            <InputNumber
-              placeholder="Nhập số tiền đã thanh toán"
-              disabled={isDetail}
-              style={{ width: "100%" }}
-              addonAfter="đ"
-              formatter={formatter}
-              parser={parser}
-              min={0}
-              inputMode="numeric"
-            />
-          </Form.Item>
-        </Col>
+    {/* Loại thanh toán — giữa (cố định bề rộng để ổn định) */}
+    <Col flex="0 0 320px">
+      <Form.Item
+        name="loai_thanh_toan"
+        label={<span style={{ whiteSpace: "nowrap" }}>Loại thanh toán</span>}
+        rules={[{ required: true, message: "Loại thanh toán không được bỏ trống!" }]}
+        initialValue={0}
+        style={{ marginBottom: 0 }}
+      >
+        <Select
+          options={OPTIONS_LOAI_THANH_TOAN}
+          placeholder="Chọn loại thanh toán"
+          disabled={isDetail}
+          getPopupContainer={(trigger) =>
+            (trigger && trigger.closest(".ant-modal")) || document.body
+          }
+          dropdownMatchSelectWidth={false}
+          popupClassName="phg-dd"
+        />
+      </Form.Item>
+    </Col>
+
+    {/* Số tiền đã thanh toán — phải; nếu KHÔNG “một phần” vẫn giữ chỗ để không rớt */}
+    <Col flex="1 1 33.33%">
+      {loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[1].value ? (
+        <Form.Item
+          name="so_tien_da_thanh_toan"
+          label="Số tiền đã thanh toán"
+          style={{ marginBottom: 0 }}
+          rules={[
+            { required: true, message: "Số tiền đã thanh toán không được bỏ trống!" },
+            () => ({
+              validator(_, val) {
+                const max = Number(grandTotal || 0);
+                const num = Number(val || 0);
+                return num >= 0 && num <= max
+                  ? Promise.resolve()
+                  : Promise.reject(new Error(`Tối đa ${formatter(max)} đ`));
+              },
+            }),
+          ]}
+        >
+          <InputNumber
+            placeholder="Nhập số tiền đã thanh toán"
+            disabled={isDetail}
+            style={{ width: "100%" }}
+            addonAfter="đ"
+            formatter={formatter}
+            parser={parser}
+            min={0}
+            inputMode="numeric"
+          />
+        </Form.Item>
+      ) : (
+        <div style={{ height: 56 }} /> // giữ chiều cao để hàng không nhảy
       )}
+    </Col>
+  </Row>
+</Col>
+
+{/* ===== HÀNG 3: TỔNG TIỀN CÒN LẠI — 1 CỘT, CĂN GIỮA (KHÔNG RỚT) ===== */}
+<Col span={24}>
+  <Row wrap={false}>
+    <Col flex="1 1 100%">
+      <div style={{ textAlign: "center", marginTop: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+          Tổng tiền thanh toán còn lại
+        </div>
+        <div style={{ fontSize: 20 }}>
+          {formatter(tongConLai) || 0} đ
+        </div>
+      </div>
+    </Col>
+  </Row>
+</Col>
+
 
       {/* Hàng thông tin thanh toán thực tế + nút đồng bộ */}
       <Col span={24}>
