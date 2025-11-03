@@ -73,27 +73,41 @@ export const isLockoutActive = (timestamp: number): boolean => {
 };
 
 export const ConvertTextCheckBox = (key: string): string => {
-    switch (key) {
-        case "export":
-            return "Xuất file";
-        case "index":
-            return "Xem";
-        case "create":
-            return "Thêm";
-        case "show":
-            return "Chi tiết";
-        case "edit":
-            return "Sửa";
-        case "delete":
-            return "Xóa";
-        case "import":
-            return "Nhập file";
-        case "showMenu":
-            return "Hiện menu";
-        default:
-            return key;
-    }
+  const map: Record<string, string> = {
+    // 7 quyền chuẩn
+    showMenu: "Hiện menu",
+    index: "Xem",
+    show: "Chi tiết",
+    create: "Thêm",
+    edit: "Sửa",
+    delete: "Xóa",
+    export: "Xuất file",
+
+    // (giữ nếu bạn có dùng)
+    import: "Nhập file",
+
+    // Quyền đặc thù — Utilities (Facebook/Zalo)
+    send: "Gửi trả lời",
+    assign: "Gán phụ trách",
+    status: "Đổi trạng thái",
+
+    // Quyền đặc thù — CSKH (Điểm thành viên)
+    sendZns: "Gửi ZNS",
+
+    // Quyền đặc thù — Giao hàng
+    notifyAndSetStatus: "Gửi SMS + đặt trạng thái",
+
+    // Quyền đặc thù — Khách hàng vãng lai
+    convert: "Chuyển sang khách chuẩn",
+
+    // Quyền đặc thù — Cash (chuyển nội bộ)
+    post: "Ghi sổ",
+    unpost: "Gỡ sổ",
+  };
+
+  return map[key] ?? key;
 };
+
 
 export function mergeArrays(arr1: any, arr2: any) {
     const merged = JSON.parse(JSON.stringify(arr1));

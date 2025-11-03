@@ -29,6 +29,9 @@ import {
 } from "../../services/utilities.zl.api";
 import type { JSX } from "react/jsx-runtime";
 
+import usePermission from "../../hooks/usePermission";
+
+
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
@@ -54,6 +57,13 @@ export default function ZaloInboxPage(): JSX.Element {
 
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [lastTypeAt, setLastTypeAt] = useState<number>(0);
+
+    // ===== permissions (RBAC) =====
+  const permZl = usePermission("/utilities/zl");
+  const canReply  = (permZl as any).send   === true;   // quyền GỬI trả lời
+  const canAssign = (permZl as any).assign === true;   // quyền GÁN phụ trách (để dùng khi bạn thêm nút)
+  const canStatus = (permZl as any).status === true;   // quyền ĐỔI TRẠNG THÁI (để dùng khi bạn thêm nút)
+
 
   // ===== polling config =====
   const POLL_MS = 4000; // 4 giây/lần
@@ -582,15 +592,16 @@ export default function ZaloInboxPage(): JSX.Element {
                       <Tag>Polish with AI: {health?.ai_polish ? "ON" : "OFF"}</Tag>
                       <Tag>Tone: {health?.ai_tone || "Neutral"}</Tag>
                     </Space>
-                    <Button
-                      type="primary"
-                      icon={<Send size={16} />}
-                      disabled={!enabled || !canSend || !draft.trim()}
-                      loading={sending}
-                      onClick={onSend}
-                    >
-                      Gửi
-                    </Button>
+<Button
+  type="primary"
+  icon={<Send size={16} />}
+  disabled={!canReply || !enabled || !canSend || !draft.trim()}
+  loading={sending}
+  onClick={onSend}
+>
+  Gửi
+</Button>
+
                   </Flex>
                 </Space>
               </Card>

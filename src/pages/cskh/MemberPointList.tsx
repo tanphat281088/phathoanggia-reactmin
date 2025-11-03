@@ -22,6 +22,9 @@ import dayjs, { Dayjs } from "dayjs";
 import baseAxios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 
+import usePermission from "../../hooks/usePermission";
+
+
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
@@ -96,6 +99,11 @@ export default function MemberPointList() {
   const [note, setNote] = useState<string>("");
     // Resync button state
   const [resyncLoading, setResyncLoading] = useState(false);
+
+    // ===== permissions (RBAC) cho CSKH → Điểm thành viên =====
+  const permPts = usePermission("/cskh/points");
+  const canSendZns = (permPts as any).sendZns === true;  // quyền Gửi ZNS
+
 
 
   // ------- Filters (form-controlled) -------
@@ -293,21 +301,23 @@ setPerPage(p?.per_page ?? _perPage);
         render: (_: any, r: PointEventRow) => {
           const canSend = r.zns_status === "pending" && Number(r.delta_points || 0) !== 0;
 
-          return (
-            <Space>
-              <Button
-                type="primary"
-                disabled={!canSend}
-                onClick={() => openSendModal(r)}
-              >
-                Gửi ZNS
-              </Button>
-            </Space>
-          );
+return (
+  <Space>
+    <Button
+      type="primary"
+      disabled={!canSendZns || !canSend}
+      onClick={() => openSendModal(r)}
+    >
+      Gửi ZNS
+    </Button>
+  </Space>
+);
+
         },
       },
     ];
-  }, []);
+}, [canSendZns]);
+
 
   const openSendModal = (row: PointEventRow) => {
     setSelectedRow(row);

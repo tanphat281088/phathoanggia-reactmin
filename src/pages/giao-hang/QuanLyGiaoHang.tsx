@@ -28,6 +28,9 @@ import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import { canSpeak, speakVi, buildDeliverySpeech } from "../../utils/tts"; // ✅ THÊM
 import LichGiaoTong from "./components/LichGiaoTong";
 
+import usePermission from "../../hooks/usePermission";
+
+
 
 
 const { Title, Text } = Typography;
@@ -119,6 +122,11 @@ function DonHomNayTab() {
   const [smsConfirm, setSmsConfirm] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
 
+    // ===== permissions (RBAC) cho Giao hàng =====
+  const permGh = usePermission("/giao-hang");
+  const canNotifyAndSet = (permGh as any).notifyAndSetStatus === true; // quyền "Gửi SMS + đặt trạng thái"
+
+
   const defaultSmsFor = (st: 1 | 2) =>
     st === 1
       ? "PHG Floral: Don hang cua Quy khach da hoan thien va dang duoc giao. Vui long giu lien lac de nhan hoa. LH 0949404344."
@@ -197,8 +205,10 @@ const onChangeTrangThai = async (record: DonHangRow, newStatus: 0 | 1 | 2 | 3) =
   //   - 0 -> 2  (Chưa giao -> Đã giao)
   //   - 1 -> 2  (Đang giao -> Đã giao)  ⬅️ BỔ SUNG
   const needModal =
+    canNotifyAndSet &&
     ((curr === 0 && (newStatus === 1 || newStatus === 2)) || (curr === 1 && newStatus === 2)) &&
     !alreadyAttemptedFor(newStatus);
+
 
   if (needModal) {
     setSmsRecord(record);

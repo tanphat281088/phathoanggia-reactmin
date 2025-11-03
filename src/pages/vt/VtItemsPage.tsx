@@ -13,6 +13,7 @@ import {
   Tooltip,
   message,
   Select,
+  Popconfirm,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
@@ -137,23 +138,62 @@ const onClone = (r: VtItem) => {
 
 
 
-  const onDelete = async (r: VtItem) => {
-    Modal.confirm({
-      title: `Xóa vật tư ${r.ma_vt}?`,
-      okText: "Xóa",
-      okType: "danger",
-      cancelText: "Hủy",
-      onOk: async () => {
-        try {
-          await vtItemDelete(r.id);
-          message.success("Đã xóa vật tư");
-          fetchData();
-        } catch (e: any) {
-          message.error(e?.message || "Xóa thất bại");
-        }
-      },
-    });
-  };
+
+const doDelete = React.useCallback(async (r: VtItem) => {
+  const id = Number(r.id);
+  if (!id) { message.error("ID vật tư không hợp lệ"); return; }
+  try {
+    await vtItemDelete(id);
+    message.success(`Đã xóa vật tư ${r.ma_vt}`);
+    setRows(prev => prev.filter((x:any) => Number(x.id) !== id)); // optimistic
+    await fetchData();                                            // đồng bộ lại
+  } catch (e:any) {
+    message.error(e?.message || "Xóa vật tư thất bại");
+  }
+}, [fetchData]);
+
+
+
+// VtItemsPage.tsx
+// Dùng useCallback để columns luôn nhận handler mới nhất
+const onDelete = React.useCallback((r: VtItem) => {
+  const id = Number((r as any)?.id);
+  if (!id) {
+    console.warn('[VT][DELETE] invalid id from row:', r);
+    message.error('ID vật tư không hợp lệ (id=undefined)');
+    return;
+  }
+
+  Modal.confirm({
+    title: `Xóa vật tư ${r.ma_vt}?`,
+    content: "Thao tác này không thể hoàn tác.",
+    okText: "Xóa",
+    cancelText: "Hủy",
+    okType: "danger",
+    centered: true,
+    async onOk() {
+      try {
+        console.log('[VT][DELETE] try delete id=', id, r);
+        await vtItemDelete(id);                        // gọi API
+        message.success(`Đã xóa vật tư ${r.ma_vt}`);
+
+        // ✅ Xóa ngay trên UI
+        setRows(prev => prev.filter((x:any) => Number(x.id) !== id));
+
+        // ✅ Đồng bộ lại từ server
+        await fetchData();
+      } catch (e:any) {
+        const msg = (typeof e?.message === 'string' && e.message.trim())
+          ? e.message : 'Xóa vật tư thất bại';
+        console.error('[VT][DELETE] error:', e);
+        message.error(msg);
+      }
+    },
+  });
+}, [fetchData]);
+
+
+
 
   const onSubmit = async () => {
     try {
@@ -172,57 +212,49 @@ const onClone = (r: VtItem) => {
     }
   };
 
-  const columns: ColumnsType<any> = useMemo(
-    () => [
-      { title: "Mã VT", dataIndex: "ma_vt", width: 130, fixed: "left" },
-      { title: "Tên VT", dataIndex: "ten_vt", width: 260 },
-      { title: "Danh mục", dataIndex: "danh_muc_vt", width: 180 },
-      { title: "Nhóm", dataIndex: "nhom_vt", width: 180 },
-      { title: "ĐVT", dataIndex: "don_vi_tinh", width: 90 },
-      {
-        title: "Loại",
-        dataIndex: "loai",
-        width: 120,
-        render: (v: VtItem["loai"]) =>
-          v === "ASSET" ? <Tag color="blue">Tài sản</Tag> : <Tag>Tiêu hao</Tag>,
-      },
-      {
-        title: "Trạng thái",
-        dataIndex: "trang_thai",
-        width: 120,
-        render: (v: number) =>
-          v ? <Tag color="green">Đang dùng</Tag> : <Tag color="red">Ngưng</Tag>,
-      },
-      {
-        title: "Cập nhật",
-        dataIndex: "updated_at",
-        width: 160,
-        render: (v: string) => (v ? dayjs(v).format("DD/MM/YYYY HH:mm") : ""),
-      },
-{
+const columns: ColumnsType<any> = [
+  { title: "Mã VT", dataIndex: "ma_vt", width: 130, fixed: "left" },
+  { title: "Tên VT", dataIndex: "ten_vt", width: 260 },
+  { title: "Danh mục", dataIndex: "danh_muc_vt", width: 180 },
+  { title: "Nhóm", dataIndex: "nhom_vt", width: 180 },
+  { title: "ĐVT", dataIndex: "don_vi_tinh", width: 90 },
+  {
+    title: "Loại", dataIndex: "loai", width: 120,
+    render: (v: VtItem["loai"]) => (v === "ASSET" ? <Tag color="blue">Tài sản</Tag> : <Tag>Tiêu hao</Tag>),
+  },
+  {
+    title: "Trạng thái", dataIndex: "trang_thai", width: 120,
+    render: (v: number) => (v ? <Tag color="green">Đang dùng</Tag> : <Tag color="red">Ngưng</Tag>),
+  },
+  {
+    title: "Cập nhật", dataIndex: "updated_at", width: 160,
+    render: (v: string) => (v ? dayjs(v).format("DD/MM/YYYY HH:mm") : ""),
+  },
+  {
   title: "Thao tác",
   key: "actions",
   fixed: "right",
-  width: 220, // tăng chút để đủ 3 nút
+  width: 220,
   render: (_: any, r: VtItem) => (
     <Space>
-      <Tooltip title="Sửa">
-        <Button size="small" onClick={() => onEdit(r)}>Sửa</Button>
-      </Tooltip>
-      <Tooltip title="Thêm bản sao">
-        <Button size="small" onClick={() => onClone(r)}>Thêm bản sao</Button>
-      </Tooltip>
-      <Tooltip title="Xóa">
-        <Button size="small" danger onClick={() => onDelete(r)}>Xóa</Button>
-      </Tooltip>
+      <Button size="small" onClick={() => onEdit(r)}>Sửa</Button>
+      <Button size="small" onClick={() => onClone(r)}>Thêm bản sao</Button>
+
+      <Popconfirm
+        title={`Xóa vật tư ${r.ma_vt}?`}
+        okText="Xóa"
+        cancelText="Hủy"
+        okType="danger"
+        placement="left"
+        onConfirm={() => doDelete(r)}
+      >
+        <Button size="small" danger>Xóa</Button>
+      </Popconfirm>
     </Space>
   ),
 },
+];
 
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
 
   return (
     <Card

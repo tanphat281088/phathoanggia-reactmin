@@ -1,6 +1,19 @@
 // react-admin/src/services/vt.api.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const API = (import.meta as any).env?.VITE_API_URL || "/api";
+
+// ===== API base URL (runtime-safe) =====
+// 1) Ưu tiên meta <meta name="phg-api-url" content="https://api.phgfloral.com/api">
+// ===== FORCE API (test) =====
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+// ===== API base (FORCED) =====
+const API: string = 'https://api.phgfloral.com/api';
+
+// Ghim để kiểm tra runtime
+;(window as any).__API = API;
+console.log('[FE] API base (FORCED):', API);
+
+
 
 function authHeaders() {
   const token = localStorage.getItem("token"); // chỉnh lại nếu bạn lưu tên khác
@@ -11,16 +24,39 @@ function authHeaders() {
 }
 
 async function http<T>(url: string, options: RequestInit = {}): Promise<T> {
+  console.log('[HTTP]', options?.method || 'GET', url);
   const res = await fetch(url, {
     ...options,
     headers: { ...authHeaders(), ...(options.headers || {}) },
   });
+
+  // Nếu HTTP lỗi → ném lỗi kèm mã status (ví dụ: [403] Forbidden)
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `HTTP ${res.status} ${res.statusText}`);
+    throw new Error(`[${res.status}] ${text || res.statusText}`);
   }
-  return (await res.json()) as T;
+
+  // ✅ DELETE hay 204/205: không có body → trả undefined
+  if (res.status === 204 || res.status === 205) {
+    return undefined as T;
+  }
+
+  // ✅ Nếu không phải JSON hoặc body rỗng → trả undefined
+  const ct = res.headers.get("content-type") || "";
+  const raw = await res.text(); // đọc text 1 lần để tránh lỗi stream locked
+  if (!raw) {
+    return undefined as T;
+  }
+  if (!ct.toLowerCase().includes("application/json")) {
+    // không phải JSON; thử parse, nếu fail thì trả undefined
+    try { return JSON.parse(raw) as T; } catch { return undefined as T; }
+  }
+
+  // ✅ JSON hợp lệ
+  return JSON.parse(raw) as T;
 }
+
+
 
 /** ================== Utils ================== */
 function omitKeys<T extends Record<string, any>>(obj: T, keys: string[]): Partial<T> {

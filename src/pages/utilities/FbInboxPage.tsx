@@ -29,6 +29,9 @@ import {
 } from "../../services/utilities.fb.api";
 import type { JSX } from "react/jsx-runtime";
 
+import usePermission from "../../hooks/usePermission";
+
+
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -57,6 +60,11 @@ export default function FbInboxPage(): JSX.Element {
 
   const [lastTypeAt, setLastTypeAt] = useState<number>(0);
 
+  // ===== permissions (RBAC) =====
+  const permFb = usePermission("/utilities/fb");
+  const canReply  = (permFb as any).send   === true;   // quyền gửi trả lời
+  const canAssign = (permFb as any).assign === true;   // quyền gán phụ trách (để dùng khi bạn thêm nút)
+  const canStatus = (permFb as any).status === true;   // quyền đổi trạng thái (để dùng khi bạn thêm nút)
 
 
   // ===== polling config =====
@@ -522,15 +530,18 @@ setTimeout(() => loadList(1), 1500);
                       <Tag>Polish with AI: {health?.ai_polish ? "ON" : "OFF"}</Tag>
                       <Tag>Tone: {health?.ai_tone || "Neutral"}</Tag>
                     </Space>
-                    <Button
-                      type="primary"
-                      icon={<Send size={16} />}
-                      disabled={!enabled || !within24h || !draft.trim()}
-                      loading={sending}
-                      onClick={onSend}
-                    >
-                      Gửi
-                    </Button>
+{canReply && (
+  <Button
+    type="primary"
+    icon={<Send size={16} />}
+    disabled={!enabled || !within24h || !draft.trim()}
+    loading={sending}
+    onClick={onSend}
+  >
+    Gửi
+  </Button>
+)}
+
                   </Flex>
                 </Space>
               </Card>

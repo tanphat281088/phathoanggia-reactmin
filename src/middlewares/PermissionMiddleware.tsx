@@ -60,6 +60,20 @@ const PermissionMiddleware = ({ children }: { children: React.ReactNode }) => {
   const { pathname } = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
 
+  // ❷ OWNER-ONLY: chặn truy cập 2 module qua URL đối với non-owner
+const isOwner = String(user?.email || "").toLowerCase() === "admin@gmail.com";
+const OWNER_ONLY_PREFIXES = [
+  "/admin/quan-ly-nguoi-dung",  // gồm cả /nguoi-dung, /vai-tro
+  "/admin/thiet-lap-he-thong", 
+   "/admin/lich-su-import",  // gồm cả /cau-hinh-chung, /thoi-gian-lam-viec
+];
+
+if (!isOwner && OWNER_ONLY_PREFIXES.some((pre) => pathname === pre || pathname.startsWith(pre + "/"))) {
+  toast.error("Bạn không có quyền truy cập vào trang này");
+  return <Navigate to={URL_CONSTANTS.DASHBOARD} />;
+}
+
+
   const allow = () => {
     // 1) Whitelist theo path đầy đủ (giữ nguyên hành vi cũ)
     if (EXTRA_WHITELIST.some((w) => pathname.startsWith(w))) {

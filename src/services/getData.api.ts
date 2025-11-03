@@ -56,7 +56,6 @@ export const getDataSelect = async (path: string, params: any = {}) => {
   }
 };
 
-
 export const getListData = async (path: string, params: any = {}) => {
   try {
     const resp: ApiResponseSuccess<any> = await axios.get(path, { params });
@@ -85,17 +84,45 @@ export const getListData = async (path: string, params: any = {}) => {
   }
 };
 
+/**
+ * Luôn trả về mảng [{ name, actions:boolean }] từ endpoint /danh-sach-phan-quyen
+ * Hỗ trợ:
+ *  - V1: { success:true, data:[ ... ] }
+ *  - V2: { version:'v2', items:[ ... ] }
+ *  - Trả trực tiếp mảng
+ */
 export const getListPhanQuyenMacDinh = async () => {
   try {
     const resp: ApiResponseSuccess<any> = await axios.get(
       API_ROUTE_CONFIG.DANH_SACH_PHAN_QUYEN
     );
-    if ((resp as any)?.success) {
-      return (resp as any).data;
-    }
-    const payload = (resp as any)?.data ?? resp;
-    if (payload?.success) return payload.data;
+
+    // Interceptor có thể đã flatten; nếu không => dùng .data
+    const payload: any = (resp as any)?.data ?? resp;
+
+    // Ưu tiên V2.items -> V1.data -> bản thân payload nếu đã là mảng
+    const rawArray =
+      Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+
+    // Chuẩn hoá về IPhanQuyen[]: ép mọi action về boolean
+    const normalized = rawArray.map((it: any) => {
+      const name = String(it?.name ?? "");
+      const actionsObj = it?.actions && typeof it.actions === "object" ? it.actions : {};
+      const actions = Object.fromEntries(
+        Object.keys(actionsObj).map((k) => [k, !!actionsObj[k]])
+      );
+      return { name, actions };
+    });
+
+    return normalized;
   } catch (error: any) {
     handleAxiosError(error);
+    return []; // an toàn cho FE (không crash .map)
   }
 };

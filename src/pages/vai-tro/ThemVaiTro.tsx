@@ -17,19 +17,32 @@ const ThemVaiTro = ({ path }: { path: string }) => {
     const [form] = Form.useForm();
     const title = `Thêm Vai trò`;
 
-    const showModal = async () => {
-        setIsModalOpen(true);
-        const vaiTroMacDinh = await getListPhanQuyenMacDinh();
-        setVaiTroMacDinh(vaiTroMacDinh);
-        vaiTroMacDinh.map((item: IPhanQuyen) => {
-            for (const key in item.actions) {
-                if (!item.actions[key]) {
-                    return form.setFieldValue(`checkall_${item.name}`, false);
-                }
-            }
-            return form.setFieldValue(`checkall_${item.name}`, true);
-        });
-    };
+  const showModal = async () => {
+  setIsModalOpen(true);
+
+  // Lấy registry (V1: {success,data:[...]}, V2: {version,items:[...]}, hoặc mảng)
+  const reg = await getListPhanQuyenMacDinh();
+
+  // Chuẩn hoá về mảng IPhanQuyen[]
+  const base = Array.isArray(reg) ? reg : (Array.isArray((reg as any)?.items) ? (reg as any).items : (Array.isArray((reg as any)?.data) ? (reg as any).data : []));
+  const normalized: IPhanQuyen[] = base.map((it: any) => {
+    const name = String(it?.name ?? "");
+    const actionsObj = it?.actions && typeof it.actions === "object" ? it.actions : {};
+    const actions: Record<string, boolean> = Object.fromEntries(
+      Object.keys(actionsObj).map((k) => [k, Boolean(actionsObj[k])])
+    );
+    return { name, actions };
+  });
+
+  setVaiTroMacDinh(normalized);
+
+  // Set trạng thái "Tất cả" cho từng module
+  normalized.forEach((item: IPhanQuyen) => {
+    const allOn = Object.values(item.actions).every((v) => v === true);
+    form.setFieldValue(`checkall_${item.name}`, allOn);
+  });
+};
+
 
     const handleCancel = () => {
         setIsModalOpen(false);

@@ -21,31 +21,65 @@ const SuaVaiTro = ({ path, id }: { path: string; id: number }) => {
     const dispatch = useDispatch();
     const title = `Sửa Vai trò`;
 
-    const showModal = async () => {
-        setIsModalOpen(true);
-        setIsLoading(true);
-        const vaiTroMacDinh = await getListPhanQuyenMacDinh();
-        const data = await getDataById(id, path);
-        const resultArray = mergeArrays(
-            vaiTroMacDinh,
-            JSON.parse(data.phan_quyen)
-        );
-        setVaiTroMacDinh(resultArray);
-        resultArray.forEach((item: IPhanQuyen) => {
-            let allActionsChecked = true;
-            Object.entries(item.actions).forEach(([key, value]) => {
-                form.setFieldValue([`${item.name}_${key}`], value);
-                if (value === false) {
-                    allActionsChecked = false;
-                }
-            });
-            form.setFieldValue(`checkall_${item.name}`, allActionsChecked);
-        });
-        form.setFieldsValue({
-            ...data,
-        });
-        setIsLoading(false);
-    };
+ const showModal = async () => {
+  setIsModalOpen(true);
+  setIsLoading(true);
+  try {
+    // 1) Lấy registry (V1: {success,data:[...]}; V2: {version,items:[...]}; hoặc mảng)
+    const reg = await getListPhanQuyenMacDinh();
+    // Chuẩn hoá registry -> mảng IPhanQuyen { name, actions:boolean }
+    const base = Array.isArray(reg)
+      ? reg
+      : Array.isArray((reg as any)?.items)
+      ? (reg as any).items
+      : Array.isArray((reg as any)?.data)
+      ? (reg as any).data
+      : [];
+
+    const normalized: IPhanQuyen[] = base.map((it: any) => {
+      const name = String(it?.name ?? "");
+      const actionsObj = it?.actions && typeof it.actions === "object" ? it.actions : {};
+      const actions: Record<string, boolean> = Object.fromEntries(
+        Object.keys(actionsObj).map((k) => [k, Boolean(actionsObj[k])])
+      );
+      return { name, actions };
+    });
+
+    // 2) Lấy dữ liệu vai trò hiện tại
+    const data = await getDataById(id, path);
+
+    // Quyền đang lưu trong DB (có thể rỗng/không phải JSON hợp lệ)
+    let saved: IPhanQuyen[] = [];
+    try {
+      const raw = String(data?.phan_quyen ?? "[]");
+      const parsed = JSON.parse(raw);
+      saved = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      saved = [];
+    }
+
+    // 3) Merge registry (normalized) với quyền đã lưu (saved)
+    const resultArray: IPhanQuyen[] = mergeArrays(normalized, saved);
+
+    // 4) Đổ vào form
+    setVaiTroMacDinh(resultArray);
+
+    resultArray.forEach((item: IPhanQuyen) => {
+      let allActionsChecked = true;
+      Object.entries(item.actions).forEach(([key, value]) => {
+        const v = Boolean(value);
+        form.setFieldValue([`${item.name}_${key}`], v);
+        if (!v) allActionsChecked = false;
+      });
+      form.setFieldValue(`checkall_${item.name}`, allActionsChecked);
+    });
+
+    form.setFieldsValue({ ...data });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
     const handleCancel = () => {
         setIsModalOpen(false);

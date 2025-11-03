@@ -134,9 +134,37 @@ const openClone = (r: Issue) => {
     } catch { /* ignore */ }
   };
 
-  const del = (r: Issue) => {
-    Modal.confirm({ title: `Xóa phiếu xuất ${r.so_ct}?`, okType: "danger", onOk: async () => { await vtIssueDelete(r.id); message.success("Đã xóa"); fetchList(); } });
-  };
+// VtIssuesPage.tsx
+// VtIssuesPage.tsx
+const del = (r: Issue) => {
+  Modal.confirm({
+    title: `Xóa phiếu xuất ${r.so_ct}?`,
+    content: "Thao tác này không thể hoàn tác.",
+    okText: "Xóa",
+    cancelText: "Hủy",
+    okType: "danger",
+    centered: true,
+    async onOk() {
+      try {
+        await vtIssueDelete(r.id);   // DELETE (204/200 đều OK qua http())
+        message.success(`Đã xóa phiếu xuất ${r.so_ct}`);
+
+        // ✅ Xóa khỏi UI ngay lập tức
+        setRows(prev => prev.filter(x => x.id !== r.id));
+
+        // ✅ Rồi nạp lại danh sách từ server để đồng bộ
+        await fetchList();
+      } catch (e: any) {
+        const msg = (typeof e?.message === "string" && e.message.trim())
+          ? e.message
+          : "Xóa phiếu xuất thất bại";
+        message.error(msg);
+        // KHÔNG throw để Modal không bị kẹt loading
+      }
+    },
+  });
+};
+
 
   // Tải options “Tham chiếu” theo lý do & từ khóa
   const reloadRefOptions = async () => {

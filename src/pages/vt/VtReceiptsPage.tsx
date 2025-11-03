@@ -80,6 +80,39 @@ export default function VtReceiptsPage(): JSX.Element {
     setOpen(true);
   };
 
+const openClone = (r: Receipt) => {
+  // MỞ MODAL TẠO MỚI nhưng prefill từ phiếu gốc
+  setEditing(null);               // rất quan trọng: submit đi nhánh CREATE
+  form.resetFields();
+
+  form.setFieldsValue({
+    // KHÔNG set so_ct → BE tự sinh PNVT-...
+    ngay_ct: dayjs(r.ngay_ct),    // nếu muốn ngày hiện tại thay bằng dayjs()
+    tham_chieu: r.tham_chieu || undefined,
+    ghi_chu: r.ghi_chu || undefined,
+  } as any);
+
+  setItems((r.items || []).map((it, idx) => ({
+    vt_item_id: it.vt_item_id,
+    so_luong: it.so_luong,
+    don_gia:  (typeof it.don_gia === "number" ? it.don_gia : null),
+    ghi_chu:  undefined,
+    _key:     `clone-${idx}-${Date.now()}`,
+  })));
+
+  // bảo đảm Select “Tham chiếu” hiển thị được nhãn cũ nếu có
+  if (r.tham_chieu) {
+    setRefOpts(prev => {
+      const exists = prev.some(o => o.value === r.tham_chieu);
+      return exists ? prev : [{ value: r.tham_chieu!, label: r.tham_chieu! }, ...prev];
+    });
+  }
+
+  setOpen(true);
+};
+
+
+
   const removeRow = (idx: number) => setItems((arr) => arr.filter((_, i) => i !== idx));
   const addRow = () => setItems((arr) => [...arr, { vt_item_id: 0, so_luong: 1, don_gia: null, _key: Math.random().toString(36).slice(2) }]);
 
@@ -107,13 +140,38 @@ export default function VtReceiptsPage(): JSX.Element {
     } catch { /* ignore */ }
   };
 
-  const del = (r: Receipt) => {
-    Modal.confirm({
-      title: `Xóa phiếu nhập ${r.so_ct}?`,
-      okType: "danger",
-      onOk: async () => { await vtReceiptDelete(r.id); message.success("Đã xóa"); fetchList(); }
-    });
-  };
+// VtReceiptsPage.tsx
+// VtReceiptsPage.tsx
+const del = (r: Receipt) => {
+  Modal.confirm({
+    title: `Xóa phiếu nhập ${r.so_ct}?`,
+    content: "Thao tác này không thể hoàn tác.",
+    okText: "Xóa",
+    cancelText: "Hủy",
+    okType: "danger",
+    centered: true,
+    async onOk() {
+      try {
+        await vtReceiptDelete(r.id);   // DELETE (200/204 đều OK qua http())
+        message.success(`Đã xóa phiếu nhập ${r.so_ct}`);
+
+        // ✅ Xóa khỏi UI ngay lập tức
+        setRows(prev => prev.filter(x => x.id !== r.id));
+
+        // ✅ Rồi nạp lại danh sách từ server để đồng bộ
+        await fetchList();
+      } catch (e: any) {
+        const msg = (typeof e?.message === "string" && e.message.trim())
+          ? e.message
+          : "Xóa phiếu nhập thất bại";
+        message.error(msg);
+        // KHÔNG throw để Modal không bị kẹt loading
+      }
+    },
+  });
+};
+
+
 
   // Tải options “Tham chiếu”
   const reloadRefOptions = async () => {
@@ -151,15 +209,20 @@ export default function VtReceiptsPage(): JSX.Element {
 },
 
     { title: "Ghi chú", dataIndex: "ghi_chu" },
-    {
-      title: "Thao tác", key: "x", width: 160, fixed: "right",
-      render: (_, r) => (
-        <Space>
-          <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
-          <Button size="small" danger onClick={() => del(r)}>Xóa</Button>
-        </Space>
-      )
-    }
+{
+  title: "Thao tác",
+  key: "x",
+  width: 220,                   // tăng chút để đủ 3 nút
+  fixed: "right",
+  render: (_, r) => (
+    <Space>
+      <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
+      <Button size="small" onClick={() => openClone(r)}>Thêm bản sao</Button>
+      <Button size="small" danger onClick={() => del(r)}>Xóa</Button>
+    </Space>
+  )
+}
+
   ], []);
 
   return (
