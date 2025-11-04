@@ -1,0 +1,120 @@
+/* src/mobile/theme.css — Pastel Pink Mobile Theme (PHG) */
+:root {
+  --phg-primary: #f6a6c1;          /* pastel pink */
+  --phg-primary-600: #f083a6;
+  --phg-accent:  #ffdbe8;          /* light blush */
+  --phg-bg:      #ffffff;
+  --phg-ink:     #232323;
+  --phg-ink-weak:#666666;
+  --phg-border:  #f3e6eb;
+  --phg-card:    #ffffff;
+  --phg-shadow:  0 8px 24px rgba(246,166,193,.18);
+
+  /* antd-mobile bridge */
+  --adm-color-primary: var(--phg-primary);
+  --adm-border-color:  var(--phg-border);
+  --adm-color-text:    var(--phg-ink);
+  --adm-color-weak:    var(--phg-ink-weak);
+}
+
+/* ===== Shell / Header / TabBar ===== */
+.phg-header {
+  background: linear-gradient(180deg, #ffe9f1 0%, #fff 100%);
+  border-bottom: 1px solid var(--phg-border);
+}
+.phg-title {
+  font-weight: 800;
+  letter-spacing: .2px;
+  font-size: 18px;
+  color: var(--phg-ink);
+}
+.phg-subtitle {
+  font-size: 12px;
+  color: var(--phg-ink-weak);
+}
+.phg-tabbar {
+  border-top: 1px solid var(--phg-border);
+  background: var(--phg-bg);
+}
+
+/* ===== Cards / Containers ===== */
+.phg-card {
+  background: var(--phg-card);
+  border: 1px solid #f7eaf0;
+  border-radius: 14px;
+  box-shadow: var(--phg-shadow);
+}
+.phg-section {
+  padding: 12px;
+  background: var(--phg-bg);
+}
+
+/* ===== Chips / Badges ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--phg-accent);
+  color: var(--phg-ink);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ===== Sticky action area (footer) ===== */
+.sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  background: var(--phg-bg);
+  padding: 10px 12px calc(env(safe-area-inset-bottom, 0) + 10px);
+  border-top: 1px solid var(--phg-border);
+  box-shadow: 0 -10px 24px rgba(0,0,0,.04);
+}
+.sticky-actions .summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.sticky-actions .primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--phg-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+.sticky-actions .danger-btn {
+  background: #ef476f;
+}
+
+/* ===== Utilities ===== */
+.phg-muted { color: var(--phg-ink-weak); }
+.phg-row   { display:flex; align-items:center; gap:8px; }
+.phg-col   { display:flex; flex-direction:column; gap:6px; }
+.phg-sep   { height: 1px; background: var(--phg-border); margin: 8px 0; }
+
+/* Better tap targets on mobile */
+button, .adm-button, .adm-list-item, .adm-segmented-item {
+  min-height: 40px;
+}
+
+/* Prevent scroll bounce on inner lists while keeping page scroll */
+.phg-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Small helpers for amounts */
+.amount { font-feature-settings: "tnum"; tab-size: 4; }
+.amount-strong { font-size: 16px; font-weight: 800; }

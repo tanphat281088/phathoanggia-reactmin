@@ -10,8 +10,6 @@ const useSidebar = () => {
   const location = useLocation();
 
   // Mặc định mở group theo segment đầu tiên của URL
-  // thiet-lap-he-thong/cau-hinh-chung -> "thiet-lap-he-thong"
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [openKeys, setOpenKeys] = useState<string[]>([
     location.pathname.replace("/admin/", "").split("/")[0],
   ]);
@@ -35,16 +33,38 @@ const useSidebar = () => {
   const OWNER_ONLY_PARENTS = new Set<string>([
     "quan-ly-nguoi-dung",
     "thiet-lap-he-thong",
-    "lich-su-import",     
+    "lich-su-import",
   ]);
 
-
-
-  // ===== Bypass toàn bộ menu cho admin hệ thống (nếu bạn muốn bật)
-  // const isSysAdmin = String(user?.email || "").toLowerCase() === "admin@gmail.com";
-  // if (isSysAdmin) {
-  //   return { items: items, openKeys };
-  // }
+  // ======= BYPASS TOÀN BỘ MENU CHO CHỦ HỆ THỐNG =======
+  if (isOwner) {
+    // Giữ nguyên logic đánh dấu selected
+    const getSelectedKey = (sourceItems: any[]) => {
+      const path = location.pathname;
+      const currentPath = path.replace("/admin/", "");
+      return sourceItems.map((item) => {
+        if (!item.children) {
+          return {
+            ...item,
+            className: currentPath === item.key ? "ant-menu-item-selected" : "",
+          };
+        }
+        return {
+          ...item,
+          children: item.children.map((child: any) => {
+            const pathChild = `${item.key}/${child.key}`;
+            if (currentPath === pathChild) {
+              return { ...child, className: "ant-menu-item-selected" };
+            }
+            return child;
+          }),
+        };
+      });
+    };
+    const updatedItems = getSelectedKey(items);
+    return { items: updatedItems, openKeys };
+  }
+  // ================================================
 
   // ===== Danh sách module có trong vai trò (để map nhanh)
   const grantedNames = new Set<string>();
@@ -52,8 +72,9 @@ const useSidebar = () => {
     if (r && typeof r.name === "string") grantedNames.add(r.name);
   });
 
-  // ===== Hàm check quyền show menu
+  // ===== Hàm check quyền show menu (bypass thêm một lớp dự phòng)
   const hasMenu = (moduleName: string): boolean => {
+    if (isOwner) return true; // dự phòng
     if (!moduleName) return false;
     const p = roles.find((r: any) => r?.name === moduleName);
     if (!p || !p.actions) return false;
@@ -98,10 +119,10 @@ const useSidebar = () => {
     "quan-ly-nguoi-dung": null,
     "thiet-lap-he-thong": null,
     "quan-ly-khach-hang": null,
-    "cham-soc-khach-hang": "cskh", // nhóm cha cskh (tùy chọn có thể cần showMenu)
+    "cham-soc-khach-hang": "cskh",
     "quan-ly-san-pham": null,
     "quan-ly-vat-tu": null,
-    "quan-ly-tien-ich": "utilities", // nhóm cha utilities (tùy chọn có thể cần showMenu)
+    "quan-ly-tien-ich": "utilities",
     "quan-ly-thu-chi": null,
     "quan-ly-nhan-su": null,
 
@@ -109,70 +130,56 @@ const useSidebar = () => {
     "quan-ly-giao-hang": "giao-hang",
   };
 
-  // Resolve module theo key menu (parent/child)
   const resolveModuleForMenu = (parentKey: string, childKey?: string): string | null => {
     if (childKey) {
       const mapped = CHILD_TO_MODULE[childKey];
       if (Array.isArray(mapped)) {
-        // ANY-OF: nếu bất kỳ module nào trong danh sách có quyền menu → coi như có
         const ok = mapped.some((m) => hasMenu(m));
-        return ok ? mapped[0] : null; // trả về 1 module đại diện để pass filter
+        return ok ? mapped[0] : null;
       }
       if (typeof mapped === "string") return mapped;
-      // nếu childKey chính là module (thường gặp): dùng trực tiếp
       if (grantedNames.has(childKey)) return childKey;
-      // fallback: thử parent
     }
     const parentMapped = PARENT_TO_MODULE[parentKey];
     if (typeof parentMapped === "string") return parentMapped;
-    // nếu parentKey chính là module
     if (grantedNames.has(parentKey)) return parentKey;
     return null;
   };
 
-  // ===== Lọc menu theo quyền (dùng bảng ánh xạ + fallback)
-// ===== Helper: xác định "module key" từ item (ưu tiên child)
-// Dùng function declaration để hoist, tránh lỗi TS "Cannot find name 'getModuleKey'"
+  const filterByPermission = (src: any[]): any[] => {
+    return src
+      .map((item: any) => {
+        // ❶ OWNER-ONLY: ẩn menu này nếu KHÔNG phải owner
+        if (OWNER_ONLY_PARENTS.has(item.key) && !isOwner) {
+          return null;
+        }
 
+        // ❷ Không có children → kiểm tra theo module được resolve từ parent key
+        if (!item.children || item.children.length === 0) {
+          const mod = resolveModuleForMenu(item.key) ?? "";
+          return hasMenu(mod) ? item : null;
+        }
 
+        // ❸ Có children → kiểm theo child trước, nếu child không map được module thì fallback về parent
+        const filteredChildren = item.children.filter((child: any) => {
+          const mod = resolveModuleForMenu(item.key, child.key) ?? "";
+          return hasMenu(mod);
+        });
 
-const filterByPermission = (src: any[]): any[] => {
-  return src
-    .map((item: any) => {
-      // ❶ OWNER-ONLY: ẩn 2 menu nếu KHÔNG phải admin@gmail.com
-      if (OWNER_ONLY_PARENTS.has(item.key) && !isOwner) {
-        return null;
-      }
+        // ❹ Nếu không còn child nào, vẫn hiển thị parent nếu parent map về 1 module có quyền menu
+        if (filteredChildren.length === 0) {
+          const parentMod = resolveModuleForMenu(item.key) ?? "";
+          return hasMenu(parentMod) ? { ...item, children: [] } : null;
+        }
 
-      // ❷ Không có children → kiểm tra theo module được resolve từ parent key
-      if (!item.children || item.children.length === 0) {
-        const mod = resolveModuleForMenu(item.key) ?? "";
-        return hasMenu(mod) ? item : null;
-      }
+        return { ...item, children: filteredChildren };
+      })
+      .filter(Boolean);
+  };
 
-      // ❸ Có children → kiểm theo child trước, nếu child không map được module thì fallback về parent
-      const filteredChildren = item.children.filter((child: any) => {
-        const mod = resolveModuleForMenu(item.key, child.key) ?? "";
-        return hasMenu(mod);
-      });
-
-      // ❹ Nếu không còn child nào, vẫn hiển thị parent nếu parent map về 1 module có quyền menu
-      if (filteredChildren.length === 0) {
-        const parentMod = resolveModuleForMenu(item.key) ?? "";
-        return hasMenu(parentMod) ? { ...item, children: [] } : null;
-      }
-
-      return { ...item, children: filteredChildren };
-    })
-    .filter(Boolean);
-};
-
-
-  // ===== Xác định item đang active (giữ nguyên logic cũ)
   const getSelectedKey = (sourceItems: any[]) => {
     const path = location.pathname;
-    const currentPath = path.replace("/admin/", ""); // ví dụ: thiet-lap-he-thong/cau-hinh-chung
-
+    const currentPath = path.replace("/admin/", "");
     return sourceItems.map((item) => {
       if (!item.children) {
         return {

@@ -63,6 +63,9 @@ import FbInboxPage from "../pages/utilities/FbInboxPage";
 
 import ZaloInboxPage from "../pages/utilities/ZaloInboxPage";
 
+import { mobileRoute } from "../mobile/router";
+
+
 
 
 export const router = createBrowserRouter([
@@ -395,4 +398,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  mobileRoute,
 ]);

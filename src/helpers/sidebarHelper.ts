@@ -1,5 +1,6 @@
 // /* eslint-disable @typescript-eslint/no-explicit-any */
 // export const getSidebar = (items: any, phan_quyen: any) => {
+
 //     const phanQuyen = JSON.parse(phan_quyen);
 
 //     const isKeyValid = (key: string): boolean => {
@@ -36,6 +37,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const getSidebar = (items: any, phan_quyen: any) => {
+
+    // ===== BYPASS CHO CHỦ HỆ THỐNG (luôn hiện full menu, không lọc theo phan_quyen) =====
+  try {
+    const raw =
+      localStorage.getItem("me") ||
+      localStorage.getItem("user") ||
+      localStorage.getItem("auth_user") ||
+      "";
+    const obj = raw ? JSON.parse(raw) : {};
+    const email = String(obj?.email || obj?.data?.email || "").toLowerCase();
+    if (email === "admin@gmail.com") {
+      return items; // owner nhìn thấy toàn bộ menu
+    }
+  } catch {}
+
   if (!phan_quyen) return [];
 
   let phanQuyen: any[] = [];

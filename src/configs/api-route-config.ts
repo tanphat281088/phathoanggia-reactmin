@@ -5,6 +5,9 @@ export const API_ROUTE_CONFIG = {
   LOGOUT: "/auth/logout",
   ME: "/auth/me",
   PROFILE: "/auth/profile",
+
+    AUTH_CHANGE_PASSWORD: "/auth/change-password",
+
   FORGOT_PASSWORD: "/auth/forgot-password",
   RESET_PASSWORD: "/auth/reset-password",
   VERIFY_OTP: "/auth/verify-otp",

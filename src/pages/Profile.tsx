@@ -1,4 +1,5 @@
-import { Button, Form, Row } from "antd";
+import { Button, Form, Row, Modal, Input, message } from "antd";
+
 import Heading from "../components/heading";
 import FormNguoiDung from "./nguoi-dung/FormNguoiDung";
 import { useState, useEffect } from "react";
@@ -23,6 +24,18 @@ const Profile = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const [form] = Form.useForm();
+
+    // ===== Modal đổi mật khẩu =====
+const [pwOpen, setPwOpen] = useState(false);
+const [pwLoading, setPwLoading] = useState(false);
+const [pwForm] = Form.useForm();
+
+const openChangePw = () => {
+  pwForm.resetFields();
+  setPwOpen(true);
+};
+const closeChangePw = () => setPwOpen(false);
+
 
     const fetchProfile = async () => {
         setIsLoading(true);
@@ -85,6 +98,29 @@ const Profile = () => {
         dispatch(clearImageSingle());
         fetchProfile();
     };
+const onChangePassword = async (vals: { current_password: string; new_password: string; confirm_password: string; }) => {
+  try {
+    setPwLoading(true);
+    const closeModel = () => {
+      // đóng modal + refresh profile (không bắt buộc)
+      setPwOpen(false);
+    };
+    await postData(
+      API_ROUTE_CONFIG.AUTH_CHANGE_PASSWORD,
+      {
+        current_password: vals.current_password,
+        new_password: vals.new_password,
+        confirm_password: vals.confirm_password,
+      },
+      closeModel
+    );
+    message.success("Đổi mật khẩu thành công");
+  } catch (e) {
+    // postData đã toast lỗi theo BE; có thể bổ sung nếu muốn
+  } finally {
+    setPwLoading(false);
+  }
+};
 
     return (
         <div>
@@ -104,20 +140,84 @@ const Profile = () => {
                     />
                 </Form>
             </Row>
-            <Row justify="end" key="footer">
-                <Button
-                    key="submit"
-                    form="formThemNguoiDung"
-                    type="primary"
-                    htmlType="submit"
-                    size="large"
-                    loading={isLoading}
-                >
-                    Lưu
-                </Button>
-            </Row>
+<Row justify="end" key="footer" style={{ gap: 8 }}>
+  <Button onClick={openChangePw}>Đổi mật khẩu</Button>
+  <Button
+    key="submit"
+    form="formThemNguoiDung"
+    type="primary"
+    htmlType="submit"
+    size="large"
+    loading={isLoading}
+  >
+    Lưu
+  </Button>
+</Row>
+
+<Modal
+  title="Đổi mật khẩu"
+  open={pwOpen}
+  onCancel={closeChangePw}
+  footer={null}
+  maskClosable={false}
+  destroyOnClose
+>
+  <Form
+    form={pwForm}
+    layout="vertical"
+    onFinish={onChangePassword}
+  >
+    <Form.Item
+      name="current_password"
+      label="Mật khẩu hiện tại"
+      rules={[{ required: true, message: "Vui lòng nhập mật khẩu hiện tại" }]}
+    >
+      <Input.Password placeholder="Nhập mật khẩu hiện tại" />
+    </Form.Item>
+
+    <Form.Item
+      name="new_password"
+      label="Mật khẩu mới"
+      rules={[
+        { required: true, message: "Vui lòng nhập mật khẩu mới" },
+        { min: 8, message: "Mật khẩu mới ít nhất 8 ký tự" },
+      ]}
+    >
+      <Input.Password placeholder="Nhập mật khẩu mới" />
+    </Form.Item>
+
+    <Form.Item
+      name="confirm_password"
+      label="Xác nhận mật khẩu mới"
+      dependencies={["new_password"]}
+      rules={[
+        { required: true, message: "Vui lòng xác nhận mật khẩu" },
+        ({ getFieldValue }) => ({
+          validator(_, value) {
+            if (!value || getFieldValue("new_password") === value) {
+              return Promise.resolve();
+            }
+            return Promise.reject(new Error("Xác nhận mật khẩu không khớp"));
+          },
+        }),
+      ]}
+    >
+      <Input.Password placeholder="Nhập lại mật khẩu mới" />
+    </Form.Item>
+
+    <Row justify="end" style={{ gap: 8 }}>
+      <Button onClick={closeChangePw}>Hủy</Button>
+      <Button type="primary" htmlType="submit" loading={pwLoading}>
+        Đổi mật khẩu
+      </Button>
+    </Row>
+  </Form>
+</Modal>
+
         </div>
     );
+
+    
 };
 
 export default Profile;

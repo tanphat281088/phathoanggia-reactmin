@@ -62,6 +62,11 @@ const PermissionMiddleware = ({ children }: { children: React.ReactNode }) => {
 
   // ❷ OWNER-ONLY: chặn truy cập 2 module qua URL đối với non-owner
 const isOwner = String(user?.email || "").toLowerCase() === "admin@gmail.com";
+// ✅ BYPASS tuyệt đối cho chủ hệ thống
+if (isOwner) {
+  return <>{children}</>;
+}
+
 const OWNER_ONLY_PREFIXES = [
   "/admin/quan-ly-nguoi-dung",  // gồm cả /nguoi-dung, /vai-tro
   "/admin/thiet-lap-he-thong", 
