@@ -23,6 +23,8 @@ import ChiTietPhieuChi from "./ChiTietPhieuChi";
 import { checkIsToday } from "../../helpers/funcHelper";
 import axios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
+
+
 type ApiResp<T> = { success: boolean; data: T };
 
 
@@ -133,10 +135,28 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
       align: "center",
       render: (id: number, record: any) => {
         return (
-          <Space size={0}>
+          <Space size={4}>
+            {/* Nút XEM: chỉ khóa form, không có nút Lưu */}
             {permission.show && (
-              <ChiTietPhieuChi path={path} id={id} title={title} />
+              <ChiTietPhieuChi
+                path={path}
+                id={id}
+                title={title}
+                editable={false}
+              />
             )}
+
+            {/* Nút SỬA: mở form, có nút Lưu (PUT) */}
+            {permission.edit && (
+              <ChiTietPhieuChi
+                path={path}
+                id={id}
+                title={title}
+                editable={true}
+              />
+            )}
+
+            {/* Nút XOÁ giữ nguyên điều kiện hiện có */}
             {permission.delete && checkIsToday(record?.created_at || "") && (
               <Delete path={path} id={id} onShow={getDanhSach} />
             )}
@@ -144,6 +164,7 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
         );
       },
     },
+
     {
       title: "Mã phiếu chi",
       dataIndex: "ma_phieu_chi",

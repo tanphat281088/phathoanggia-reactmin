@@ -42,10 +42,17 @@ type DraftOrder = {
 const DRAFT_KEY = "phg_mobile_sales_draft_v3";
 
 /* ===== Helpers ===== */
+/* ===== Helpers ===== */
 const toNumber = (v: any, d = 0) => {
-  const n = Number(String(v).replace(/[^\d.-]/g, ""));
+  // Loại bỏ TẤT CẢ ký tự không phải số (và có thể giữ '-' nếu muốn số âm)
+  const cleaned = String(v).replace(/[^\d-]/g, "");   // ⬅️ bỏ dấu '.'
+  const n = cleaned ? parseInt(cleaned, 10) : 0;
   return Number.isFinite(n) ? n : d;
 };
+
+// Hiển thị tiền kiểu Việt Nam
+const formatVND = (n: number = 0) => Number(n || 0).toLocaleString("vi-VN");
+
 
 // ==== Helpers preview nháp ====
 // Render HTML nháp giống template, không cần id; dùng dữ liệu draft hiện tại
@@ -182,11 +189,22 @@ export default function SalesQuickPage() {
     items: [],
   });
 
+
+  // Ô nhập hiển thị tiền có dấu phẩy + "đ"
+const [giamGiaInput, setGiamGiaInput] = useState<string>("0đ");
+const [chiPhiInput, setChiPhiInput]   = useState<string>("0đ");
+// Ô nhập “Đã thanh toán” (TT một phần)
+const [paidInput, setPaidInput] = useState<string>("");
+
   // Loading gửi đơn (chống double-click)
   const [submitting, setSubmitting] = useState(false);
 
   // Lưu đơn vừa tạo để hiển thị nút "Xem hóa đơn"
   const [lastOrderId, setLastOrderId]   = useState<number | string | null>(null);
+
+// Banner thành công sau khi tạo đơn
+const [lastOrderNotice, setLastOrderNotice] = useState<{ id: number | string; code?: string } | null>(null);
+
   const [lastOrderCode, setLastOrderCode] = useState<string | null>(null);
 
   // ===== DatePicker state cho người nhận =====
@@ -196,23 +214,30 @@ export default function SalesQuickPage() {
     [draft.nguoi_nhan_thoi_gian]
   );
 
-  // ===== Init from localStorage =====
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const v = JSON.parse(raw);
-        if (v && typeof v === "object" && Array.isArray(v.items)) setDraft(v as DraftOrder);
-      }
-    } catch { /* noop */ }
-  }, []);
 
-  // ===== Persist draft =====
-  useEffect(() => {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    } catch { /* noop */ }
-  }, [draft]);
+
+
+  // Đồng bộ input hiển thị khi draft thay đổi (ví dụ clear nháp)
+useEffect(() => {
+  setGiamGiaInput(`${formatVND(toNumber(draft.giam_gia))}đ`);
+  setChiPhiInput(`${formatVND(toNumber(draft.chi_phi))}đ`);
+
+  // TT một phần: khi chuyển loại thanh toán → điền sẵn hoặc xoá hiển thị
+  if (draft.loai_thanh_toan === 1) {
+    const v = toNumber(draft.so_tien_da_thanh_toan ?? 0);
+    setPaidInput(v ? `${formatVND(v)}đ` : "");
+  } else {
+    setPaidInput("");
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [draft.giam_gia, draft.chi_phi, draft.loai_thanh_toan, draft.so_tien_da_thanh_toan]);
+
+// Tự ẩn banner sau 5 giây
+useEffect(() => {
+  if (!lastOrderNotice) return;
+  const t = setTimeout(() => setLastOrderNotice(null), 5000);
+  return () => clearTimeout(t);
+}, [lastOrderNotice]);
 
   // ===== Derived totals (VAT-aware, khớp BE) =====
   const tongHang = useMemo(
@@ -238,39 +263,124 @@ export default function SalesQuickPage() {
     toNumber(draft.so_tien_da_thanh_toan ?? 0);
 
   // ===== Actions =====
-  const addItem = (it: PPItem) => {
-    setDraft((d) => {
-      const exist = d.items.find((i) => i.san_pham_id === it.san_pham_id);
-      if (exist) {
-        return {
-          ...d,
-          items: d.items.map((i) =>
-            i.san_pham_id === it.san_pham_id ? { ...i, so_luong: i.so_luong + it.so_luong } : i
-          ),
-        };
-      }
-      return { ...d, items: [...d.items, it] };
-    });
-  };
+// Gộp sản phẩm vào giỏ: không bao giờ làm mất dòng cũ, so sánh ID an toàn
+const addItem = (it: PPItem) => {
+  setDraft((d) => {
+    const items = Array.isArray(d.items) ? d.items : [];
+    const newId = String(it.san_pham_id);            // chuẩn hoá kiểu ID
+
+    const idx = items.findIndex(x => String(x.san_pham_id) === newId);
+    if (idx >= 0) {
+      // Nếu đã có → tăng số lượng (KHÔNG xoá dòng cũ)
+      const next = [...items];
+      const old = next[idx];
+      next[idx] = {
+        ...old,
+        so_luong: (Number(old.so_luong) || 0) + (Number(it.so_luong) || 1),
+        // nếu ProductPicker đã chọn ĐVT/loại giá thì cập nhật theo cái mới
+        don_vi_tinh_id: it.don_vi_tinh_id ?? old.don_vi_tinh_id,
+        don_vi_tinh_label: it.don_vi_tinh_label ?? old.don_vi_tinh_label,
+        loai_gia: it.loai_gia ?? old.loai_gia,
+        // đơn giá để CartList "Lấy giá" lại, không ép đè tuỳ tiện
+      };
+      return { ...d, items: next };
+    }
+
+    // Thêm dòng mới
+    return { ...d, items: [...items, it] };
+  });
+};
+
 
   const setItems = (next: DraftItem[]) => setDraft((d) => ({ ...d, items: next }));
+
+  // Handler nhập "Giảm giá"
+const onChangeGiamGia = (s: string) => {
+  const digits = s.replace(/[^\d]/g, "");        // chỉ lấy số
+  const num = toNumber(digits);
+  setDraft(d => ({ ...d, giam_gia: num }));      // cập nhật giá trị thực
+  setGiamGiaInput(digits);                       // HIỂN THỊ CHUỖI SỐ THUẦN khi gõ
+};
+
+
+// Handler nhập "Chi phí vận chuyển"
+const onChangeChiPhi = (s: string) => {
+  const digits = s.replace(/[^\d]/g, "");
+  const num = toNumber(digits);
+  setDraft(d => ({ ...d, chi_phi: num }));
+  setChiPhiInput(digits);                        // HIỂN THỊ CHUỖI SỐ THUẦN khi gõ
+};
+
+// Bảo đảm khi blur nếu rỗng thì về 0đ
+const onBlurMoney = (kind: "giam_gia" | "chi_phi") => {
+  if (kind === "giam_gia") {
+    const v = toNumber(giamGiaInput);
+    setGiamGiaInput(`${formatVND(v)}đ`);
+  } else {
+    const v = toNumber(chiPhiInput);
+    setChiPhiInput(`${formatVND(v)}đ`);
+  }
+};
+
+// Handler nhập “Đã thanh toán” (khi TT một phần)
+const onChangePaid = (s: string) => {
+  const digits = s.replace(/[^\d]/g, "");
+  const num = toNumber(digits);
+  setDraft(d => ({ ...d, so_tien_da_thanh_toan: num }));
+  setPaidInput(digits);                          // HIỂN THỊ CHUỖI SỐ THUẦN khi gõ
+};
+// Khi blur nếu rỗng thì về 0đ (chỉ áp dụng khi đang TT một phần)
+const onBlurPaid = () => {
+  if (draft.loai_thanh_toan !== 1) return;
+  const v = toNumber(paidInput);
+  setPaidInput(v ? `${formatVND(v)}đ` : "");
+};
+
+
 const clearDraft = async () => {
   const ok = window.confirm("Xoá toàn bộ giỏ hàng nháp?");
   if (!ok) return;
+
   setDraft({
+    // KH
     loai_khach_hang: 0,
+    khach_hang_id: undefined,
+    ten_khach_hang: undefined,
+    so_dien_thoai: undefined,
+
+    // Địa chỉ & người nhận
+    dia_chi_giao_hang: "",
+    nguoi_nhan_ten: "",
+    nguoi_nhan_sdt: "",
+    nguoi_nhan_thoi_gian: null,
+
+    // Tiền
     loai_thanh_toan: 0,
     so_tien_da_thanh_toan: null,
     giam_gia: 0,
     chi_phi: 0,
+
+    // Thuế & trạng thái
     tax_mode: 0,
     vat_rate: null,
     trang_thai_don_hang: 0,
+
+    // Ghi chú & giỏ
+    ghi_chu: "",
     items: [],
   });
+
+  // reset các input hiển thị tiền
+  setGiamGiaInput("0đ");
+  setChiPhiInput("0đ");
+  setPaidInput("");
+
+  // xóa hẳn cache localStorage (phần B bên dưới sẽ bỏ useEffect nạp/lưu)
   localStorage.removeItem(DRAFT_KEY);
+
   Toast.show("Đã xoá nháp");
 };
+
 
 
   // Mở danh sách đơn hàng (desktop)
@@ -350,21 +460,22 @@ setSubmitting(true);
       const newId  = data?.id ?? data?.data?.id ?? null;
       const newCode = data?.ma_don_hang ?? data?.data?.ma_don_hang ?? null;
 
-      if (newId) {
-        setLastOrderId(newId);
-        setLastOrderCode(newCode ?? null);
+if (newId) {
+  setLastOrderId(newId);
+  setLastOrderCode(newCode ?? null);
 
-        Toast.show({ content: "Tạo đơn thành công", icon: "success" });
+  // ✅ Banner + Toast rõ ràng
+  setLastOrderNotice({ id: newId, code: newCode ?? undefined });
+  Toast.show({ content: `Tạo đơn thành công ${newCode ? `#${newCode}` : ""}`, icon: "success" });
 
-        // Hỏi mở hoá đơn HTML xem trước (public)
-const open = window.confirm("Mở hóa đơn HTML xem trước?");
-if (open) openInvoice(newId);
+  // (Tuỳ chọn) hỏi mở hóa đơn
+  const open = window.confirm("Mở hóa đơn HTML xem trước?");
+  if (open) openInvoice(newId);
 
-
-        // clear giỏ, giữ thông tin khách/địa chỉ để tạo nhanh đơn tiếp theo
-        setDraft((d) => ({ ...d, items: [], so_tien_da_thanh_toan: null, loai_thanh_toan: 0 }));
-        localStorage.removeItem(DRAFT_KEY);
-      } else {
+  // clear giỏ …
+  setDraft((d) => ({ ...d, items: [], so_tien_da_thanh_toan: null, loai_thanh_toan: 0 }));
+  localStorage.removeItem(DRAFT_KEY);
+} else {
   Toast.show({ content: "Không xác định được kết quả tạo đơn", icon: "fail" });
 }
 
@@ -391,6 +502,37 @@ if (open) openInvoice(newId);
  /* ===== UI ===== */
 return (
   <div style={{ padding: 12, paddingBottom: 100 }}>
+    {/* Banner thành công */}
+{lastOrderNotice && (
+  <div
+    style={{
+      marginBottom: 8,
+      padding: "10px 12px",
+      borderRadius: 8,
+      background: "#E6FFFB",
+      color: "#006D75",
+      border: "1px solid #87E8DE",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      ✅ <b>Đã tạo đơn</b> {lastOrderNotice.code ? `#${lastOrderNotice.code}` : `#${String(lastOrderNotice.id)}`}
+    </div>
+    <div>
+      <Button
+        size="mini"
+        color="primary"
+        fill="outline"
+        onClick={() => openInvoice(lastOrderNotice.id)}
+      >
+        Xem hóa đơn
+      </Button>
+    </div>
+  </div>
+)}
+
     {/* Thanh tác vụ nhanh */}
     <div className="phg-card" style={{ padding: 12, margin: "12px 0" }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -487,43 +629,73 @@ return (
     {/* GIỎ HÀNG */}
     <CartList items={draft.items} onItemsChange={setItems} />
 
-    {/* CHI PHÍ & THUẾ */}
-    <div className="phg-card" style={{ padding: 12, margin: "12px 0" }}>
-      <div style={{ fontWeight: 800, marginBottom: 8 }}>Chi phí & thuế</div>
-      <Space block direction="vertical">
-        <Input
-          placeholder="Giảm giá (đ)"
-          value={String(draft.giam_gia ?? 0)}
-          onChange={(v) => setDraft((d) => ({ ...d, giam_gia: toNumber(v) }))}
-          inputMode="numeric"
-          clearable
-        />
-        <Input
-          placeholder="Chi phí vận chuyển (đ)"
-          value={String(draft.chi_phi ?? 0)}
-          onChange={(v) => setDraft((d) => ({ ...d, chi_phi: toNumber(v) }))}
-          inputMode="numeric"
-          clearable
-        />
-        <div className="phg-row">
-          <Button
-            size="small"
-            onClick={() =>
-              setDraft((d) => ({
-                ...d,
-                tax_mode: d.tax_mode === 1 ? 0 : 1,
-                vat_rate: d.tax_mode === 1 ? null : (d.vat_rate ?? 8),
-              }))
-            }
-          >
-            {taxMode === 1 ? "Bỏ thuế" : "Có thuế (VAT)"}
-          </Button>
-          {taxMode === 1 && (
-            <Input placeholder="VAT (%)" value={String(draft.vat_rate ?? 8)} disabled />
-          )}
-        </div>
-      </Space>
+{/* CHI PHÍ & THUẾ */}
+<div className="phg-card" style={{ padding: 12, margin: "12px 0" }}>
+  <div style={{ fontWeight: 800, marginBottom: 8 }}>Chi phí & thuế</div>
+
+  <Space block direction="vertical">
+    {/* Giảm giá */}
+    <div className="phg-col">
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>Giảm giá</div>
+<Input
+  aria-label="Giảm giá (đồng)"
+  placeholder="Nhập số tiền giảm (đ)"
+  value={giamGiaInput}
+  onChange={onChangeGiamGia}
+  onBlur={() => onBlurMoney("giam_gia")}
+  type="text"              // ⬅️ thêm
+  inputMode="numeric"
+  maxLength={18}           // ⬅️ thêm
+  clearable
+  onClear={() => { setDraft(d => ({ ...d, giam_gia: 0 })); setGiamGiaInput("0đ"); }}
+/>
+
     </div>
+
+    {/* Chi phí vận chuyển */}
+    <div className="phg-col">
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>Chi phí vận chuyển</div>
+<Input
+  aria-label="Chi phí vận chuyển (đồng)"
+  placeholder="Nhập chi phí vận chuyển (đ)"
+  value={chiPhiInput}
+  onChange={onChangeChiPhi}
+  onBlur={() => onBlurMoney("chi_phi")}
+  type="text"              // ⬅️ thêm
+  inputMode="numeric"
+  maxLength={18}           // ⬅️ thêm
+  clearable
+  onClear={() => { setDraft(d => ({ ...d, chi_phi: 0 })); setChiPhiInput("0đ"); }}
+/>
+
+    </div>
+
+    {/* Thuế */}
+    <div className="phg-row">
+      <Button
+        size="small"
+        onClick={() =>
+          setDraft((d) => ({
+            ...d,
+            tax_mode: d.tax_mode === 1 ? 0 : 1,
+            vat_rate: d.tax_mode === 1 ? null : (d.vat_rate ?? 8),
+          }))
+        }
+      >
+        {taxMode === 1 ? "Bỏ thuế" : "Có thuế (VAT)"}
+      </Button>
+      {taxMode === 1 && (
+        <Input
+          aria-label="VAT phần trăm"
+          placeholder="VAT (%)"
+          value={`${String(draft.vat_rate ?? 8)}%`}
+          disabled
+        />
+      )}
+    </div>
+  </Space>
+</div>
+
 
     {/* THANH TOÁN */}
     <div className="phg-card" style={{ padding: 12, margin: "12px 0" }}>
@@ -559,17 +731,25 @@ return (
         </Button>
       </div>
 
-      {draft.loai_thanh_toan === 1 && (
-        <div style={{ marginTop: 8 }}>
-          <Input
-            placeholder={`Đã thanh toán (≤ ${grandTotal.toLocaleString("vi-VN")}đ)`}
-            value={String(draft.so_tien_da_thanh_toan ?? "")}
-            onChange={(v) => setDraft((d) => ({ ...d, so_tien_da_thanh_toan: toNumber(v, 0) }))}
-            inputMode="numeric"
-            clearable
-          />
-        </div>
-      )}
+{draft.loai_thanh_toan === 1 && (
+  <div style={{ marginTop: 8 }}>
+    <div style={{ fontWeight: 700, marginBottom: 6 }}>Đã thanh toán</div>
+<Input
+  aria-label="Đã thanh toán (đồng)"
+  placeholder={`Đã thanh toán (≤ ${grandTotal.toLocaleString("vi-VN")}đ)`}
+  value={paidInput}
+  onChange={onChangePaid}
+  onBlur={onBlurPaid}
+  type="text"              // ⬅️ thêm
+  inputMode="numeric"
+  maxLength={18}           // ⬅️ thêm
+  clearable
+  onClear={() => { setDraft(d => ({ ...d, so_tien_da_thanh_toan: 0 })); setPaidInput("0đ"); }}
+/>
+
+  </div>
+)}
+
 
       <div style={{ marginTop: 8 }}>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Ghi chú</div>
@@ -595,7 +775,14 @@ return (
       secondaryLabel="Xoá nháp"
       onSecondary={clearDraft}
       primaryLoading={submitting}
-      disabled={submitting}
+     disabled={
+  submitting ||
+  !draft.dia_chi_giao_hang ||
+  draft.items.length === 0 ||
+  (draft.loai_khach_hang === 0 ? !draft.khach_hang_id : !(draft.ten_khach_hang && draft.so_dien_thoai)) ||
+  (draft.loai_thanh_toan === 1 && !toNumber(draft.so_tien_da_thanh_toan ?? 0))
+}
+
     />
   </div>
 );

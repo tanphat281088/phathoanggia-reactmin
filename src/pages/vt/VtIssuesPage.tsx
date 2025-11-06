@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Card, DatePicker, Form, Input, Modal, Space, Table, Tag, message, Select, InputNumber } from "antd";
+import { Button, Card, DatePicker, Form, Input, Modal, Space, Table, Tag, message, Select, InputNumber, Popconfirm } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { vtIssueList, vtIssueCreate, vtIssueUpdate, vtIssueDelete, vtItemOptions, vtRefOptions } from "../../services/vt.api";
@@ -79,38 +79,36 @@ export default function VtIssuesPage(): JSX.Element {
     setOpen(true);
   };
 
-const openClone = (r: Issue) => {
-  // MỞ MODAL TẠO MỚI nhưng prefill từ phiếu gốc
-  setEditing(null);            // quan trọng: submit sang nhánh CREATE
-  form.resetFields();
+  const openClone = (r: Issue) => {
+    // MỞ MODAL TẠO MỚI nhưng prefill từ phiếu gốc
+    setEditing(null);            // quan trọng: submit sang nhánh CREATE
+    form.resetFields();
 
-  form.setFieldsValue({
-    // KHÔNG set so_ct → BE tự sinh số CT mới
-    ngay_ct: dayjs(r.ngay_ct),          // muốn ngày hiện tại thì dùng dayjs()
-    ly_do: r.ly_do,
-    tham_chieu: r.tham_chieu || undefined,
-    ghi_chu: r.ghi_chu || undefined,
-  } as any);
+    form.setFieldsValue({
+      // KHÔNG set so_ct → BE tự sinh số CT mới
+      ngay_ct: dayjs(r.ngay_ct),          // muốn ngày hiện tại thì dùng dayjs()
+      ly_do: r.ly_do,
+      tham_chieu: r.tham_chieu || undefined,
+      ghi_chu: r.ghi_chu || undefined,
+    } as any);
 
-  setItems((r.items || []).map((it, idx) => ({
-    vt_item_id: it.vt_item_id,
-    so_luong: it.so_luong,
-    ghi_chu: undefined,
-    _key: `clone-${idx}-${Date.now()}`,
-  })));
+    setItems((r.items || []).map((it, idx) => ({
+      vt_item_id: it.vt_item_id,
+      so_luong: it.so_luong,
+      ghi_chu: undefined,
+      _key: `clone-${idx}-${Date.now()}`,
+    })));
 
-  // đảm bảo Select “Tham chiếu” hiển thị được nhãn cũ nếu có
-  if (r.tham_chieu) {
-    setRefOpts((prev) => {
-      const exists = prev.some(o => o.value === r.tham_chieu);
-      return exists ? prev : [{ value: r.tham_chieu!, label: r.tham_chieu! }, ...prev];
-    });
-  }
+    // đảm bảo Select “Tham chiếu” hiển thị được nhãn cũ nếu có
+    if (r.tham_chieu) {
+      setRefOpts((prev) => {
+        const exists = prev.some(o => o.value === r.tham_chieu);
+        return exists ? prev : [{ value: r.tham_chieu!, label: r.tham_chieu! }, ...prev];
+      });
+    }
 
-  setOpen(true);
-};
-
-
+    setOpen(true);
+  };
 
   const removeRow = (idx: number) => setItems((arr) => arr.filter((_, i) => i !== idx));
   const addRow = () => setItems((arr) => [...arr, { vt_item_id: 0, so_luong: 1, _key: Math.random().toString(36).slice(2) }]);
@@ -134,8 +132,8 @@ const openClone = (r: Issue) => {
     } catch { /* ignore */ }
   };
 
-// VtIssuesPage.tsx
-// VtIssuesPage.tsx
+  // VtIssuesPage.tsx
+  // VtIssuesPage.tsx
 const del = (r: Issue) => {
   Modal.confirm({
     title: `Xóa phiếu xuất ${r.so_ct}?`,
@@ -144,24 +142,18 @@ const del = (r: Issue) => {
     cancelText: "Hủy",
     okType: "danger",
     centered: true,
-    async onOk() {
+    onOk: () => (async () => {
       try {
-        await vtIssueDelete(r.id);   // DELETE (204/200 đều OK qua http())
+        await vtIssueDelete(r.id);
         message.success(`Đã xóa phiếu xuất ${r.so_ct}`);
-
-        // ✅ Xóa khỏi UI ngay lập tức
-        setRows(prev => prev.filter(x => x.id !== r.id));
-
-        // ✅ Rồi nạp lại danh sách từ server để đồng bộ
-        await fetchList();
-      } catch (e: any) {
-        const msg = (typeof e?.message === "string" && e.message.trim())
-          ? e.message
-          : "Xóa phiếu xuất thất bại";
-        message.error(msg);
-        // KHÔNG throw để Modal không bị kẹt loading
+      } catch (e:any) {
+        const status = e?.status ?? e?.response?.status;
+        if (status === 404) message.info(`Phiếu ${r.so_ct} đã bị xóa trước đó`);
+        else { message.error(e?.message || "Xóa phiếu xuất thất bại"); throw e; }
       }
-    },
+      setRows(prev => prev.filter(x => x.id !== r.id));
+      await fetchList();
+    })(),
   });
 };
 
@@ -188,37 +180,77 @@ const del = (r: Issue) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, refQuery, form.getFieldValue("ly_do")]);
 
+  // ===== helper format VND cho cột giá trị (hiển thị) =====
+  const fmtVND = (n: number | null | undefined) =>
+    n !== null && n !== undefined ? `${new Intl.NumberFormat("vi-VN").format(Number(n))} ₫` : "-";
+
   const columns: ColumnsType<Issue> = useMemo(() => [
     { title: "Số chứng từ", dataIndex: "so_ct", width: 150, fixed: "left" },
     { title: "Ngày", dataIndex: "ngay_ct", width: 120, render: (v) => dayjs(v).format("DD/MM/YYYY") },
     { title: "Lý do", dataIndex: "ly_do", width: 120, render: (v) => <Tag>{v}</Tag> },
     { title: "SL", dataIndex: "tong_so_luong", width: 90 },
+
+    // ⬇️ Thay cột “Giá trị” cũ bằng 2 cột rõ ràng:
     {
-  title: "Giá trị",
-  dataIndex: "tong_gia_tri",
-  width: 140,
-  render: (v: any) =>
-    v !== null && v !== undefined
-      ? `${new Intl.NumberFormat("vi-VN").format(Number(v))} ₫`
-      : "-",
-},
+      title: "Giá trị Tài sản",
+      key: "gia_tri_asset",
+      width: 160,
+      // BE đã tính sẵn ở header: tong_gia_tri chỉ phản ánh ASSET
+      render: (_: any, r: Issue) => fmtVND(r.tong_gia_tri),
+    },
+    {
+      title: "Giá trị Tiêu hao",
+      key: "gia_tri_tieuhao",
+      width: 160,
+      // Chưa có đơn giá theo dòng CONSUMABLE ở API xuất → hiển thị "-"
+      render: () => "-",
+    },
 
     { title: "Ghi chú", dataIndex: "ghi_chu" },
 {
   title: "Thao tác",
   key: "x",
-  width: 220,            // tăng chút cho 3 nút
+  width: 280,
   fixed: "right",
-  render: (_: any, r) => (
+  render: (_: any, r: Issue) => (
     <Space>
       <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
       <Button size="small" onClick={() => openClone(r)}>Thêm bản sao</Button>
-      <Button size="small" danger onClick={() => del(r)}>Xóa</Button>
+
+      <Popconfirm
+        title={`Xóa phiếu xuất ${r.so_ct}?`}
+        description="Thao tác này không thể hoàn tác."
+        okText="Xóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        placement="left"
+        onConfirm={async () => {
+          try {
+            await vtIssueDelete(r.id);                       // DELETE
+            message.success(`Đã xóa phiếu xuất ${r.so_ct}`);
+          } catch (e: any) {
+            const status = e?.status ?? e?.response?.status; // http() đã gắn .status
+            if (status === 404) {
+              // Idempotent: coi như đã xóa
+              message.info(`Phiếu ${r.so_ct} đã bị xóa trước đó`);
+            } else {
+              message.error(e?.message || "Xóa phiếu xuất thất bại");
+              return; // không dọn UI nếu lỗi khác
+            }
+          }
+          // Dọn UI cho cả 200 và 404
+          setRows(prev => prev.filter((x:any) => x.id !== r.id));
+          await fetchList();
+        }}
+      >
+        <Button size="small" danger>Xóa</Button>
+      </Popconfirm>
     </Space>
   ),
 }
-  ], 
-  
+
+  ],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   []);
 
   return (
@@ -254,7 +286,7 @@ const del = (r: Issue) => {
         loading={loading}
         dataSource={rows}
         columns={columns}
-        scroll={{ x: 900 }}
+        scroll={{ x: 1100 }}
         pagination={{ current: page, pageSize: perPage, total, onChange: (p, s) => { setPage(p); setPerPage(s); } }}
       />
 

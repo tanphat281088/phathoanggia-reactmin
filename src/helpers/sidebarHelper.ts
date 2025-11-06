@@ -112,7 +112,10 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "utilities-fb": "utilities-fb",
 
       "zl-inbox": "utilities-zl",
-  "utilities-zl": "utilities-zl",
+  
+          // Công nợ KH (map key menu -> module permission)
+    "cong-no-khach-hang": "quan-ly-cong-no",
+
 
   };
 

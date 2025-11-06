@@ -254,10 +254,11 @@ const FormPhieuChi = ({
                     name="category_id"
                     label="Danh mục chi (CON)"
                     path={
-                        categoryParentCode
-                            ? `/expense-categories/options?parent_id=${categoryParentCode}`
-                            : `/expense-categories/options?parent_code=COGS`
-                    }
+  categoryParentCode
+      ? `/expense-categories/options?parent_code=${categoryParentCode}`
+      : `/expense-categories/options?parent_code=COGS`
+}
+
                     placeholder="Chọn danh mục chi (con) theo nhóm CHA"
                     rules={[
                         {

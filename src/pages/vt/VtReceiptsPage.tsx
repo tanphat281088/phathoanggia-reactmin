@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Card, DatePicker, Form, Input, Modal, Space, Table, Tag, message, Select, InputNumber, Row, Col } from "antd";
+import { Button, Card, DatePicker, Form, Input, Modal, Space, Table, Tag, message, Select, InputNumber, Row, Col, Popconfirm } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { vtReceiptList, vtReceiptCreate, vtReceiptUpdate, vtReceiptDelete, vtItemOptions, vtRefOptions } from "../../services/vt.api";
@@ -68,8 +68,13 @@ export default function VtReceiptsPage(): JSX.Element {
       ghi_chu: r.ghi_chu,
     });
     setItems(r.items.map((it, idx) => ({
-      vt_item_id: it.vt_item_id, so_luong: it.so_luong, don_gia: it.don_gia ?? null, _key: `e${idx}`
+      vt_item_id: it.vt_item_id,
+      so_luong:  it.so_luong,
+      // don_gia có thể là string từ API → ép về number; nếu null/undefined thì để null
+      don_gia:   (it.don_gia === null || it.don_gia === undefined) ? null : Number(it.don_gia),
+      _key:      `e${idx}`,
     })));
+
     // đảm bảo option hiện hữu để hiển thị giá trị cũ
     if (r.tham_chieu) {
       setRefOpts((prev) => {
@@ -80,38 +85,36 @@ export default function VtReceiptsPage(): JSX.Element {
     setOpen(true);
   };
 
-const openClone = (r: Receipt) => {
-  // MỞ MODAL TẠO MỚI nhưng prefill từ phiếu gốc
-  setEditing(null);               // rất quan trọng: submit đi nhánh CREATE
-  form.resetFields();
+  const openClone = (r: Receipt) => {
+    // MỞ MODAL TẠO MỚI nhưng prefill từ phiếu gốc
+    setEditing(null);               // rất quan trọng: submit đi nhánh CREATE
+    form.resetFields();
 
-  form.setFieldsValue({
-    // KHÔNG set so_ct → BE tự sinh PNVT-...
-    ngay_ct: dayjs(r.ngay_ct),    // nếu muốn ngày hiện tại thay bằng dayjs()
-    tham_chieu: r.tham_chieu || undefined,
-    ghi_chu: r.ghi_chu || undefined,
-  } as any);
+    form.setFieldsValue({
+      // KHÔNG set so_ct → BE tự sinh PNVT-...
+      ngay_ct: dayjs(r.ngay_ct),    // nếu muốn ngày hiện tại thay bằng dayjs()
+      tham_chieu: r.tham_chieu || undefined,
+      ghi_chu: r.ghi_chu || undefined,
+    } as any);
 
-  setItems((r.items || []).map((it, idx) => ({
-    vt_item_id: it.vt_item_id,
-    so_luong: it.so_luong,
-    don_gia:  (typeof it.don_gia === "number" ? it.don_gia : null),
-    ghi_chu:  undefined,
-    _key:     `clone-${idx}-${Date.now()}`,
-  })));
+    setItems((r.items || []).map((it, idx) => ({
+      vt_item_id: it.vt_item_id,
+      so_luong: it.so_luong,
+      don_gia:  (typeof it.don_gia === "number" ? it.don_gia : null),
+      ghi_chu:  undefined,
+      _key:     `clone-${idx}-${Date.now()}`,
+    })));
 
-  // bảo đảm Select “Tham chiếu” hiển thị được nhãn cũ nếu có
-  if (r.tham_chieu) {
-    setRefOpts(prev => {
-      const exists = prev.some(o => o.value === r.tham_chieu);
-      return exists ? prev : [{ value: r.tham_chieu!, label: r.tham_chieu! }, ...prev];
-    });
-  }
+    // bảo đảm Select “Tham chiếu” hiển thị được nhãn cũ nếu có
+    if (r.tham_chieu) {
+      setRefOpts(prev => {
+        const exists = prev.some(o => o.value === r.tham_chieu);
+        return exists ? prev : [{ value: r.tham_chieu!, label: r.tham_chieu! }, ...prev];
+      });
+    }
 
-  setOpen(true);
-};
-
-
+    setOpen(true);
+  };
 
   const removeRow = (idx: number) => setItems((arr) => arr.filter((_, i) => i !== idx));
   const addRow = () => setItems((arr) => [...arr, { vt_item_id: 0, so_luong: 1, don_gia: null, _key: Math.random().toString(36).slice(2) }]);
@@ -140,8 +143,8 @@ const openClone = (r: Receipt) => {
     } catch { /* ignore */ }
   };
 
-// VtReceiptsPage.tsx
-// VtReceiptsPage.tsx
+  // VtReceiptsPage.tsx
+  // VtReceiptsPage.tsx
 const del = (r: Receipt) => {
   Modal.confirm({
     title: `Xóa phiếu nhập ${r.so_ct}?`,
@@ -150,26 +153,28 @@ const del = (r: Receipt) => {
     cancelText: "Hủy",
     okType: "danger",
     centered: true,
-    async onOk() {
+    // ⚠️ PHẢI return Promise để AntD chờ và hiển thị loading
+    onOk: () => (async () => {
       try {
-        await vtReceiptDelete(r.id);   // DELETE (200/204 đều OK qua http())
+        await vtReceiptDelete(r.id);                 // DELETE
         message.success(`Đã xóa phiếu nhập ${r.so_ct}`);
-
-        // ✅ Xóa khỏi UI ngay lập tức
-        setRows(prev => prev.filter(x => x.id !== r.id));
-
-        // ✅ Rồi nạp lại danh sách từ server để đồng bộ
-        await fetchList();
       } catch (e: any) {
-        const msg = (typeof e?.message === "string" && e.message.trim())
-          ? e.message
-          : "Xóa phiếu nhập thất bại";
-        message.error(msg);
-        // KHÔNG throw để Modal không bị kẹt loading
+        const status = e?.status ?? e?.response?.status; // http() đã gắn .status
+        if (status === 404) {
+          // Idempotent: coi như đã xóa
+          message.info(`Phiếu ${r.so_ct} đã bị xóa trước đó`);
+        } else {
+          message.error(e?.message || "Xóa phiếu nhập thất bại");
+          throw e; // rethrow để modal dừng loading, tránh “đơ”
+        }
       }
-    },
+      // Cập nhật UI cho cả 200 và 404
+      setRows(prev => prev.filter(x => x.id !== r.id));
+      await fetchList();
+    })(),
   });
 };
+
 
 
 
@@ -194,36 +199,96 @@ const del = (r: Receipt) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, refQuery]);
 
+  // ==== helpers cho cột giá trị (tính tại FE để hiển thị) ====
+  const fmtVND = (n: number | null | undefined) =>
+    n !== null && n !== undefined ? `${new Intl.NumberFormat("vi-VN").format(Number(n))} ₫` : "-";
+
+  const calcAssetValue = (r: Receipt) =>
+    (r.items || []).reduce((sum, it) => {
+      if (it?.item?.loai === "ASSET") {
+        const sl = Number(it.so_luong || 0);
+        const dg = it.don_gia == null ? 0 : Number(it.don_gia);
+        return sum + sl * dg;
+      }
+      return sum;
+    }, 0);
+
+  const calcConsumableValue = (r: Receipt) =>
+    (r.items || []).reduce((sum, it) => {
+      if (it?.item?.loai === "CONSUMABLE") {
+        const sl = Number(it.so_luong || 0);
+        const dg = it.don_gia == null ? 0 : Number(it.don_gia);
+        return sum + sl * dg;
+      }
+      return sum;
+    }, 0);
+
   const columns: ColumnsType<Receipt> = useMemo(() => [
     { title: "Số chứng từ", dataIndex: "so_ct", width: 150, fixed: "left" },
     { title: "Ngày", dataIndex: "ngay_ct", width: 120, render: (v) => dayjs(v).format("DD/MM/YYYY") },
     { title: "SL", dataIndex: "tong_so_luong", width: 90 },
+
+    // Giá trị Tài sản = ∑ (SL * đơn_giá) của các dòng ASSET (tính tại FE, chỉ để hiển thị)
     {
-  title: "Giá trị",
-  dataIndex: "tong_gia_tri",
-  width: 140,
-  render: (v: any) =>
-    v !== null && v !== undefined
-      ? `${new Intl.NumberFormat("vi-VN").format(Number(v))} ₫`
-      : "-",
-},
+      title: "Giá trị Tài sản",
+      key: "gia_tri_asset",
+      width: 160,
+      render: (_: any, r: Receipt) => fmtVND(calcAssetValue(r)),
+    },
+    // Giá trị Tiêu hao = ∑ (SL * đơn_giá) của các dòng CONSUMABLE (tính tại FE, chỉ để hiển thị)
+    {
+      title: "Giá trị Tiêu hao",
+      key: "gia_tri_tieuhao",
+      width: 160,
+      render: (_: any, r: Receipt) => fmtVND(calcConsumableValue(r)),
+    },
 
     { title: "Ghi chú", dataIndex: "ghi_chu" },
 {
   title: "Thao tác",
   key: "x",
-  width: 220,                   // tăng chút để đủ 3 nút
+  width: 280,
   fixed: "right",
-  render: (_, r) => (
+  render: (_: any, r) => (
     <Space>
       <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
       <Button size="small" onClick={() => openClone(r)}>Thêm bản sao</Button>
-      <Button size="small" danger onClick={() => del(r)}>Xóa</Button>
+
+      {/* ❌ BỎ Modal.confirm —> ✅ Dùng Popconfirm gọn & chắc */}
+      <Popconfirm
+        title={`Xóa phiếu nhập ${r.so_ct}?`}
+        description="Thao tác này không thể hoàn tác."
+        okText="Xóa"
+        cancelText="Hủy"
+        okType="danger"
+        placement="left"
+        onConfirm={async () => {
+          try {
+            await vtReceiptDelete(r.id);                     // DELETE
+            message.success(`Đã xóa phiếu nhập ${r.so_ct}`);
+          } catch (e: any) {
+            const status = e?.status ?? e?.response?.status; // http() đã gắn .status
+            if (status === 404) {
+              // Idempotent: coi như đã xóa
+              message.info(`Phiếu ${r.so_ct} đã bị xóa trước đó`);
+            } else {
+              message.error(e?.message || "Xóa phiếu nhập thất bại");
+              return; // đừng dọn UI nếu lỗi khác
+            }
+          }
+          // Dọn UI cho cả 200 và 404
+          setRows(prev => prev.filter((x:any) => x.id !== r.id));
+          await fetchList();
+        }}
+      >
+        <Button size="small" danger>Xóa</Button>
+      </Popconfirm>
     </Space>
-  )
+  ),
 }
 
-  ], []);
+
+  ], []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card
@@ -245,7 +310,7 @@ const del = (r: Receipt) => {
         loading={loading}
         dataSource={rows}
         columns={columns}
-        scroll={{ x: 900 }}
+        scroll={{ x: 1100 }}
         pagination={{
           current: page, pageSize: perPage, total,
           onChange: (p, s) => { setPage(p); setPerPage(s); }
@@ -256,56 +321,56 @@ const del = (r: Receipt) => {
         title={editing ? `Sửa phiếu: ${editing.so_ct}` : "Thêm phiếu nhập VT"}
         open={open} onCancel={() => setOpen(false)} onOk={submit} width={900} destroyOnClose
       >
-<Form layout="vertical" form={form} preserve={false}>
-  <Row gutter={12}>
-    <Col span={6}>
-      <Form.Item name="so_ct" label="Số chứng từ">
-        <Input placeholder="(tự sinh)" disabled />
-      </Form.Item>
-    </Col>
+        <Form layout="vertical" form={form} preserve={false}>
+          <Row gutter={12}>
+            <Col span={6}>
+              <Form.Item name="so_ct" label="Số chứng từ">
+                <Input placeholder="(tự sinh)" disabled />
+              </Form.Item>
+            </Col>
 
-    <Col span={6}>
-      <Form.Item
-        name="ngay_ct"
-        label="Ngày CT"
-        rules={[{ required: true, message: "Chọn ngày" }]}
-      >
-        <DatePicker style={{ width: "100%" }} />
-      </Form.Item>
-    </Col>
+            <Col span={6}>
+              <Form.Item
+                name="ngay_ct"
+                label="Ngày CT"
+                rules={[{ required: true, message: "Chọn ngày" }]}
+              >
+                <DatePicker style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
 
-    <Col span={12}>
-      <Form.Item name="tham_chieu" label="Tham chiếu">
-        <Select
-          showSearch
-          allowClear
-          placeholder="Tìm & chọn tham chiếu"
-          options={refOpts}
-          loading={refLoading}
-          onSearch={(val) => setRefQuery(val || "")}
-          filterOption={false} // server search
-          notFoundContent="Không có tham chiếu phù hợp"
-        />
-      </Form.Item>
-    </Col>
-  </Row>
+            <Col span={12}>
+              <Form.Item name="tham_chieu" label="Tham chiếu">
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Tìm & chọn tham chiếu"
+                  options={refOpts}
+                  loading={refLoading}
+                  onSearch={(val) => setRefQuery(val || "")}
+                  filterOption={false} // server search
+                  notFoundContent="Không có tham chiếu phù hợp"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-  <Form.Item name="ghi_chu" label="Ghi chú">
-    <Input.TextArea rows={3} />
-  </Form.Item>
+          <Form.Item name="ghi_chu" label="Ghi chú">
+            <Input.TextArea rows={3} />
+          </Form.Item>
 
-  <Card size="small" title="Danh sách vật tư" extra={<Button onClick={addRow}>+ Thêm dòng</Button>}>
-    {items.map((it, idx) => (
-      <ItemRowEditor
-        key={it._key || idx.toString()}
-        row={it}
-        onChange={(r) => setItems((arr) => arr.map((x, i) => (i === idx ? r : x)))}
-        onRemove={() => removeRow(idx)}
-      />
-    ))}
-    {!items.length && <Tag>Chưa có dòng</Tag>}
-  </Card>
-</Form>
+          <Card size="small" title="Danh sách vật tư" extra={<Button onClick={addRow}>+ Thêm dòng</Button>}>
+            {items.map((it, idx) => (
+              <ItemRowEditor
+                key={it._key || idx.toString()}
+                row={it}
+                onChange={(r) => setItems((arr) => arr.map((x, i) => (i === idx ? r : x)))}
+                onRemove={() => removeRow(idx)}
+              />
+            ))}
+            {!items.length && <Tag>Chưa có dòng</Tag>}
+          </Card>
+        </Form>
 
       </Modal>
     </Card>
@@ -351,31 +416,28 @@ function ItemRowEditor({
         </Col>
 
         <Col span={6}>
-          <Form.Item label="Đơn giá (ASSET)" style={{ marginBottom: 8 }}>
-<InputNumber
-  min={0}
-  precision={0}
-  style={{ width: "100%" }}
-  placeholder="Nhập đơn giá"
-  // ❗ Giá trị phải là number | undefined, KHÔNG so sánh với ''
-  value={typeof row.don_gia === "number" ? row.don_gia : undefined}
-  // AntD onChange: (value: number | null) => void
-  onChange={(v) => onChange({ ...row, don_gia: v === null || v === undefined ? null : Number(v) })}
-  // AntD formatter: (value: number|string|undefined) => string
-  formatter={(value) =>
-    value === null || value === undefined
-      ? ""
-      : new Intl.NumberFormat("vi-VN").format(Number(value))
-  }
-  // AntD parser: (displayValue: string | undefined) => number
-  parser={(displayValue) => {
-    const s = (displayValue ?? "").replace(/[^\d]/g, "");
-    return s ? Number(s) : 0;
-  }}
-  addonAfter="₫"
-/>
-
-
+          {/* Việt hoá label */}
+          <Form.Item label="Đơn giá (Tài sản)" style={{ marginBottom: 8 }}>
+            <InputNumber
+              min={0}
+              precision={0}
+              style={{ width: "100%" }}
+              placeholder="Nhập đơn giá"
+              // hiển thị rỗng nếu null/undefined
+              value={row.don_gia === null || row.don_gia === undefined ? undefined : Number(row.don_gia)}
+              onChange={(v) => onChange({ ...row, don_gia: v === null || v === undefined ? null : Number(v) })}
+              formatter={(value) =>
+                value === null || value === undefined
+                  ? ""
+                  : new Intl.NumberFormat("vi-VN").format(Number(value))
+              }
+              // ⬇️ Quan trọng: trả về undefined nếu người dùng xóa sạch, tránh bị thành 0
+              parser={(displayValue) => {
+                const s = (displayValue ?? "").replace(/[^\d]/g, "");
+                return s ? Number(s) : (undefined as any);
+              }}
+              addonAfter="₫"
+            />
           </Form.Item>
         </Col>
 

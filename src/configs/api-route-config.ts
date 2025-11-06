@@ -134,6 +134,12 @@ export const API_ROUTE_CONFIG = {
   CASH_TRANSFERS: "/cash/internal-transfers",
 
 
+  // ===== Công nợ khách hàng (READ-ONLY) =====
+  CONG_NO_SUMMARY: "/cong-no/summary",
+  CONG_NO_BY_CUSTOMER: (id: number | string) => `/cong-no/customers/${id}`,
+  CONG_NO_EXPORT: "/cong-no/export",
+
+
   // ===== Tiện ích → Tư vấn Zalo =====
   ZL_HEALTH: "/utilities/zl/health",
   ZL_CONVERSATIONS: "/utilities/zl/conversations",
@@ -192,6 +198,10 @@ export const URL_CONSTANTS = {
 
   // Quản lý dòng tiền (Cashflow)
 CASHFLOW: "/admin/quan-ly-thu-chi/cashflow",
+
+  // Công nợ khách hàng (UI)
+  CONG_NO_KH: "/admin/quan-ly-thu-chi/cong-no-khach-hang",
+  CONG_NO_KH_DETAIL: (id: number | string) => `/admin/quan-ly-thu-chi/cong-no-khach-hang/${id}`,
 
 
   CONG_THUC_SAN_XUAT: "/admin/quan-ly-san-xuat/cong-thuc-san-xuat",

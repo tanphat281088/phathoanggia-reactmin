@@ -83,6 +83,19 @@ const SuaQuanLyBanHang = ({
       danh_sach_san_pham: danhSachSanPham,
     });
 
+    // Đồng bộ loại thanh toán + đã thanh toán dựa vào số trong DB để công thức hiển thị đúng
+const totalDB  = Number(data?.tong_tien_hang ?? 0);
+const remainDB = Number(data?.tong_tien_can_thanh_toan ?? 0);
+const loaiTT =
+  (totalDB > 0 && remainDB === 0) ? 2 :
+  (totalDB > 0 && remainDB > 0 && remainDB < totalDB) ? 1 : 0;
+
+form.setFieldsValue({
+  loai_thanh_toan: loaiTT,
+  so_tien_da_thanh_toan: loaiTT === 2 ? totalDB : Math.max(0, totalDB - remainDB),
+});
+
+
     setIsLoading(false);
   };
 

@@ -26,15 +26,49 @@ interface SelectFormApiProps
   /** ⬇️ Chỉ đặt true khi muốn controlled bằng tay (mặc định để Form.Item control) */
   forceControlledValue?: boolean;
 
-  /** (MỚI) Ép option.value về number nếu parse được (mặc định false để không ảnh hưởng chỗ khác) */
+  /** Ép option.value về number nếu parse được (mặc định false) */
   coerceValueToNumber?: boolean;
 
-  /** (MỚI) Bơm sẵn option để hiển thị ngay (ví dụ {value: id hiện có, label: tên}) */
+  /** Bơm sẵn option để hiển thị ngay (ví dụ {value: id hiện có, label: tên}) */
   extraOptions?: OptionItem[];
+
+  /** ✅ (MỚI) danh sách mã ưu tiên — chỉ khi bạn truyền prop này */
+  priorityCodes?: string[];
 }
 
 const DEBOUNCE_MS = 350;
 const PAGE_SIZE = 30;
+
+/** ===== Helper ưu tiên mã ===== */
+const _eq = (a?: string, b?: string) =>
+  (a ?? "").trim().toUpperCase() === (b ?? "").trim().toUpperCase();
+
+function sortWithPriority(opts: OptionItem[], priorityCodes?: string[]) {
+  if (!Array.isArray(opts) || !priorityCodes?.length) return opts;
+
+  // map: code -> rank theo thứ tự bạn truyền
+  const weight = new Map<string, number>();
+  priorityCodes.forEach((c, i) => weight.set(c.trim().toUpperCase(), i));
+
+  const rankOf = (o: OptionItem) => {
+    const L = String(o?.label ?? "").toUpperCase();
+    const V = typeof o?.value === "string" ? o.value.toUpperCase() : "";
+    // match chính xác value hoặc label chứa mã
+    for (const c of priorityCodes) {
+      const C = c.trim().toUpperCase();
+      if (_eq(V, C) || L.includes(C)) return weight.get(C) ?? 9999;
+    }
+    return 9999;
+  };
+
+  return [...opts]
+    .map((o, i) => ({ o, i, r: rankOf(o) }))
+    .sort((A, B) => {
+      if (A.r !== B.r) return A.r - B.r; // nhóm ưu tiên lên trước theo thứ tự
+      return A.i - B.i;                  // ổn định phần còn lại
+    })
+    .map((x) => x.o);
+}
 
 const SelectFormApi = ({
   mode,
@@ -49,10 +83,12 @@ const SelectFormApi = ({
   size = "middle",
   disabled,
   reload,
-  value, // ⚠️ vẫn nhận để tương thích API cũ (chỉ dùng khi forceControlledValue = true)
+  value, // ⚠️ chỉ dùng khi forceControlledValue = true
   forceControlledValue = false,
-  coerceValueToNumber = false,      // (MỚI)
-  extraOptions,                      // (MỚI)
+  coerceValueToNumber = false,
+  extraOptions,
+  /** ⬇️ quan trọng: bóc tách để KHÔNG bị forward xuống <Select> */
+  priorityCodes,
   getPopupContainer,
   dropdownMatchSelectWidth,
   popupClassName,
@@ -63,7 +99,7 @@ const SelectFormApi = ({
   const keywordRef = useRef<string>("");
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Chuẩn hoá value theo cờ coerceValueToNumber (an toàn, không bật mặc định) */
+  /** Chuẩn hoá value theo cờ coerceValueToNumber */
   const normalizeValue = (raw: any): string | number => {
     if (coerceValueToNumber) {
       const n = Number(raw);
@@ -120,20 +156,21 @@ const SelectFormApi = ({
         ? data.map((item: any) => {
             const fallbackLabel =
               item.label ??
+              item.ten_san_pham ??
               item.name ??
               [item.ma_khach_hang, item.ten_khach_hang, item.so_dien_thoai]
                 .filter(Boolean)
                 .join(" - ");
             const raw = item.id ?? item.value;
             return {
-              // ✅ chuẩn hoá value theo cờ
               value: normalizeValue(raw),
               label: String(fallbackLabel ?? ""),
             };
           })
         : [];
 
-      setApiOptions(list);
+      // ✅ chỉ sắp xếp ưu tiên khi có priorityCodes
+      setApiOptions(sortWithPriority(list, priorityCodes));
     } catch (e) {
       console.error("Error fetching options:", e);
       setApiOptions([]);
@@ -145,7 +182,7 @@ const SelectFormApi = ({
   useEffect(() => {
     fetchOptions(keywordRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, path, reload]);
+  }, [filter, path, reload, /* đảm bảo đổi ưu tiên sẽ re-sort khi reload */ priorityCodes]);
 
   const handleSearch = (kw: string) => {
     keywordRef.current = kw;
@@ -159,7 +196,7 @@ const SelectFormApi = ({
 
   // ✅ Để Form.Item điều khiển giá trị: KHÔNG forward `value` trừ khi bắt buộc
   const selectProps: SelectProps = {
-    options: mergedOptions, // (MỚI) dùng options đã gộp
+    options: mergedOptions,
     placeholder,
     mode,
     showSearch: true,
@@ -186,10 +223,8 @@ const SelectFormApi = ({
     selectProps.onChange = (v, opt) => onChange(v, opt);
   }
   if (forceControlledValue) {
-    // Chỉ trong TH đặc biệt: bạn MUỐN tự controlled `value`
     selectProps.value = value;
   }
-  // 🚫 Mặc định KHÔNG set selectProps.value để tránh “controlled hai nơi”
 
   return (
     <Form.Item name={name} label={label} rules={rules} initialValue={initialValue}>

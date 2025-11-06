@@ -25,37 +25,58 @@ function authHeaders() {
 
 async function http<T>(url: string, options: RequestInit = {}): Promise<T> {
   console.log('[HTTP]', options?.method || 'GET', url);
+
   const res = await fetch(url, {
     ...options,
     headers: { ...authHeaders(), ...(options.headers || {}) },
   });
 
-  // Nếu HTTP lỗi → ném lỗi kèm mã status (ví dụ: [403] Forbidden)
+  // Đọc thô 1 lần (dùng cho cả nhánh ok & error)
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  const raw = await res.text().catch(() => '');
+
+  // ===== NHÁNH LỖI: gắn status/statusText/body vào Error =====
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`[${res.status}] ${text || res.statusText}`);
+    const err: any = new Error(`[${res.status}] ${res.statusText}`);
+    err.status = res.status;
+    err.statusText = res.statusText;
+    err.body = raw;
+    err.url = url;
+
+    // Nếu trả JSON lỗi, cố parse để FE có message dễ đọc hơn
+    if (raw && contentType.includes('application/json')) {
+      try {
+        const j = JSON.parse(raw);
+        err.json = j;
+        // nếu BE có {message}, dùng nó làm message chính
+        if (j?.message && typeof j.message === 'string') {
+          err.message = `[${res.status}] ${j.message}`;
+        }
+      } catch { /* ignore */ }
+    }
+    throw err; // <-- QUAN TRỌNG: Error có .status để FE bắt 404
   }
 
-  // ✅ DELETE hay 204/205: không có body → trả undefined
+  // ===== NHÁNH THÀNH CÔNG =====
+  // DELETE/204/205: thường không có body
   if (res.status === 204 || res.status === 205) {
     return undefined as T;
   }
 
-  // ✅ Nếu không phải JSON hoặc body rỗng → trả undefined
-  const ct = res.headers.get("content-type") || "";
-  const raw = await res.text(); // đọc text 1 lần để tránh lỗi stream locked
   if (!raw) {
     return undefined as T;
   }
-  if (!ct.toLowerCase().includes("application/json")) {
-    // không phải JSON; thử parse, nếu fail thì trả undefined
+
+  if (contentType.includes('application/json')) {
     try { return JSON.parse(raw) as T; } catch { return undefined as T; }
   }
 
-  // ✅ JSON hợp lệ
-  return JSON.parse(raw) as T;
-}
+  // Trả thử JSON nếu server set content-type khác
+  try { return JSON.parse(raw) as T; } catch { /* fall-through */ }
 
+  // Không phải JSON → trả undefined cho nhất quán
+  return undefined as T;
+}
 
 
 /** ================== Utils ================== */

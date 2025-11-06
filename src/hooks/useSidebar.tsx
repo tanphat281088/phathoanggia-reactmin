@@ -99,6 +99,7 @@ const useSidebar = () => {
     "bao-cao": "bao-cao-thu-chi",
     // Cashflow: chỉ cần có bất kỳ module cash-* là hiển thị
     "cashflow": ["cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"],
+      "cong-no-khach-hang": "quan-ly-cong-no",   // 👈 THÊM DÒNG NÀY
 
     // Nhân sự: mọi child đều map về 1 module 'nhan-su'
     "nhan-su-cham-cong": "nhan-su",

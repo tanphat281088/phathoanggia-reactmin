@@ -57,13 +57,19 @@ import VtItemsPage from "../pages/vt/VtItemsPage";
 import VtReceiptsPage from "../pages/vt/VtReceiptsPage";
 import VtIssuesPage from "../pages/vt/VtIssuesPage";
 import VtStocksLedgerPage from "../pages/vt/VtStocksLedgerPage";
-import CashflowPage from "../pages/thu-chi/CashflowPage";
+
+
+import ReceivablesList from "../pages/cong-no-kh/ReceivablesList";
+import ReceivablesDetail from "../pages/cong-no-kh/ReceivablesDetail";
+
 
 import FbInboxPage from "../pages/utilities/FbInboxPage";
 
 import ZaloInboxPage from "../pages/utilities/ZaloInboxPage";
 
 import { mobileRoute } from "../mobile/router";
+
+import CashflowPage from "../pages/thu-chi/CashflowPage";
 
 
 
@@ -297,6 +303,21 @@ export const router = createBrowserRouter([
       element: <MainLayout />,
       children: [{ index: true, element: <CashflowPage /> }],
     },
+
+              // ✅ Công nợ khách hàng (Tổng hợp theo KH)
+          {
+            path: "cong-no-khach-hang",
+            element: <MainLayout />,
+            children: [{ index: true, element: <ReceivablesList /> }],
+          },
+
+          // ✅ Công nợ khách hàng — Chi tiết 1 khách
+          {
+            path: "cong-no-khach-hang/:id",
+            element: <MainLayout />,
+            children: [{ index: true, element: <ReceivablesDetail /> }],
+          },
+
 
         ],
       },

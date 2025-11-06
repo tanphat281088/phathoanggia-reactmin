@@ -29,6 +29,9 @@ const EXTRA_WHITELIST = [
     "/admin/utilities/fb-inbox",
       "/admin/utilities/zl-inbox",
 
+        "/admin/quan-ly-thu-chi/cong-no-khach-hang",      // 👈 THÊM
+
+
 
 
 
@@ -52,6 +55,9 @@ const MODULE_ALIAS: Record<string, string> = {
   "utilities": "utilities",
   "fb-inbox": "utilities-fb",
     "zl-inbox": "utilities-zl",
+
+      "cong-no-khach-hang": "quan-ly-cong-no",  // 👈 THÊM
+
 
 
 };

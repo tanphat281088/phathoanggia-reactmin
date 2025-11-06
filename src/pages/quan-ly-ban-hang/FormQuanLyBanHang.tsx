@@ -12,6 +12,7 @@ import {
   Button,
   Tooltip,
   message,
+
 } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { formatter, parser } from "../../utils/utils";
@@ -32,6 +33,7 @@ import DanhSachSanPham from "./components/DanhSachSanPham";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { phoneNumberVNPattern } from "../../utils/patterns";
+
 
 /** ====== BỔ SUNG: Định dạng ngày–giờ chuẩn ====== */
 const CLIENT_DATETIME_FORMAT = "DD/MM/YYYY HH:mm";
@@ -58,6 +60,17 @@ const FormQuanLyBanHang = ({
 
   // Theo dõi thay đổi trong danh sách sản phẩm
   const danhSachSanPham = Form.useWatch("danh_sach_san_pham", form) || [];
+
+  // Nếu không có danh sách SP, nạp tổng tiền từ DB vào state để công thức hiển thị
+// Nếu không có danh sách SP thì nạp tổng tiền từ DB để công thức hiển thị số
+useEffect(() => {
+  const dbTotal = Number(form.getFieldValue("tong_tien_hang") || 0);
+  if ((!danhSachSanPham || danhSachSanPham.length === 0) && dbTotal > 0) {
+    setTongTienHang(dbTotal);
+  }
+}, [form, danhSachSanPham]);
+
+
 
   /** ---------------- GIỮ BIẾN CŨ (tương thích ngược) ---------------- */
   // ĐƠN GIÁ ĐÃ GỒM VAT → KHÔNG dùng VAT (logic cũ)
@@ -168,13 +181,18 @@ const FormQuanLyBanHang = ({
   }, [calculatedProducts, form]);
 
   // Effect để update form values với debounce nhẹ
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      updateFormValues();
+// Effect để update form values với debounce nhẹ
+useEffect(() => {
+  const timer = setTimeout(() => {
+    updateFormValues();
+    // ❗ Không ghi đè tổng từ DB khi danh_sach_san_pham đang rỗng
+    if (Array.isArray(danhSachSanPham) && danhSachSanPham.length > 0) {
       setTongTienHang(calculatedTongTienHang);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [updateFormValues, calculatedTongTienHang]);
+    }
+  }, 50);
+  return () => clearTimeout(timer);
+}, [updateFormValues, calculatedTongTienHang, danhSachSanPham]);
+
 
   // ====== Re-sync phiếu thu theo mã đơn ngay trong form ======
   const webBaseUrl = useMemo(() => {

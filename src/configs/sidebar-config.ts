@@ -265,6 +265,14 @@ export const sidebarConfig = (navigate: NavigateFunction) => {
       onClick: () => navigate(URL_CONSTANTS.CASHFLOW), // "/admin/quan-ly-thu-chi/cashflow"
     },
 
+{
+  key: "cong-no-khach-hang",
+  label: "Công nợ khách hàng",
+  icon: React.createElement(Wallet, { style: iconStyle }),
+  onClick: () => navigate(URL_CONSTANTS.CONG_NO_KH),
+},
+
+
       ],
     },
 
