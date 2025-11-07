@@ -403,7 +403,17 @@ export const sidebarConfig = (
           }]
         : []),
 
- 
+       // ✅ Thiết lập lương (Hồ sơ)
+      ...(can(permJson, "payroll-profile", "index")
+        ? [{
+            key: "nhan-su-thiet-lap-luong",
+            label: "Thiết lập lương",
+            // dùng Cog cho cảm giác “cấu hình”; bạn có thể đổi sang Banknote nếu thích
+            icon: React.createElement(Cog, { style: iconStyle }),
+            onClick: () => navigate(URL_CONSTANTS.NHAN_SU_THIET_LAP_LUONG),
+          }]
+        : []),
+
 
     ]
   : []),

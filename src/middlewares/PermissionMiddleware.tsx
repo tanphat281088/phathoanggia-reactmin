@@ -62,6 +62,8 @@ const MODULE_ALIAS: Record<string, string> = {
   "bang-luong-cua-toi": "payrollMe", // ✅ trang /admin/quan-ly-nhan-su/bang-luong-cua-toi
   "bang-luong": "payroll",           // ✅ trang /admin/quan-ly-nhan-su/bang-luong
 
+  // ✅ HR → Thiết lập lương (UI)
+  "thiet-lap-luong": "payroll-profile",
 
 
 

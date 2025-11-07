@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button, Card, Dialog, Form, Input, List, Modal, Space, SpinLoading, Toast } from "antd-mobile";
 import axios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
+import { DatePicker, Select } from "antd";
+import dayjs from "dayjs";
+
+
 
 type RowItem = {
   id: number;
@@ -52,6 +56,8 @@ export default function BangLuongQuanLy() {
 
   // Modal chọn nhân viên
   const [pickOpen, setPickOpen] = useState<boolean>(false);
+  const [usersFallback, setUsersFallback] = useState<{value:number,label:string}[]>([]);
+
 
   const userOptions = useMemo(
     () =>
@@ -71,33 +77,39 @@ export default function BangLuongQuanLy() {
             <div className="text-base font-semibold">Bảng lương (Quản lý)</div>
 
             {/* Native month picker: ổn định, không phụ thuộc rc-picker */}
-            <input
-              type="month"
-              className="border rounded px-2 py-1 text-sm"
-              value={thang}
-              onChange={(e) =>
-                setThang(e.target.value || new Date().toISOString().slice(0, 7))
-              }
-            />
+<DatePicker
+  picker="month"
+  format="MM/YYYY"
+  value={dayjs(thang + "-01")}
+  onChange={(d) => {
+    const v = d ? d.format("YYYY-MM") : dayjs().format("YYYY-MM");
+    setThang(v);
+  }}
+  allowClear={false}
+  size="small"
+/>
 
-            {/* Chọn nhanh nhân viên (native select) */}
-            <select
-              className="border rounded px-2 py-1 text-sm"
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) onShowDetail(Number(val));
-              }}
-              defaultValue=""
-            >
-              <option value="" disabled>
-                — Chọn nhân viên —
-              </option>
-              {userOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+
+{/* Chọn nhanh nhân viên (AntD Select + fallback khi tháng chưa có snapshot) */}
+<Select
+  key={`sel-${thang}-${items.length}-${usersFallback.length}`}  // ÉP re-render khi dữ liệu đổi
+  style={{ minWidth: 220 }}
+  placeholder="Chọn nhân viên"
+  size="small"
+  showSearch
+  optionFilterProp="label"
+  options={
+    items.length
+      ? items.map((i) => ({ label: i.user_name || `#${i.user_id}`, value: i.user_id }))
+      : usersFallback
+  }
+  onChange={(val) => {
+    if (val) onShowDetail(Number(val));
+  }}
+/>
+
+
+
           </div>
 
           {/* Cụm phải: action buttons (tự wrap khi hẹp) */}
@@ -112,68 +124,121 @@ export default function BangLuongQuanLy() {
               Mở khóa tháng
             </Button>
             <Button
-              size="small"
-              onClick={() => {
-                if (!items.length) {
-                  Toast.show({
-                    content: "Chưa có snapshot lương trong tháng để chọn",
-                    position: "bottom",
-                  });
-                  return;
-                }
-                setPickOpen(true);
-              }}
-            >
-              Chọn nhân viên…
-            </Button>
+  size="small"
+  onClick={() => {
+    const hasSnapshot = items.length > 0;
+    const hasFallback = usersFallback.length > 0;
+    if (!hasSnapshot && !hasFallback) {
+      Toast.show({
+        content: `Chưa có danh sách nhân viên cho kỳ ${thang}. Bấm "Tính lại tháng" hoặc kiểm tra quyền truy cập.`,
+        position: "bottom",
+      });
+      return;
+    }
+    setPickOpen(true);
+  }}
+>
+  Chọn nhân viên…
+</Button>
+
           </div>
         </div>
       </div>
     ),
-    [thang, items, userOptions]
+   [thang, items, userOptions, usersFallback]   // ⬅️ THÊM usersFallback VÀO ĐÂY
   );
 
-  const fetchList = async () => {
-    setLoading(true);
-    try {
-      const { data } = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
-        params: { thang, page: 1, per_page: 200 },
-      });
-      if (data?.success) {
-        setItems(data.data?.items || []);
-        setTotal(data.data?.pagination?.total || 0);
-      } else {
-        Toast.show({
-          content: data?.message || "Không lấy được dữ liệu",
-          position: "bottom",
-        });
-      }
-    } catch (e: any) {
-      Toast.show({ content: e?.message || "Lỗi tải dữ liệu", position: "bottom" });
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchList = async () => {
+  setLoading(true);
+  try {
+const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
+  params: { thang, page: 1, per_page: 200 },
+});
 
-  useEffect(() => {
-    fetchList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thang]);
+const ok = res?.success === true;
+const list = ok ? (res?.data?.items ?? []) : [];
+setItems(Array.isArray(list) ? list : []);
+const ttl = ok ? (res?.data?.pagination?.total ?? list.length) : 0;
+setTotal(ttl);
+
+if (!list || list.length === 0) {
+  await fetchUsersFallback();
+} else {
+  setUsersFallback([]);
+}
+
+if (!ok) {
+  Toast.show({ content: res?.message || "Không lấy được dữ liệu", position: "bottom" });
+}
+
+  } catch (e: any) {
+    Toast.show({ content: e?.message || "Lỗi tải dữ liệu", position: "bottom" });
+  } finally {
+    setLoading(false);
+  }
+};
+
+  
+
+// 1) Mỗi khi đổi tháng -> chỉ gọi fetchList (bên trong đã tự nạp fallback khi rỗng)
+useEffect(() => {
+  fetchList();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [thang]);
+
+// 2) (tùy chọn) pre-warm fallback users 1 lần lúc mount để Select có tên ngay
+useEffect(() => {
+  fetchUsersFallback();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+
+
+// Fallback lấy DS nhân viên: ưu tiên /nguoi-dung; nếu bị 403/không có quyền thì rơi xuống /nhan-su/bang-luong/list theo tháng
+const fetchUsersFallback = async () => {
+  try {
+    const res1: any = await axios.get(API_ROUTE_CONFIG.NGUOI_DUNG, { params: { page: 1, per_page: 200 } });
+    const list1 =
+      (Array.isArray(res1?.data?.collection) && res1.data.collection) ||
+      (Array.isArray(res1?.data?.items)      && res1.data.items)      ||
+      (Array.isArray(res1?.data?.data)       && res1.data.data)       ||
+      (Array.isArray(res1?.collection)       && res1.collection)      ||
+      (Array.isArray(res1?.items)            && res1.items)           ||
+      (Array.isArray(res1?.data)             && res1.data)            || [];
+    if (list1.length) {
+      setUsersFallback(list1.map((u:any)=>({ value:u.id, label: u.name||u.email||`#${u.id}` })));
+      return;
+    }
+  } catch(e) {
+    console.warn('[fallback] /nguoi-dung fail -> thử payroll list', e);
+  }
+  try {
+    const res2: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
+      params: { thang, page: 1, per_page: 200 },
+    });
+    const list2 = (res2?.data?.items ?? []) as any[];
+    setUsersFallback(list2.map((it:any)=>({ value: it.user_id, label: it.user_name || `#${it.user_id}` })));
+  } catch(e) {
+    console.error('[fallback] payroll list fail', e);
+    setUsersFallback([]);
+  }
+};
+
+
+
 
   const onShowDetail = async (user_id: number) => {
     try {
-      const { data } = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG, {
-        params: { thang, user_id },
-      });
-      if (data?.success) {
-        setDetail(data.data?.item || null);
-        setDetailOpen(true);
-      } else {
-        Toast.show({
-          content: data?.message || "Không lấy được chi tiết",
-          position: "bottom",
-        });
-      }
+const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG, {
+  params: { thang, user_id },
+});
+if (res?.success) {
+  setDetail(res.data?.item || null);
+  setDetailOpen(true);
+} else {
+  Toast.show({ content: res?.message || "Không lấy được chi tiết", position: "bottom" });
+}
+
     } catch (e: any) {
       Toast.show({ content: e?.message || "Lỗi chi tiết", position: "bottom" });
     }
@@ -331,23 +396,37 @@ export default function BangLuongQuanLy() {
         content={
           <div>
             <div className="text-[14px] font-semibold mb-2">Chọn nhân viên</div>
-            {items.length === 0 ? (
-              <div className="text-sm text-gray-500">Không có dòng lương trong tháng {thang}.</div>
-            ) : (
-              <List>
-                {items.map((u) => (
-                  <List.Item
-                    key={u.user_id}
-                    onClick={() => {
-                      setPickOpen(false);
-                      onShowDetail(u.user_id);
-                    }}
-                  >
-                    {u.user_name || `#${u.user_id}`}
-                  </List.Item>
-                ))}
-              </List>
-            )}
+            {(() => {
+  const pickOptions = (items.length
+    ? items.map((u) => ({ value: u.user_id, label: u.user_name || `#${u.user_id}` }))
+    : usersFallback
+  );
+
+  if (!pickOptions.length) {
+    return (
+      <div className="text-sm text-gray-500">
+        Không có dữ liệu người dùng cho kỳ {thang}. Bấm <b>Tính lại tháng</b> hoặc kiểm tra quyền.
+      </div>
+    );
+  }
+
+  return (
+    <List>
+      {pickOptions.map((opt) => (
+        <List.Item
+          key={opt.value}
+          onClick={() => {
+            setPickOpen(false);
+            onShowDetail(Number(opt.value));
+          }}
+        >
+          {opt.label}
+        </List.Item>
+      ))}
+    </List>
+  );
+})()}
+
           </div>
         }
       />

@@ -106,6 +106,9 @@ export const getSidebar = (items: any, phan_quyen: any) => {
         // ✅ HR → Bảng lương
     "nhan-su-bang-luong-cua-toi": "payrollMe",
     "nhan-su-bang-luong": "payroll",
+        // ✅ HR → Thiết lập lương (Hồ sơ)
+    "nhan-su-thiet-lap-luong": "payroll-profile",
+
 
 
     // CSKH
@@ -121,7 +124,6 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "cong-no-khach-hang": "quan-ly-cong-no",
 
       "kiem-toan": "kiem-toan",   // ⬅️ Module RBAC “Kiểm toán”
-
 
 
   };

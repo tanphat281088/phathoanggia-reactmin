@@ -102,8 +102,15 @@ const items = sidebarConfig(
     if (!moduleName) return false;
     const p = roles.find((r: any) => r?.name === moduleName);
     if (!p || !p.actions) return false;
-    const a = p.actions;
-    return !!a.showMenu && !!a.index;
+     const a = p.actions;
+
+  // ✅ Riêng module 'payroll-profile': cho phép hiển thị chỉ cần quyền index (không bắt buộc showMenu)
+  if (moduleName === "payroll-profile") {
+    return !!a.index;
+  }
+
+  return !!a.showMenu && !!a.index;
+
   };
 
   /**
@@ -137,6 +144,9 @@ const items = sidebarConfig(
    
       "nhan-su-bang-luong-cua-toi": "payrollMe", // ✅ My Payroll
   "nhan-su-bang-luong": "payroll",           // ✅ Payroll (Quản lý)
+    // ✅ Thiết lập lương (Hồ sơ)
+  "nhan-su-thiet-lap-luong": "payroll-profile",
+
 
   };
 
@@ -147,6 +157,7 @@ const MANAGER_HR_KEYS = new Set<string>([
   "nhan-su-don-tu",
   "nhan-su-bang-cong",
     "nhan-su-bang-luong",
+     "nhan-su-thiet-lap-luong",   // ✅ chỉ admin/super_admin thấy
 
 ]);
 

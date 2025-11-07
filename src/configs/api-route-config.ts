@@ -97,6 +97,11 @@ export const API_ROUTE_CONFIG = {
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/nhan-su/holiday", // GET/POST; PATCH/DELETE kèm id
 
+  // 🔹 Thiết lập lương (Payroll Profile)
+  NHAN_SU_LUONG_PROFILE_GET: "/nhan-su/luong-profile",            // GET: ?user_id=
+  NHAN_SU_LUONG_PROFILE_UPSERT: "/nhan-su/luong-profile/upsert",   // POST
+  NHAN_SU_LUONG_PREVIEW: "/nhan-su/luong/preview",                 // GET: ?user_id=&thang=
+
 
     // 🔹 Bảng lương
   NHAN_SU_BANG_LUONG_MY: "/nhan-su/bang-luong/my",               // GET: lương của tôi
@@ -249,6 +254,10 @@ CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
 
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/admin/quan-ly-nhan-su/holiday",
+
+    // 🔹 Thiết lập lương (UI mới)
+  NHAN_SU_THIET_LAP_LUONG: "/admin/quan-ly-nhan-su/thiet-lap-luong",
+
 
     // 🔹 Bảng lương
   NHAN_SU_BANG_LUONG_MY: "/admin/quan-ly-nhan-su/bang-luong-cua-toi",

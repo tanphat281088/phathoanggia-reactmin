@@ -49,6 +49,8 @@ import HolidayAdmin from "../pages/NhanSu/HolidayAdmin";
 
 import BangLuongCuaToi from "../pages/NhanSu/BangLuongCuaToi";     // MỚI
 import BangLuongQuanLy from "../pages/NhanSu/BangLuongQuanLy";     // MỚI
+import ThietLapLuong from "../pages/NhanSu/ThietLapLuong";         // MỚI: Thiết lập lương
+
 
 import BaoCaoQuanTri from "../pages/bao-cao-quan-tri";
 
@@ -425,6 +427,13 @@ export const router = createBrowserRouter([
             element: <MainLayout />,
             children: [{ index: true, element: <HolidayAdmin /> }],
           },
+
+              // === Thiết lập lương (Hồ sơ) — NEW
+    {
+      path: "thiet-lap-luong",
+      element: <MainLayout />,
+      children: [{ index: true, element: <ThietLapLuong /> }],
+    },
 
     // === Bảng lương (MỚI)
     {
