@@ -236,6 +236,49 @@ export async function getCashBalanceSummary(params?: {
   return axios.get(url);
 }
 
+
+/* ===================== Audit Delta (Receipts) ===================== */
+/**
+ * Tra soát lệch (delta) giữa PHIẾU THU CK và SỔ QUỸ theo alias bank/account của tài khoản nhận.
+ * Params:
+ *  - tai_khoan_id (bắt buộc)
+ *  - alias_bank, alias_account (tuỳ chọn – nếu bỏ trống sẽ lấy từ tài khoản)
+ *  - from, to (YYYY-MM-DD – tuỳ chọn)
+ */
+export async function auditReceiptsDelta(params: {
+  tai_khoan_id: Id;
+  alias_bank?: string;
+  alias_account?: string;
+  from?: string;
+  to?: string;
+}): Promise<BasicResponse> {
+  const url = `${API_ROUTE_CONFIG.CASH_AUDIT_DELTA}${buildQuery(params)}`;
+  return axios.get(url);
+}
+
+/**
+ * Áp dụng sửa delta (idempotent)
+ * Body:
+ *  - tai_khoan_id (bắt buộc)
+ *  - alias_bank, alias_account (tuỳ chọn)
+ *  - from, to (tuỳ chọn)
+ *  - scope: "missing" | "over" | "both" (mặc định "both")
+ *  - dry_run: 0|1 (mặc định 1)
+ */
+export async function fixReceiptsDelta(payload: {
+  tai_khoan_id: Id;
+  alias_bank?: string;
+  alias_account?: string;
+  from?: string;
+  to?: string;
+  scope?: "missing" | "over" | "both";
+  dry_run?: 0 | 1;
+}): Promise<BasicResponse> {
+  return axios.post(API_ROUTE_CONFIG.CASH_AUDIT_DELTA_FIX, payload);
+}
+
+
+
 /* ===================== Internal Transfers ===================== */
 export async function listTransfers(params?: {
   from?: string;
@@ -296,6 +339,11 @@ const cashApi = {
   listCashLedger,
   getCashBalances,
   getCashBalanceSummary,
+
+    // audit delta
+  auditReceiptsDelta,
+  fixReceiptsDelta,
+
   // internal transfers
   listTransfers,
   createTransfer,

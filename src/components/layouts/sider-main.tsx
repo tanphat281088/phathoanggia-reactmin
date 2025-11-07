@@ -66,8 +66,29 @@ if (rawThuChi && idxThuChi >= 0) {
       children: [...curChildren, cashflowChild],
     };
   }
+
+// ⬇️ Bơm child 'kiem-toan' nếu role có quyền showMenu+index mà bị filter mất
+// (không bắt buộc vì getSidebar đã lọc theo quyền, nhưng thêm cho chắc kèo khi có custom merge)
+let canShowKiemToan = false;
+try {
+  const pq = JSON.parse(user?.vai_tro?.phan_quyen || "[]");
+  const mod = pq.find((r: any) => r?.name === "kiem-toan");
+  canShowKiemToan = !!(mod?.actions?.showMenu && mod?.actions?.index);
+} catch { /* ignore */ }
+
+const kiemToanChild = (rawThuChi.children || []).find(
+  (c: any) => String(c?.key) === "kiem-toan"
+);
+
+if (kiemToanChild && canShowKiemToan && !curChildKeys.has("kiem-toan")) {
+  mergedSidebar[idxThuChi] = {
+    ...mergedSidebar[idxThuChi],
+    children: [...(mergedSidebar[idxThuChi]?.children || []), kiemToanChild],
+  };
 }
 
+
+}
 
   // Áp dụng blacklist để ẩn hẳn "Quản lý kho"
   const finalSidebar = mergedSidebar.filter(

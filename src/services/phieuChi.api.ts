@@ -137,6 +137,15 @@ export async function showPhieuChi(
   return axios.get(`${PATH}/${id}`);
 }
 
+export async function postPhieuChi(id: number): Promise<SingleResponse<PhieuChiModel>> {
+  return axios.post(`${PATH}/${id}/post`);
+}
+
+export async function unpostPhieuChi(id: number): Promise<SingleResponse<PhieuChiModel>> {
+  return axios.post(`${PATH}/${id}/unpost`);
+}
+
+
 export async function createPhieuChi(
   payload: CreatePhieuChiPayload
 ): Promise<SingleResponse<PhieuChiModel>> {
@@ -169,10 +178,13 @@ export async function getExpenseCategoryParents(): Promise<
 }
 
 export async function getExpenseCategoryOptions(
-  parentCode: string
+  parent: string | number
 ): Promise<SingleResponse<Option[]>> {
-  return axios.get(API_ROUTE_CONFIG.EXPENSE_CATEGORIES_OPTIONS(parentCode));
+  const key = /^\d+$/.test(String(parent)) ? "parent_id" : "parent_code";
+  const url = `${API_ROUTE_CONFIG.EXPENSE_CATEGORIES_PARENTS.replace("/parents","/options")}?${key}=${parent}`;
+  return axios.get(url);
 }
+
 
 /** ===================== Export tiện dụng ===================== **/
 export default {

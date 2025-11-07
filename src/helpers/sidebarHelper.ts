@@ -102,7 +102,11 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "nhan-su-don-tu": "nhan-su",
     "nhan-su-bang-cong-cua-toi": "nhan-su",
     "nhan-su-bang-cong": "nhan-su",
-    "nhan-su-holiday": "nhan-su",
+    
+        // ✅ HR → Bảng lương
+    "nhan-su-bang-luong-cua-toi": "payrollMe",
+    "nhan-su-bang-luong": "payroll",
+
 
     // CSKH
     "cham-soc-khach-hang": "cskh",
@@ -115,6 +119,9 @@ export const getSidebar = (items: any, phan_quyen: any) => {
   
           // Công nợ KH (map key menu -> module permission)
     "cong-no-khach-hang": "quan-ly-cong-no",
+
+      "kiem-toan": "kiem-toan",   // ⬅️ Module RBAC “Kiểm toán”
+
 
 
   };

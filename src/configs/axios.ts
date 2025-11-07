@@ -58,6 +58,31 @@ axios.interceptors.response.use(
     const data = resp?.data;
     const originalRequest = error.config || {};
 
+// --- Hide harmless 403 for preload endpoints (anywhere) ---
+const reqMethod = String(originalRequest?.method || 'GET').toUpperCase();
+let reqPathname = '';
+try {
+  const base = originalRequest?.baseURL || axios.defaults.baseURL || window.location.origin;
+  const u = new URL(String(originalRequest?.url || ''), base);
+  reqPathname = u.pathname.replace(/^\/api/, '');
+} catch {
+  reqPathname = String(originalRequest?.url || '');
+}
+
+const isAuthMe      = /\/auth\/me$/.test(reqPathname);
+const isPermList    = /\/danh-sach-phan-quyen$/.test(reqPathname);
+const isRoleOptions = /\/vai-tro\/options$/.test(reqPathname);
+const isHrModule    = /^\/nhan-su(\/|$)/.test(reqPathname);
+
+const isHarmless403 = isAuthMe || isPermList || isRoleOptions || isHrModule;
+
+if (status === 403 && (isHarmless403 || (reqMethod === 'GET' && (isPermList || isRoleOptions || isHrModule)))) {
+  (error as any).__suppressToast = true; // helper sẽ im lặng
+  return Promise.resolve({ success: true, data: null, suppressed: true });
+}
+
+
+
     // Nếu không có response (network error, CORS, v.v) => trả về luôn
     if (!resp) return Promise.reject(error);
 

@@ -26,12 +26,31 @@ import cashApi, {
   type LedgerEntry,
   type Transfer,
 } from "../../services/cash.api";
+import AuditTab from "./components/AuditTab";
+import usePermission from "../../hooks/usePermission";
+import { useLocation } from "react-router-dom";
+
+
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 export default function CashflowPage() {
-  const [active, setActive] = useState<"overview" | "ledger" | "transfer" | "accounts">("overview");
+const [active, setActive] = useState<"overview" | "ledger" | "transfer" | "accounts" | "audit">("overview");
+
+const permAudit = usePermission("/kiem-toan");    // module RBAC “Kiểm toán”
+const canViewAudit = !!permAudit?.index;
+
+
+const loc = useLocation();
+
+const isAuditPath = loc.pathname.includes("/cashflow/audit");
+
+useEffect(() => {
+  if (isAuditPath) setActive("audit");
+}, [isAuditPath]);
+
+
 
   return (
     <Card title="Quản lý dòng tiền">
@@ -43,6 +62,11 @@ export default function CashflowPage() {
           { key: "ledger", label: "Giao dịch", children: <LedgerTab /> },
           { key: "transfer", label: "Chuyển nội bộ", children: <TransferTab /> },
           { key: "accounts", label: "Thông tin tài khoản", children: <AccountsTab /> },
+          // ⬇️ Thêm tab Tra soát lỗi — chỉ render khi có quyền
+...((isAuditPath || canViewAudit)
+  ? [{ key: "audit", label: "Kiểm toán", children: <AuditTab /> }]
+  : []),
+
         ]}
       />
     </Card>
@@ -275,6 +299,22 @@ const wSo   = Form.useWatch("so_tien", formCreate);
 const [posting, setPosting] = useState<Set<number>>(new Set());
 const [unposting, setUnposting] = useState<Set<number>>(new Set());
 
+
+
+// Loading theo từng phiếu khi Delete
+const [deleting, setDeleting] = useState<Set<number>>(new Set());
+
+const handleDelete = async (id: number) => {
+  setDeleting(prev => new Set(prev).add(id));
+  try {
+    await cashApi.deleteTransfer(id);
+    await fetch(1, per);
+  } finally {
+    setDeleting(prev => { const nxt = new Set(prev); nxt.delete(id); return nxt; });
+  }
+};
+
+
 // Helper chống treo mạng (timeout 15s)
 const withTimeout = <T,>(p: Promise<T>, ms = 15000): Promise<T> =>
   new Promise((res, rej) => {
@@ -343,13 +383,27 @@ const actionCol: ColumnsType<Transfer>[number] = {
   width: 160,
   render: (_: any, r: Transfer) => {
     if (r.trang_thai === "draft") {
-      const loadingThis = posting.has(r.id);
-      return (
-<Button type="primary" size="small" loading={loadingThis} onClick={() => handlePost(r.id)}>
-  Ghi sổ
-</Button>
+      const loadingPost = posting.has(r.id);
+const loadingDel  = deleting.has(r.id);
+return (
+  <Space size={6}>
+    <Button type="primary" size="small" loading={loadingPost} onClick={() => handlePost(r.id)}>
+      Ghi sổ
+    </Button>
+    <Popconfirm
+      title="Xóa phiếu chuyển nội bộ này?"
+      description="Chỉ xóa được khi đang ở trạng thái NHÁP."
+      okText="Xóa"
+      cancelText="Đóng"
+      onConfirm={() => handleDelete(r.id)}
+    >
+      <Button danger size="small" loading={loadingDel}>
+        Xóa
+      </Button>
+    </Popconfirm>
+  </Space>
+);
 
-      );
     }
     if (r.trang_thai === "posted") {
       const loadingThis = unposting.has(r.id);

@@ -57,6 +57,12 @@ const MODULE_ALIAS: Record<string, string> = {
     "zl-inbox": "utilities-zl",
 
       "cong-no-khach-hang": "quan-ly-cong-no",  // 👈 THÊM
+      "kiem-toan": "kiem-toan",
+        // HR → Bảng lương
+  "bang-luong-cua-toi": "payrollMe", // ✅ trang /admin/quan-ly-nhan-su/bang-luong-cua-toi
+  "bang-luong": "payroll",           // ✅ trang /admin/quan-ly-nhan-su/bang-luong
+
+
 
 
 
@@ -122,6 +128,25 @@ if (!isOwner && OWNER_ONLY_PREFIXES.some((pre) => pathname === pre || pathname.s
     const segs = pathAfterAdmin.split("/").filter(Boolean);
     const parentKeyOriginal = (segs[0] || "").trim();
     const childKeyOriginal = (segs[1] || "").trim();
+
+    const thirdKeyOriginal = (segs[2] || "").trim();
+
+// ⭐ đặc thù: /admin/quan-ly-thu-chi/cashflow/audit → module "kiem-toan"
+if (
+  parentKeyOriginal === "quan-ly-thu-chi" &&
+  childKeyOriginal === "cashflow" &&
+  thirdKeyOriginal === "audit"
+) {
+  // kiểm quyền xem của module "Kiểm toán"
+  const hasKiemToan = (name: string) => {
+    const p = phanQuyen.find((r: any) => r?.name === name);
+    return !!p?.actions?.showMenu && !!p?.actions?.index;
+  };
+  if (hasKiemToan("kiem-toan")) return <>{children}</>;
+  toast.error("Bạn không có quyền truy cập vào trang này");
+  return <Navigate to={URL_CONSTANTS.DASHBOARD} />;
+}
+
 
     const parentKey = MODULE_ALIAS[parentKeyOriginal] ?? parentKeyOriginal;
     const childKey = childKeyOriginal

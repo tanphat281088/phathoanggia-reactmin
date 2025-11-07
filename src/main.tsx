@@ -6,6 +6,11 @@ import { store } from "./redux/store";
 import { SnackbarProvider } from "notistack";
 import { ConfigProvider } from "antd";
 import { router } from "./configs/app-router";
+import { installFetchGuard } from "./setup/fetch-guard";
+installFetchGuard();
+
+// ...phần khởi động React của bạn...
+
 
 /* ✅ CSS responsive toàn cục */
 import "./components/responsive/Responsive.css";

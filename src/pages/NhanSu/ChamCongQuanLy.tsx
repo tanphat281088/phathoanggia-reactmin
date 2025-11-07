@@ -117,20 +117,21 @@ export default function ChamCongQuanLy() {
       width: 120,
       render: (v, r) => v || (r.checked_at ? dayjs(r.checked_at).format("YYYY-MM-DD") : ""),
     },
-    {
-      title: "Giờ",
-      dataIndex: "gio_phut",
-      key: "gio_phut",
-      width: 100,
-      render: (v, r) => v || (r.checked_at ? dayjs(r.checked_at).format("HH:mm") : ""),
-    },
-    {
-      title: "Trong vùng",
-      dataIndex: "within",
-      key: "within",
-      width: 120,
-      render: (v: boolean) => (v ? <Tag color="blue">Hợp lệ</Tag> : <Tag color="red">Ngoài vùng</Tag>),
-    },
+{
+  title: "Giờ",
+  key: "gio",
+  width: 100,
+  render: (_: any, r) => r.gio_phut || (r.checked_at ? dayjs(r.checked_at).format("HH:mm") : ""),
+},
+
+{
+  title: "Trong vùng",
+  dataIndex: "within",
+  key: "within",
+  width: 120,
+  render: (v: boolean) => (v ? <Tag color="blue">Hợp lệ</Tag> : <Tag color="red">Ngoài vùng</Tag>),
+},
+
     {
       title: "Khoảng cách (m)",
       dataIndex: "distance_m",
@@ -158,21 +159,47 @@ export default function ChamCongQuanLy() {
     return { user_id: userId, from, to, page, per_page: perPage };
   }, [userId, range, page, perPage]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const resp = await attendanceGetAdmin(params);
-      if (resp?.success) {
-        const data = resp.data as AttendanceListResponse;
-        setRows(data.items || []);
-        setTotal(data.pagination?.total || 0);
-      }
-    } catch {
-      // handled globally
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchData = async () => {
+  setLoading(true);
+  try {
+    // Ép kiểu để tránh TS phàn nàn resp.data (do interceptor flatten payload)
+    const resp: any = await attendanceGetAdmin(params);
+
+    // ✅ Normalize mọi biến thể payload
+    const data =
+      resp?.data?.data ??   // { success, data: { items, pagination } }
+      resp?.data ??         // { items, pagination } | { collection, total }
+      resp ?? {};           // đã flatten thành { items, ... }
+
+    const items =
+      (Array.isArray(data?.items) && data.items) ||
+      (Array.isArray(data?.collection) && data.collection) ||
+      (Array.isArray(data?.data?.items) && data.data.items) ||
+      [];
+
+    const total =
+      data?.pagination?.total ??
+      data?.data?.pagination?.total ??
+      data?.total ??
+      items.length;
+
+    setRows(items);
+    setTotal(Number(total) || 0);
+  } catch (err: any) {
+    const code = err?.response?.status;
+    const msg =
+      err?.response?.data?.message ||
+      err?.message ||
+      (code === 401 ? "Hết phiên đăng nhập" : "Tải dữ liệu thất bại");
+    message.error(msg);
+    setRows([]);
+    setTotal(0);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const fetchUsers = async () => {
     setLoadingUsers(true);

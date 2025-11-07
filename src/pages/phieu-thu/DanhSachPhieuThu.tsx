@@ -170,11 +170,14 @@ const DanhSachPhieuThu = ({
         nameColumn: "Người tạo",
       }),
     },
-    {
-      title: "Ngày tạo",
-      dataIndex: "created_at",
-      ...dateSearch({ dataIndex: "created_at", nameColumn: "Ngày tạo" }),
-    },
+{
+  title: "Ngày tạo",
+  dataIndex: "created_at",
+  ...dateSearch({ dataIndex: "created_at", nameColumn: "Ngày tạo" }),
+  sorter: (a: any, b: any) => dayjs(a.created_at).valueOf() - dayjs(b.created_at).valueOf(),
+  defaultSortOrder: "descend" as const,
+}
+
   ];
 
   useEffect(() => {

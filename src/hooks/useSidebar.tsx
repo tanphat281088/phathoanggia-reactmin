@@ -9,15 +9,39 @@ const useSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // --- helper: admin/super_admin mới là "quản lý" ---
+const isAdminRole = (roleCode?: string) => {
+  const c = (roleCode || "").toLowerCase();
+  return c === "super_admin" || c === "admin";
+};
+
+
   // Mặc định mở group theo segment đầu tiên của URL
   const [openKeys, setOpenKeys] = useState<string[]>([
     location.pathname.replace("/admin/", "").split("/")[0],
   ]);
 
-  const items = sidebarConfig(navigate);
+
 
   // ===== Quyền hiện tại
   const { user } = useSelector((state: RootState) => state.auth);
+
+// Mã vai trò: ưu tiên ma/code/ten, tuỳ DB của bạn
+// Mã vai trò (không đụng kiểu TS): rút từ ma/code/ten/slug/name nếu có
+const vt: any = (user as any)?.vai_tro || {};
+const roleCode: string = String(
+  vt.ma_vai_tro ?? vt.ma ?? vt.code ?? vt.ten ?? vt.slug ?? vt.name ?? ""
+).toLowerCase();
+
+
+// Truyền thêm roleCode vào sidebarConfig
+const items = sidebarConfig(
+  navigate,
+  user?.vai_tro?.phan_quyen,
+  roleCode
+);
+
+
   let roles: any[] = [];
   try {
     const parsed = JSON.parse(user?.vai_tro?.phan_quyen || "[]");
@@ -100,6 +124,8 @@ const useSidebar = () => {
     // Cashflow: chỉ cần có bất kỳ module cash-* là hiển thị
     "cashflow": ["cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"],
       "cong-no-khach-hang": "quan-ly-cong-no",   // 👈 THÊM DÒNG NÀY
+        "kiem-toan": "kiem-toan",   // RBAC module “Kiểm toán”
+
 
     // Nhân sự: mọi child đều map về 1 module 'nhan-su'
     "nhan-su-cham-cong": "nhan-su",
@@ -108,8 +134,21 @@ const useSidebar = () => {
     "nhan-su-don-tu": "nhan-su",
     "nhan-su-bang-cong-cua-toi": "nhan-su",
     "nhan-su-bang-cong": "nhan-su",
-    "nhan-su-holiday": "nhan-su",
+   
+      "nhan-su-bang-luong-cua-toi": "payrollMe", // ✅ My Payroll
+  "nhan-su-bang-luong": "payroll",           // ✅ Payroll (Quản lý)
+
   };
+
+
+  // 3 tab HR chỉ dành cho quản lý
+const MANAGER_HR_KEYS = new Set<string>([
+  "nhan-su-duyet-cham-cong",
+  "nhan-su-don-tu",
+  "nhan-su-bang-cong",
+    "nhan-su-bang-luong",
+
+]);
 
   const PARENT_TO_MODULE: Record<string, string | null> = {
     // Parent là module thực tế
@@ -162,10 +201,15 @@ const useSidebar = () => {
         }
 
         // ❸ Có children → kiểm theo child trước, nếu child không map được module thì fallback về parent
-        const filteredChildren = item.children.filter((child: any) => {
-          const mod = resolveModuleForMenu(item.key, child.key) ?? "";
-          return hasMenu(mod);
-        });
+const filteredChildren = item.children.filter((child: any) => {
+  // ✅ Ẩn 3 tab quản lý HR nếu KHÔNG phải admin/super_admin
+  if (item.key === "quan-ly-nhan-su" && MANAGER_HR_KEYS.has(child.key) && !isAdminRole(roleCode)) {
+    return false;
+  }
+  const mod = resolveModuleForMenu(item.key, child.key) ?? "";
+  return hasMenu(mod);
+});
+
 
         // ❹ Nếu không còn child nào, vẫn hiển thị parent nếu parent map về 1 module có quyền menu
         if (filteredChildren.length === 0) {

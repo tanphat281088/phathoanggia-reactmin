@@ -36,6 +36,11 @@ const PATH_ALIAS: Record<string, string> = {
   "cash/balances/summary": "cash-ledger",
   "cash/internal-transfers": "cash-internal-transfers",
 
+    // Kiểm toán (audit)
+  "kiem-toan": "kiem-toan",
+  "cash/audit-delta": "kiem-toan",
+
+
   // Chuẩn 1:1
   dashboard: "dashboard",
   "vai-tro": "vai-tro",
@@ -68,6 +73,10 @@ const PATH_ALIAS: Record<string, string> = {
   "phieu-chi": "phieu-chi",
   "thu-chi/bao-cao": "bao-cao-thu-chi",
   "bao-cao-quan-tri": "bao-cao-quan-tri",
+    // HR → Bảng lương
+  "nhan-su/bang-luong/my": "payrollMe", // lương của tôi
+  "nhan-su/bang-luong": "payroll",      // quản lý (/, /list, /recompute, /lock, /unlock, /update-manual)
+
 };
 
 /** Lấy module canonical từ API path (ví dụ "/vt/items" -> "vt-items") */

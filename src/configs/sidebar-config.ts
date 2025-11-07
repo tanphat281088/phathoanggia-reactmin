@@ -28,7 +28,9 @@ import {
   Truck,         // Quản lý giao hàng
   CalendarDays,  // Ngày lễ (Holiday)
   CalendarCheck2,// Bảng công
-  HeartHandshake // ✅ Icon cho Chăm sóc khách hàng
+  HeartHandshake, // ✅ Icon cho Chăm sóc khách hàng
+  SearchCheck,
+    Banknote, 
 } from "lucide-react";
 
 import { MessageCircle } from "lucide-react";
@@ -36,7 +38,32 @@ import { MessageCircle } from "lucide-react";
 
 const iconStyle = { fontSize: "18px" };
 
-export const sidebarConfig = (navigate: NavigateFunction) => {
+// Chỉ super_admin và admin xem được mục HR dành cho quản lý
+const isAdminRole = (roleCode?: string) => {
+  const c = (roleCode || "").toLowerCase();
+  return c === "super_admin" || c === "admin";
+};
+
+
+// Helper đọc JSON quyền từ vai_tro.phan_quyen
+const can = (permJson: string | undefined, module: string, action: string) => {
+  try {
+    const arr = JSON.parse(permJson || "[]") as Array<{ name: string; actions: Record<string, boolean> }>;
+    const row = arr.find((x) => x.name === module);
+    return !!row?.actions?.[action];
+  } catch {
+    return false;
+  }
+};
+
+
+export const sidebarConfig = (
+  navigate: NavigateFunction,
+  permJson?: string,
+  roleCode?: string,       // NEW: truyền mã vai trò (VD: super_admin, admin, nhan_vien)
+) => {
+
+
   return [
     {
       key: "dashboard",
@@ -266,6 +293,14 @@ export const sidebarConfig = (navigate: NavigateFunction) => {
     },
 
 {
+  key: "kiem-toan",                                   // <-- KEY MODULE = RBAC 'kiem-toan'
+  label: "Kiểm toán",
+  icon: React.createElement(SearchCheck, { style: iconStyle }),
+  onClick: () => navigate("/admin/quan-ly-thu-chi/cashflow/audit"),   // deep-link tab audit (Cách B)
+},
+
+
+{
   key: "cong-no-khach-hang",
   label: "Công nợ khách hàng",
   icon: React.createElement(Wallet, { style: iconStyle }),
@@ -293,60 +328,89 @@ export const sidebarConfig = (navigate: NavigateFunction) => {
     },
 
     // =========================================
-    // ✅✅ Quản lý nhân sự (HR)
-    // =========================================
+// =========================================
+// ✅✅ Quản lý nhân sự (HR)
+// =========================================
+{
+  key: "quan-ly-nhan-su",
+  label: "Quản lý nhân sự",
+  icon: React.createElement(UsersRound, { style: iconStyle }),
+  children: [
+    // === Mục nhân viên luôn xem được ===
     {
-      key: "quan-ly-nhan-su",
-      label: "Quản lý nhân sự",
-      icon: React.createElement(UsersRound, { style: iconStyle }),
-      children: [
-        {
-          key: "nhan-su-cham-cong",
-          label: "Chấm công",
-          icon: React.createElement(Clock, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_CHAM_CONG),
-        },
-        {
-          key: "nhan-su-duyet-cham-cong",
-          label: "Duyệt chấm công",
-          icon: React.createElement(ShieldUser, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_CHAM_CONG_ADMIN),
-        },
-        // ---- Đơn từ
-        {
-          key: "nhan-su-don-tu-cua-toi",
-          label: "Đơn từ của tôi",
-          icon: React.createElement(NotepadText, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_DON_TU_MY),
-        },
-        {
-          key: "nhan-su-don-tu",
-          label: "Đơn từ (Quản lý)",
-          icon: React.createElement(NotepadText, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_DON_TU_QUAN_LY),
-        },
-        // ---- Bảng công
-        {
-          key: "nhan-su-bang-cong-cua-toi",
-          label: "Bảng công của tôi",
-          icon: React.createElement(CalendarCheck2, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_CONG_MY),
-        },
-        {
-          key: "nhan-su-bang-cong",
-          label: "Bảng công (Quản lý)",
-          icon: React.createElement(CalendarCheck2, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_CONG_QUAN_LY),
-        },
-        // ---- Ngày lễ
-        {
-          key: "nhan-su-holiday",
-          label: "Ngày lễ",
-          icon: React.createElement(CalendarDays, { style: iconStyle }),
-          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_HOLIDAY),
-        },
-      ],
+      key: "nhan-su-cham-cong",
+      label: "Chấm công",
+      icon: React.createElement(Clock, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.NHAN_SU_CHAM_CONG),
     },
+    {
+      key: "nhan-su-don-tu-cua-toi",
+      label: "Đơn từ của tôi",
+      icon: React.createElement(NotepadText, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.NHAN_SU_DON_TU_MY),
+    },
+    {
+      key: "nhan-su-bang-cong-cua-toi",
+      label: "Bảng công của tôi",
+      icon: React.createElement(CalendarCheck2, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_CONG_MY),
+    },
+
+        ...(can(permJson, "payrollMe", "showMenu")
+      ? [{
+          key: "nhan-su-bang-luong-cua-toi",
+          label: "Bảng lương của tôi",
+          icon: React.createElement(Banknote, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_LUONG_MY),
+        }]
+      : []),
+
+    {
+      key: "nhan-su-holiday",
+      label: "Ngày lễ",
+      icon: React.createElement(CalendarDays, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.NHAN_SU_HOLIDAY),
+    },
+
+// === 3 mục QUẢN LÝ: chỉ hiện khi role là super_admin hoặc admin ===
+...(isAdminRole(roleCode)
+  ? [
+      {
+        key: "nhan-su-duyet-cham-cong",
+        label: "Duyệt chấm công",
+        icon: React.createElement(ShieldUser, { style: iconStyle }),
+        onClick: () => navigate(URL_CONSTANTS.NHAN_SU_CHAM_CONG_ADMIN),
+      },
+      {
+        key: "nhan-su-don-tu",
+        label: "Đơn từ (Quản lý)",
+        icon: React.createElement(NotepadText, { style: iconStyle }),
+        onClick: () => navigate(URL_CONSTANTS.NHAN_SU_DON_TU_QUAN_LY),
+      },
+      {
+        key: "nhan-su-bang-cong",
+        label: "Bảng công (Quản lý)",
+        icon: React.createElement(CalendarCheck2, { style: iconStyle }),
+        onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_CONG_QUAN_LY),
+      },
+      // ✅ Bảng lương (Quản lý)
+      ...(can(permJson, "payroll", "showMenu")
+        ? [{
+            key: "nhan-su-bang-luong",
+            label: "Bảng lương (Quản lý)",
+            icon: React.createElement(Banknote, { style: iconStyle }),
+            onClick: () => navigate(URL_CONSTANTS.NHAN_SU_BANG_LUONG_QUAN_LY),
+          }]
+        : []),
+
+ 
+
+    ]
+  : []),
+
+  ],
+},
+
 
     // ===== Báo cáo quản trị =====
     {

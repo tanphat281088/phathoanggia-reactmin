@@ -97,6 +97,16 @@ export const API_ROUTE_CONFIG = {
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/nhan-su/holiday", // GET/POST; PATCH/DELETE kèm id
 
+
+    // 🔹 Bảng lương
+  NHAN_SU_BANG_LUONG_MY: "/nhan-su/bang-luong/my",               // GET: lương của tôi
+  NHAN_SU_BANG_LUONG: "/nhan-su/bang-luong",                     // GET: xem 1 người (?user_id=&thang=)
+  NHAN_SU_BANG_LUONG_LIST: "/nhan-su/bang-luong/list",           // GET: danh sách toàn công ty theo tháng
+  NHAN_SU_BANG_LUONG_RECOMPUTE: "/nhan-su/bang-luong/recompute", // POST
+  NHAN_SU_BANG_LUONG_LOCK: "/nhan-su/bang-luong/lock",           // PATCH
+  NHAN_SU_BANG_LUONG_UNLOCK: "/nhan-su/bang-luong/unlock",       // PATCH
+  NHAN_SU_BANG_LUONG_UPDATE_MANUAL: "/nhan-su/bang-luong/update-manual", // PATCH
+
   // =================================
   // ✅ NEW: Expense Categories (CHA → CON)
   // =================================
@@ -132,6 +142,13 @@ export const API_ROUTE_CONFIG = {
   CASH_BALANCES: "/cash/balances",
   CASH_BALANCES_SUMMARY: "/cash/balances/summary",
   CASH_TRANSFERS: "/cash/internal-transfers",
+
+  // 🔎 Tra soát lệch phiếu thu CK ↔ sổ quỹ
+CASH_AUDIT_DELTA: "/cash/audit-delta",
+CASH_AUDIT_DELTA_FIX: "/cash/audit-delta/fix",
+
+
+
 
 
   // ===== Công nợ khách hàng (READ-ONLY) =====
@@ -198,6 +215,11 @@ export const URL_CONSTANTS = {
 
   // Quản lý dòng tiền (Cashflow)
 CASHFLOW: "/admin/quan-ly-thu-chi/cashflow",
+CASHFLOW_AUDIT_PAGE: "/admin/quan-ly-thu-chi/cashflow/audit",
+
+// (optional) Deep link tab 'Tra soát lỗi'
+CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
+
 
   // Công nợ khách hàng (UI)
   CONG_NO_KH: "/admin/quan-ly-thu-chi/cong-no-khach-hang",
@@ -228,6 +250,11 @@ CASHFLOW: "/admin/quan-ly-thu-chi/cashflow",
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/admin/quan-ly-nhan-su/holiday",
 
+    // 🔹 Bảng lương
+  NHAN_SU_BANG_LUONG_MY: "/admin/quan-ly-nhan-su/bang-luong-cua-toi",
+  NHAN_SU_BANG_LUONG_QUAN_LY: "/admin/quan-ly-nhan-su/bang-luong",
+
+
   // ... cuối nhóm hiện tại:
   // ========================
   // Báo cáo Quản trị
@@ -241,3 +268,5 @@ CASHFLOW: "/admin/quan-ly-thu-chi/cashflow",
   CSKH: "/admin/cham-soc-khach-hang",
   CSKH_POINTS: "/admin/cham-soc-khach-hang/diem-thanh-vien",
 } as const;
+
+

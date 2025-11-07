@@ -46,6 +46,10 @@ import DonTuQuanLy from "../pages/NhanSu/DonTuQuanLy";
 import BangCongCuaToi from "../pages/NhanSu/BangCongCuaToi";
 import BangCongQuanLy from "../pages/NhanSu/BangCongQuanLy";
 import HolidayAdmin from "../pages/NhanSu/HolidayAdmin";
+
+import BangLuongCuaToi from "../pages/NhanSu/BangLuongCuaToi";     // MỚI
+import BangLuongQuanLy from "../pages/NhanSu/BangLuongQuanLy";     // MỚI
+
 import BaoCaoQuanTri from "../pages/bao-cao-quan-tri";
 
 /** ✅✅✅ Import mới: CSKH → Điểm thành viên */
@@ -303,6 +307,12 @@ export const router = createBrowserRouter([
       element: <MainLayout />,
       children: [{ index: true, element: <CashflowPage /> }],
     },
+    // ⬇️ Route deep-link cho tab Tra soát lỗi
+    {
+      path: "cashflow/audit",
+      element: <MainLayout />,
+      children: [{ index: true, element: <CashflowPage /> }],
+    },
 
               // ✅ Công nợ khách hàng (Tổng hợp theo KH)
           {
@@ -415,6 +425,22 @@ export const router = createBrowserRouter([
             element: <MainLayout />,
             children: [{ index: true, element: <HolidayAdmin /> }],
           },
+
+    // === Bảng lương (MỚI)
+    {
+      path: "bang-luong-cua-toi",
+      element: <MainLayout />,
+      children: [{ index: true, element: <BangLuongCuaToi /> }],
+    },
+    {
+      path: "bang-luong",
+      element: <MainLayout />,
+      children: [{ index: true, element: <BangLuongQuanLy /> }],
+    },
+
+
+
+
         ],
       },
     ],

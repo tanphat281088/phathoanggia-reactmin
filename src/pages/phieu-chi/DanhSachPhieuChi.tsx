@@ -24,6 +24,10 @@ import { checkIsToday } from "../../helpers/funcHelper";
 import axios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 
+import { postPhieuChi, unpostPhieuChi } from "../../services/phieuChi.api";
+import { Button, Popconfirm, message } from "antd";
+
+
 
 type ApiResp<T> = { success: boolean; data: T };
 
@@ -69,6 +73,36 @@ const DanhSachPhieuChi = ({
     selectSearchWithOutApi,
   } = useColumnSearch();
   const [isLoading, setIsLoading] = useState(false);
+
+  const [postingId, setPostingId] = useState<number | null>(null);
+const [unpostingId, setUnpostingId] = useState<number | null>(null);
+
+const doPost = async (id: number) => {
+  setPostingId(id);
+  try {
+    await postPhieuChi(id);
+    message.success("Đã ghi sổ phiếu chi");
+    await getDanhSach();
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || "Không thể ghi sổ");
+  } finally {
+    setPostingId(null);
+  }
+};
+
+const doUnpost = async (id: number) => {
+  setUnpostingId(id);
+  try {
+    await unpostPhieuChi(id);
+    message.success("Đã hủy ghi sổ phiếu chi");
+    await getDanhSach();
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || "Không thể hủy ghi sổ");
+  } finally {
+    setUnpostingId(null);
+  }
+};
+
 
   // ===== NEW: Cache danh mục chi (tree) để render tên theo category_id =====
   const [categoryMap, setCategoryMap] = useState<
@@ -130,40 +164,69 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
       },
     },
     {
-      title: "Thao tác",
-      dataIndex: "id",
-      align: "center",
-      render: (id: number, record: any) => {
-        return (
-          <Space size={4}>
-            {/* Nút XEM: chỉ khóa form, không có nút Lưu */}
-            {permission.show && (
-              <ChiTietPhieuChi
-                path={path}
-                id={id}
-                title={title}
-                editable={false}
-              />
-            )}
+  title: "Thao tác",
+  dataIndex: "id",
+  align: "center",
+  render: (id: number, record: any) => {
+    const canPost   = (permission.edit || permission.create) && Number(record?.has_ledger) === 0;
+    const canUnpost = (permission.edit || permission.create) && Number(record?.has_ledger) > 0;
 
-            {/* Nút SỬA: mở form, có nút Lưu (PUT) */}
-            {permission.edit && (
-              <ChiTietPhieuChi
-                path={path}
-                id={id}
-                title={title}
-                editable={true}
-              />
-            )}
+    return (
+      <Space size={6}>
+        {/* Nút XEM: chỉ khóa form, không có nút Lưu */}
+        {permission.show && (
+          <ChiTietPhieuChi
+            path={path}
+            id={id}
+            title={title}
+            editable={false}
+          />
+        )}
 
-            {/* Nút XOÁ giữ nguyên điều kiện hiện có */}
-            {permission.delete && checkIsToday(record?.created_at || "") && (
-              <Delete path={path} id={id} onShow={getDanhSach} />
-            )}
-          </Space>
-        );
-      },
-    },
+        {/* Nút SỬA: mở form, có nút Lưu (PUT) */}
+        {permission.edit && (
+          <ChiTietPhieuChi
+            path={path}
+            id={id}
+            title={title}
+            editable={true}
+          />
+        )}
+
+        {/* ====== Ghi sổ / Hủy ghi sổ (dựa theo has_ledger) ====== */}
+        {canPost && (
+          <Button
+            type="primary"
+            size="small"
+            loading={postingId === id}
+            onClick={() => doPost(id)}
+          >
+            Ghi sổ
+          </Button>
+        )}
+
+        {canUnpost && (
+          <Popconfirm
+            title="Hủy ghi sổ phiếu chi này?"
+            okText="Hủy ghi sổ"
+            cancelText="Đóng"
+            onConfirm={() => doUnpost(id)}
+          >
+            <Button danger size="small" loading={unpostingId === id}>
+              Hủy ghi sổ
+            </Button>
+          </Popconfirm>
+        )}
+
+        {/* Nút XOÁ giữ nguyên điều kiện hiện có */}
+        {permission.delete && checkIsToday(record?.created_at || "") && (
+          <Delete path={path} id={id} onShow={getDanhSach} />
+        )}
+      </Space>
+    );
+  },
+},
+
 
     {
       title: "Mã phiếu chi",

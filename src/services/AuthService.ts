@@ -58,12 +58,37 @@ export const AuthService = {
     },
     fetchUser: async (): Promise<UserResponse | undefined> => {
         try {
-            const res = await axios.post(API_ROUTE_CONFIG.ME);
-            return res.data;
-        } catch (error) {
-            return handleAxiosError(error);
+            // Interceptor đã "flatten" nên res là payload trực tiếp
+            const res: any = await axios.post(API_ROUTE_CONFIG.ME);
+
+            // Trường hợp OK chuẩn
+            if (res && (res.success === true || res.code === "OK")) {
+                return res.data as UserResponse;
+            }
+
+            // Trường hợp interceptor đã suppress 403 và trả success rỗng
+            if (res && res.suppressed === true) {
+                return { user: null } as unknown as UserResponse;
+            }
+
+            // Fallback: nếu BE trả shape {data: ...}
+            return (res?.data ?? null) as UserResponse;
+        } catch (e: any) {
+            const status = e?.response?.status;
+            const onProfile =
+                typeof window !== "undefined" &&
+                window.location.pathname.startsWith("/admin/profile");
+
+            // ✅ NUỐT 403 khi đang ở /admin/profile để không hiện banner/log
+            if (status === 403 && onProfile) {
+                return { user: null } as unknown as UserResponse;
+            }
+
+            // Các lỗi khác giữ nguyên cách xử lý cũ
+            return handleAxiosError(e);
         }
     },
+
     forgotPassword: async (
         payload: ForgotPasswordForm
     ): Promise<ApiResponseSuccess<[]> | undefined> => {
