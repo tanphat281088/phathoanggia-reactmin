@@ -402,7 +402,8 @@ useEffect(() => {
         <Form.Item
           name="nguoi_nhan_thoi_gian"
           label="Ngày giờ nhận"
-          rules={[]}
+        rules={[{ required: true, message: "Ngày giờ nhận không được bỏ trống!" }]}
+
           /** ===== BỔ SUNG: luôn chuyển giá trị vào thành dayjs (giữ cả giờ) ===== */
           getValueProps={(value) => {
             if (!value) return { value };
@@ -419,6 +420,7 @@ useEffect(() => {
             style={{ width: "100%" }}
             showTime
             format={CLIENT_DATETIME_FORMAT}
+       
             disabled={isDetail}
             /* ✅ Neo popup trong modal để dễ bấm */
             getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}

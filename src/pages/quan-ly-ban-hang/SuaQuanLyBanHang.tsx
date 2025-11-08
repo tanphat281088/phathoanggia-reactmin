@@ -82,18 +82,22 @@ const SuaQuanLyBanHang = ({
       vat_rate,
       danh_sach_san_pham: danhSachSanPham,
     });
+// ===== Sync thanh toán từ DB (đúng quy ước) =====
+// total = tổng cần thanh toán (grand total)
+// paid  = đã thanh toán (thực tế)
+// remain = còn lại
+const total  = Number(data?.tong_tien_can_thanh_toan ?? 0);
+const paid   = Number(data?.so_tien_da_thanh_toan ?? 0);
+const remain = Math.max(0, total - paid);
 
-    // Đồng bộ loại thanh toán + đã thanh toán dựa vào số trong DB để công thức hiển thị đúng
-const totalDB  = Number(data?.tong_tien_hang ?? 0);
-const remainDB = Number(data?.tong_tien_can_thanh_toan ?? 0);
-const loaiTT =
-  (totalDB > 0 && remainDB === 0) ? 2 :
-  (totalDB > 0 && remainDB > 0 && remainDB < totalDB) ? 1 : 0;
+// 0 = chưa thanh toán; 1 = một phần; 2 = toàn bộ
+const loaiTT = (total <= 0 || paid <= 0) ? 0 : (paid >= total ? 2 : 1);
 
 form.setFieldsValue({
   loai_thanh_toan: loaiTT,
-  so_tien_da_thanh_toan: loaiTT === 2 ? totalDB : Math.max(0, totalDB - remainDB),
+  so_tien_da_thanh_toan: paid, // giữ đúng số đã thu trong DB
 });
+
 
 
     setIsLoading(false);

@@ -87,6 +87,8 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "utilities-fb",   // hoặc "fb-inbox" tuỳ bạn đặt key
 
       "zl-inbox",
+   
+      
 
   ];
 
@@ -124,6 +126,7 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "cong-no-khach-hang": "quan-ly-cong-no",
 
       "kiem-toan": "kiem-toan",   // ⬅️ Module RBAC “Kiểm toán”
+       "cashflow": "cash",  
 
 
   };

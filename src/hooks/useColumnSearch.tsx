@@ -11,8 +11,9 @@ import dayjs from "dayjs";
 interface SearchItem {
     field: string;
     operator: string;
-    value: string;
+    value: string | number;   // cho phép 0
 }
+
 
 interface IDataSearch {
     dataIndex: string;
@@ -26,7 +27,9 @@ const useColumnSearch = () => {
     const [dateOpetator, setDateOpetator] = useState<any>("between");
     const handleColumnSearch =
         (selectedKeys: any, dataIndex: string, operator: string) => () => {
-            if (!selectedKeys[0]) return;
+           const v = selectedKeys[0];
+if (v === null || v === undefined || v === "") return;
+
             const updatedSearchText = searchText.filter(
                 (item) => item.field !== dataIndex
             );
@@ -42,7 +45,7 @@ const useColumnSearch = () => {
                 updatedSearchText.push({
                     field: dataIndex,
                     operator: operator,
-                    value: selectedKeys[0] || "",
+                     value: v, 
                 });
             }
             setSearchText(updatedSearchText);
@@ -167,7 +170,8 @@ const useColumnSearch = () => {
                             display: "block",
                             minWidth: 210,
                         }}
-                        onChange={(e) => setSelectedKeys(e ? [e] : [])}
+                   onChange={(e) => setSelectedKeys(e === 0 || e === "0" || e ? [e] : [])}
+
                         placeholder="Chọn"
                         value={selectedKeys[0]}
                         path={path}
@@ -394,7 +398,8 @@ const useColumnSearch = () => {
                     )}
                     <Select
                         style={{ marginBottom: 8, display: "block" }}
-                        onChange={(e) => setSelectedKeys(e ? [e] : [])}
+                 onChange={(e) => setSelectedKeys(e === 0 || e === "0" || e ? [e] : [])}
+
                         placeholder="Chọn"
                         value={selectedKeys[0]}
                         options={options}

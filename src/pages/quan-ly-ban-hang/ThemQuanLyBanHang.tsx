@@ -62,14 +62,22 @@ const ThemQuanLyBanHang = ({
             }
           : {};
 
-      const payload = {
-        ...rest,
-        ...taxPatch, // ⬅️ chỉ có khi tax_mode=1
-        ngay_tao_don_hang: dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD"),
-        so_tien_da_thanh_toan: values.so_tien_da_thanh_toan
-          ? values.so_tien_da_thanh_toan
-          : 0,
-      };
+// ⬇️ THAY THẾ NGUYÊN KHỐI payload BẰNG ĐOẠN NÀY
+const payload = {
+  ...rest,
+  ...taxPatch, // chỉ có khi tax_mode = 1
+  // Chuẩn hoá ngày theo LOCAL, KHÔNG dùng toISOString (tránh lệch UTC)
+  ngay_tao_don_hang: values?.ngay_tao_don_hang
+    ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
+    : null,
+  nguoi_nhan_thoi_gian: values?.nguoi_nhan_thoi_gian
+    ? dayjs(values.nguoi_nhan_thoi_gian).format("YYYY-MM-DD HH:mm:ss")
+    : null,
+  so_tien_da_thanh_toan: values?.so_tien_da_thanh_toan
+    ? values.so_tien_da_thanh_toan
+    : 0,
+};
+
 
       // postData thường trả { success, data, message }
       const closeModel = () => {

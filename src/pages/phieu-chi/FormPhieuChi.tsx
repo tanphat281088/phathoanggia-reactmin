@@ -431,6 +431,27 @@ const FormPhieuChi = ({
                 </Form.Item>
             </Col>
 
+                        {/* Lý do chi: luôn hiển thị; chỉ bắt buộc khi Loại = 3 */}
+            <Col span={12}>
+              <Form.Item
+                name="ly_do_chi"
+                label="Lý do chi"
+                rules={[
+                  {
+                    required: loaiPhieuChi === 3,
+                    message: "Lý do chi không được bỏ trống!",
+                  },
+                ]}
+              >
+                <Input.TextArea
+                  placeholder="Nhập lý do chi"
+                  rows={2}
+                  disabled={isDetail}
+                />
+              </Form.Item>
+            </Col>
+
+
             {/* ⭐ NEW: Khi chuyển khoản → chọn tài khoản chi (CK) giống Phiếu thu */}
             {phuongThucThanhToan === 2 && (
                 <Col span={12}>
@@ -493,26 +514,7 @@ const FormPhieuChi = ({
                 </Col>
             )}
 
-            {loaiPhieuChi === 3 && (
-                <Col span={24}>
-                    <Form.Item
-                        name="ly_do_chi"
-                        label="Lý do chi"
-                        rules={[
-                            {
-                                required: loaiPhieuChi === 3,
-                                message: "Lý do chi không được bỏ trống!",
-                            },
-                        ]}
-                    >
-                        <Input.TextArea
-                            placeholder="Nhập lý do chi"
-                            rows={2}
-                            disabled={isDetail}
-                        />
-                    </Form.Item>
-                </Col>
-            )}
+
             <Col span={24}>
                 <Form.Item name="ghi_chu" label="Ghi chú">
                     <Input.TextArea

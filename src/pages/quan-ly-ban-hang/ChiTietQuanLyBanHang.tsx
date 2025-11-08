@@ -27,18 +27,28 @@ const ChiTietQuanLyBanHang = ({
         setIsModalOpen(true);
         setIsLoading(true);
         const data = await getDataById(id, path);
-        Object.keys(data).forEach((key) => {
-            if (data[key]) {
-                if (
-                    /ngay_|_ngay/.test(key) ||
-                    /ngay/.test(key) ||
-                    /thoi_gian|_thoi/.test(key) ||
-                    /birthday/.test(key)
-                ) {
-                    data[key] = dayjs(data[key], "YYYY-MM-DD");
-                }
-            }
-        });
+// Chuẩn hoá field ngày/datetime để bind vào DatePicker mà KHÔNG mất giờ
+Object.keys(data || {}).forEach((key) => {
+  const val = data[key];
+  if (!val) return;
+
+  // giữ đủ giờ cho các field có thể là datetime
+  const looksLikeDateTime =
+    /(thoi_gian|_thoi|_at|datetime)/i.test(key) ||
+    key === "nguoi_nhan_thoi_gian";
+
+  // chỉ những field là "ngày" thuần mới parse theo YYYY-MM-DD
+  const looksLikeDateOnly =
+    /(ngay_|_ngay|^ngay$|birthday)/i.test(key) &&
+    key !== "nguoi_nhan_thoi_gian";
+
+  if (looksLikeDateTime) {
+    data[key] = dayjs(val); // ✅ giữ nguyên giờ
+  } else if (looksLikeDateOnly) {
+    data[key] = dayjs(val, "YYYY-MM-DD");
+  }
+});
+
 
         // Transform chi_tiet_don_hangs thành format cho FormList
         let danhSachSanPham: any[] = [];

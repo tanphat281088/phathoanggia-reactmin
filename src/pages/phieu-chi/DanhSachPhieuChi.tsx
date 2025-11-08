@@ -158,7 +158,7 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
       title: "STT",
       dataIndex: "index",
-      width: 80,
+      width: 60,
       render: (_text: any, _record: any, index: any) => {
         return filter.limit && (filter.page - 1) * filter.limit + index + 1;
       },
@@ -166,6 +166,7 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
   title: "Thao tác",
   dataIndex: "id",
+   width: 170,
   align: "center",
   render: (id: number, record: any) => {
     const canPost   = (permission.edit || permission.create) && Number(record?.has_ledger) === 0;
@@ -303,6 +304,22 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
         nameColumn: "Người nhận",
       }),
     },
+
+    // === Lý do chi (giữa Người nhận và Phương thức thanh toán) ===
+    {
+      title: "Lý do chi",
+      dataIndex: "ly_do_chi",
+      ellipsis: true,
+      render: (text: string) => text || "",
+      ...inputSearch({
+        dataIndex: "ly_do_chi",
+        operator: "contain",
+        nameColumn: "Lý do chi",
+      }),
+    },
+
+
+
     {
       title: "Phương thức thanh toán",
       dataIndex: "phuong_thuc_thanh_toan",
