@@ -6,6 +6,9 @@ import useSidebar from "../../hooks/useSidebar";
 import { getSidebar } from "../../helpers/sidebarHelper";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../redux/store";
+import { useLocation } from "react-router-dom";
+
+
 
 const SiderMain = ({
   sidebarWidth,
@@ -16,7 +19,11 @@ const SiderMain = ({
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
 }) => {
-  const { items, openKeys } = useSidebar();
+    const location = useLocation();
+
+const { items, rawItems = [], openKeys } = useSidebar();
+
+
 
   /** ================== QUY TẮC HIỂN THỊ/ẨN MENU (BỔ SUNG) ================== */
   // ✅ Luôn hiển thị nhóm "Quản lý vật tư"
@@ -26,12 +33,23 @@ const SiderMain = ({
   const BLACKLIST_KEYS = new Set<string>(["quan-ly-kho"]);
 
   // Lấy item gốc (đầy đủ children) từ danh sách raw (chưa lọc quyền)
-  const rawAlways = items.filter((it: any) =>
-    ALWAYS_SHOW_KEYS.has(String(it?.key))
-  );
+// Lấy item gốc (đầy đủ children) từ danh sách RAW (chưa lọc quyền)
+const rawAlways = rawItems.filter((it: any) =>
+  ALWAYS_SHOW_KEYS.has(String(it?.key))
+);
+
 
   // Lấy user (chỉ 1 lần, dùng cho getSidebar)
   const { user } = useSelector((state: RootState) => state.auth);
+  // === Chỉ bơm 'cashflow' khi user thực sự có quyền (cash hoặc bất kỳ cash-*) ===
+const canShowCashflow = (() => {
+  try {
+    const arr = JSON.parse(user?.vai_tro?.phan_quyen || "[]");
+    const need = new Set(["cash", "cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"]);
+    return arr.some((r: any) => need.has(String(r?.name)) && r?.actions?.showMenu && r?.actions?.index);
+  } catch { return false; }
+})();
+
 
   // Giữ nguyên hành vi cũ: menu đã lọc theo quyền từ helper
   const filtered = getSidebar(items, user?.vai_tro?.phan_quyen) as any[];
@@ -48,10 +66,12 @@ const SiderMain = ({
 
 
 // Bảo đảm child "cashflow" luôn có trong nhóm "quan-ly-thu-chi"
-const rawThuChi = items.find((it: any) => String(it?.key) === "quan-ly-thu-chi");
+const rawThuChi = rawItems.find((it: any) => String(it?.key) === "quan-ly-thu-chi");
+
 const idxThuChi = mergedSidebar.findIndex((it: any) => String(it?.key) === "quan-ly-thu-chi");
 
-if (rawThuChi && idxThuChi >= 0) {
+if (canShowCashflow && rawThuChi && idxThuChi >= 0) {
+
   const curChildren = mergedSidebar[idxThuChi]?.children || [];
   const curChildKeys = new Set<string>(curChildren.map((c: any) => String(c?.key ?? "")));
 
@@ -96,11 +116,21 @@ if (kiemToanChild && canShowKiemToan && !curChildKeys.has("kiem-toan")) {
   );
   /** ======================================================================== */
 
-  // Giữ nguyên logic cũ: openKeys mặc định (mở thêm nhóm VT cho tiện)
-  const defaultOpenKeys = openKeys.filter((key) => !["profile"].includes(key));
+// Chỉ mở nhóm VT nếu đang ở đường dẫn VT; còn lại giữ nguyên
+const defaultOpenKeys = openKeys.filter((key) => !["profile"].includes(key));
+const pathAfterAdmin = location.pathname.replace(/^\/admin\/?/, ""); // ví dụ "quan-ly-vat-tu/receipts"
+if (pathAfterAdmin.startsWith("quan-ly-vat-tu/")) {
   if (!defaultOpenKeys.includes("quan-ly-vat-tu")) {
     defaultOpenKeys.push("quan-ly-vat-tu");
   }
+}
+// Mở nhóm Thu chi khi đang ở bất kỳ trang con /quan-ly-thu-chi/*
+if (pathAfterAdmin.startsWith("quan-ly-thu-chi/")) {
+  if (!defaultOpenKeys.includes("quan-ly-thu-chi")) {
+    defaultOpenKeys.push("quan-ly-thu-chi");
+  }
+}
+
 
   // (Giữ lại biến sidebar cũ để không phá cấu trúc; không còn dùng ở Menu)
   const sidebar = getSidebar(items, user?.vai_tro?.phan_quyen);

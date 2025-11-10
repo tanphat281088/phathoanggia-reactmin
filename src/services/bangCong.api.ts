@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "../configs/axios";
+const RECOMPUTE_TIMEOUT = 25_000; // 25s: tránh cảm giác "đơ" khi BE chạy lâu
+
 
 export type BangCongItem = {
   id: number;
@@ -32,7 +34,20 @@ export async function timesheetAdmin(params: { user_id: number; thang?: string }
   return data as { success: boolean; data: { user_id: number; thang: string; item: BangCongItem | null } };
 }
 
-export async function timesheetRecompute(params: { thang?: string; user_id?: number }) {
-  const { data } = await axios.post("/nhan-su/bang-cong/recompute", null, { params });
+// Gửi JSON để BE parse đúng boolean also_payroll; có timeout để tránh "đơ" UI
+export async function timesheetRecompute(params: {
+  thang?: string;
+  user_id?: number;
+  also_payroll?: boolean; // true = sau khi tổng hợp công thì chạy luôn Payroll
+}) {
+  const payload = {
+    thang: params.thang,
+    user_id: params.user_id,
+    also_payroll: params.also_payroll ?? false,
+  };
+
+  const { data } = await axios.post("/nhan-su/bang-cong/recompute", payload, {
+    timeout: RECOMPUTE_TIMEOUT,
+  });
   return data;
 }

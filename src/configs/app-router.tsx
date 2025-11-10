@@ -75,6 +75,18 @@ import ZaloInboxPage from "../pages/utilities/ZaloInboxPage";
 
 import { mobileRoute } from "../mobile/router";
 
+import { useSelector } from "react-redux";
+import type { RootState } from "../redux/store";
+
+/** Guard cho nhánh /admin/m/* — nếu chưa đăng nhập thì đá về /admin */
+function MobileGuard({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return <Navigate to={URL_CONSTANTS.LOGIN} replace />;
+  }
+  return <>{children}</>;
+}
+
 import CashflowPage from "../pages/thu-chi/CashflowPage";
 
 
@@ -454,5 +466,14 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  mobileRoute,
+  {
+    path: "/admin/m",
+    element: (
+      <MobileGuard>
+        {mobileRoute.element /* MobileShell */}
+      </MobileGuard>
+    ),
+    children: mobileRoute.children,
+  },
 ]);
+

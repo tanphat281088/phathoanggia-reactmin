@@ -13,6 +13,8 @@ import SalesQuickPage from "./pages/sales/SalesQuickPage";
 import CustomerEditPage from "./pages/customers/CustomerEditPage";
 import CustomerCreatePage from "./pages/customers/CustomerCreatePage";
 import OrdersPage from "./pages/sales/OrdersPage"; // ← thêm import
+import OrderDetailPage from "./pages/sales/OrderDetailPage";
+
 
 
 
@@ -58,7 +60,10 @@ export const mobileRoute: RouteObject = {
   { index: true, element: <HomeTodayPage /> },      // /admin/m
   { path: "sales", element: <SalesQuickPage /> },    
    { path: "sales/orders", element: <OrdersPage /> },   // /admin/m/sales
+      { path: "orders/:id", element: <OrderDetailPage /> }, // /admin/m/orders/:id
    { path: "delivery", element: <DeliverySchedulePage /> }, // /admin/m/delivery
+
+
     /** ✅ Dùng CustomersPage thật thay cho stub */
     { path: "customers", element: <CustomersPage /> },  
      { path: "customers/new", element: <CustomerCreatePage /> },

@@ -49,10 +49,16 @@ const TAX_MODE_OPTIONS = [
 const FormQuanLyBanHang = ({
   form,
   isDetail = false,
+  allowedFields,            // ⬅️ thêm
 }: {
   form: FormInstance;
   isDetail?: boolean;
+  allowedFields?: string[]; // ⬅️ thêm
 }) => {
+  // ===== helper: cho phép field nào ====
+  const can = (name: string) => !Array.isArray(allowedFields) || allowedFields.includes(name);
+  const d = (name: string) => isDetail || !can(name); // disabled?
+
   const loaiKhachHang = Form.useWatch("loai_khach_hang", form);
   const loaiThanhToan = Form.useWatch("loai_thanh_toan", form);
 
@@ -241,7 +247,8 @@ useEffect(() => {
           <Input
             placeholder="Tự sinh sau khi lưu"
             // Cho phép xem (read-only) — nếu đang ở màn tạo mới sẽ để trống
-            disabled={isDetail}
+    disabled   // luôn readonly
+
           />
         </Form.Item>
       </Col>
@@ -257,7 +264,8 @@ useEffect(() => {
             placeholder="Nhập ngày tạo đơn hàng"
             style={{ width: "100%" }}
             format="DD/MM/YYYY"
-            disabled={isDetail}
+       disabled={d("ngay_tao_don_hang")}
+
             /* ✅ Neo popup trong modal để dễ bấm */
             getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
           />
@@ -274,7 +282,8 @@ useEffect(() => {
           <Select
             options={OPTIONS_LOAI_KHACH_HANG}
             placeholder="Chọn loại khách hàng"
-            disabled={isDetail}
+  disabled={d("loai_khach_hang")}
+
             /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
             getPopupContainer={(trigger) =>
               (trigger && trigger.closest(".ant-modal")) || document.body
@@ -296,7 +305,8 @@ useEffect(() => {
           <Select
             options={donHangTrangThaiSelect}
             placeholder="Chọn trạng thái"
-            disabled={isDetail}
+   disabled={d("trang_thai_don_hang")}
+
             /* ✅ Neo popup trong modal để dễ bấm */
             getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
             dropdownMatchSelectWidth={false}
@@ -318,7 +328,8 @@ useEffect(() => {
                 message: "Khách hàng không được bỏ trống!",
               },
             ]}
-            disabled={isDetail}
+  disabled={d("khach_hang_id")}
+
             /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
             getPopupContainer={(trigger) =>
               (trigger && trigger.closest(".ant-modal")) || document.body
@@ -341,7 +352,8 @@ useEffect(() => {
               },
             ]}
           >
-            <Input placeholder="Nhập tên khách hàng" disabled={isDetail} />
+    <Input placeholder="Nhập tên khách hàng" disabled={d("ten_khach_hang")} />
+
           </Form.Item>
         </Col>
       )}
@@ -359,7 +371,8 @@ useEffect(() => {
               { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ!" },
             ]}
           >
-            <Input placeholder="Nhập số điện thoại" disabled={isDetail} />
+ <Input placeholder="Nhập số điện thoại" disabled={d("so_dien_thoai")} />
+
           </Form.Item>
         </Col>
       )}
@@ -370,7 +383,8 @@ useEffect(() => {
           label="Địa chỉ giao hàng"
           rules={[{ required: true, message: "Địa chỉ giao hàng không được bỏ trống!" }]}
         >
-          <Input placeholder="Nhập địa chỉ giao hàng" disabled={isDetail} />
+<Input placeholder="Nhập địa chỉ giao hàng" disabled={d("dia_chi_giao_hang")} />
+
         </Form.Item>
       </Col>
 
@@ -381,7 +395,7 @@ useEffect(() => {
           label="Tên người nhận"
           rules={[{ max: 191, message: "Tối đa 191 ký tự" }]}
         >
-          <Input placeholder="Nhập tên người nhận" disabled={isDetail} />
+    <Input placeholder="Nhập tên người nhận" disabled={d("nguoi_nhan_ten")} />
         </Form.Item>
       </Col>
 
@@ -394,7 +408,7 @@ useEffect(() => {
             { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ!" },
           ]}
         >
-          <Input placeholder="Nhập số điện thoại người nhận (0… hoặc +84…)" disabled={isDetail} />
+ <Input placeholder="Nhập số điện thoại người nhận (0… hoặc +84…)" disabled={d("nguoi_nhan_sdt")} />
         </Form.Item>
       </Col>
 
@@ -421,7 +435,8 @@ useEffect(() => {
             showTime
             format={CLIENT_DATETIME_FORMAT}
        
-            disabled={isDetail}
+disabled={d("nguoi_nhan_thoi_gian")}
+
             /* ✅ Neo popup trong modal để dễ bấm */
             getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
           />
@@ -430,7 +445,8 @@ useEffect(() => {
       {/* ===== END – THÔNG TIN NGƯỜI NHẬN ===== */}
 
       <Col span={24} style={{ marginBottom: 20 }}>
-        <DanhSachSanPham form={form} isDetail={isDetail} />
+<DanhSachSanPham form={form} isDetail={isDetail || !can("danh_sach_san_pham")} />
+
       </Col>
 
 {/* ===== HÀNG 1: GIẢM GIÁ / CHI PHÍ / THUẾ / VAT (4 CỘT — KHÔNG RỚT) ===== */}
@@ -447,7 +463,8 @@ useEffect(() => {
       >
         <InputNumber
           placeholder="Nhập giảm giá"
-          disabled={isDetail}
+   disabled={d("giam_gia")}
+
           style={{ width: "100%" }}
           addonAfter="đ"
           formatter={formatter}
@@ -469,7 +486,8 @@ useEffect(() => {
       >
         <InputNumber
           placeholder="Nhập chi phí vận chuyển"
-          disabled={isDetail}
+disabled={d("chi_phi")}
+
           style={{ width: "100%" }}
           addonAfter="đ"
           formatter={formatter}
@@ -491,7 +509,8 @@ useEffect(() => {
         <Select
           options={TAX_MODE_OPTIONS as any}
           placeholder="Chọn"
-          disabled={isDetail}
+disabled={d("tax_mode")}
+
           getPopupContainer={(trigger) =>
             (trigger && trigger.closest(".ant-modal")) || document.body
           }
@@ -518,7 +537,7 @@ useEffect(() => {
           style={{ marginBottom: 0 }}
         >
           <InputNumber
-            disabled
+ disabled={d("vat_rate") || Number(taxMode) !== 1}
             style={{ width: "100%" }}
             addonAfter="%"
             min={0}
@@ -561,7 +580,8 @@ useEffect(() => {
         <Select
           options={OPTIONS_LOAI_THANH_TOAN}
           placeholder="Chọn loại thanh toán"
-          disabled={isDetail}
+disabled={d("loai_thanh_toan")}
+
           getPopupContainer={(trigger) =>
             (trigger && trigger.closest(".ant-modal")) || document.body
           }
@@ -593,7 +613,8 @@ useEffect(() => {
         >
           <InputNumber
             placeholder="Nhập số tiền đã thanh toán"
-            disabled={isDetail}
+disabled={d("so_tien_da_thanh_toan")}
+
             style={{ width: "100%" }}
             addonAfter="đ"
             formatter={formatter}
@@ -650,7 +671,8 @@ useEffect(() => {
 
       <Col span={24}>
         <Form.Item name="ghi_chu" label="Ghi chú">
-          <Input.TextArea placeholder="Ghi chú" disabled={isDetail} />
+<Input.TextArea placeholder="Ghi chú" disabled={d("ghi_chu")} />
+
         </Form.Item>
       </Col>
     </Row>

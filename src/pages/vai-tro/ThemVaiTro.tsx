@@ -36,6 +36,20 @@ const ThemVaiTro = ({ path }: { path: string }) => {
 
   setVaiTroMacDinh(normalized);
 
+  // === Set giá trị cho TẤT CẢ checkbox theo registry (rất quan trọng) ===
+normalized.forEach((item: IPhanQuyen) => {
+  Object.entries(item.actions || {}).forEach(([key, value]) => {
+    form.setFieldValue(`${item.name}_${key}`, Boolean(value));
+  });
+});
+
+// Giữ lại logic "Tất cả"
+normalized.forEach((item: IPhanQuyen) => {
+  const allOn = Object.values(item.actions).every((v) => v === true);
+  form.setFieldValue(`checkall_${item.name}`, allOn);
+});
+
+
   // Set trạng thái "Tất cả" cho từng module
   normalized.forEach((item: IPhanQuyen) => {
     const allOn = Object.values(item.actions).every((v) => v === true);
@@ -49,50 +63,37 @@ const ThemVaiTro = ({ path }: { path: string }) => {
         form.resetFields();
     };
 
-    const onCreate = async (values: IVaiTro) => {
-        const phanQuyen: IPhanQuyen[] = Object.entries(values)
-            .filter(
-                ([key]) =>
-                    key.includes("_index") ||
-                    key.includes("_create") ||
-                    key.includes("_show") ||
-                    key.includes("_edit") ||
-                    key.includes("_delete") ||
-                    key.includes("_export") ||
-                    key.includes("_showMenu")
-            )
-            .reduce((acc: IPhanQuyen[], [key, value]) => {
-                const [name, action] = key.split("_");
-                const permissionIndex = acc.findIndex(
-                    (permission: IPhanQuyen) => permission.name === name
-                );
-                if (permissionIndex === -1) {
-                    acc.push({ name, actions: { [action]: value } });
-                } else {
-                    acc[permissionIndex].actions[action] = value;
-                }
-                return acc;
-            }, []);
-        values = {
-            ten_vai_tro: values.ten_vai_tro,
-            ma_vai_tro: values.ma_vai_tro,
-            phan_quyen: JSON.stringify(phanQuyen),
-            trang_thai: values.trang_thai,
-        };
-        setIsLoading(true);
-        const closeModel = () => {
-            handleCancel();
-            dispatch(setReload());
-        };
-        await postData(
-            path,
-            {
-                ...values,
-            },
-            closeModel
-        );
-        setIsLoading(false);
-    };
+const onCreate = async (values: IVaiTro) => {
+  // Lấy snapshot quyền THEO KEYS ĐỘNG từ registry đang hiển thị
+  const phanQuyenFull: IPhanQuyen[] = vaiTroMacDinh.map((item: IPhanQuyen) => {
+    const actions: Record<string, boolean> = {};
+    Object.keys(item.actions || {}).forEach((k) => {
+      actions[k] = Boolean(form.getFieldValue(`${item.name}_${k}`));
+    });
+    return { name: item.name, actions };
+  });
+
+  // Bỏ module mà tất cả action đều false
+  const phanQuyen = phanQuyenFull.filter((it) =>
+    Object.values(it.actions).some(Boolean)
+  );
+
+  const payload: IVaiTro = {
+    ten_vai_tro: values.ten_vai_tro,
+    ma_vai_tro: values.ma_vai_tro,
+    phan_quyen: JSON.stringify(phanQuyen),
+    trang_thai: values.trang_thai ?? 1,
+  };
+
+  setIsLoading(true);
+  const closeModel = () => {
+    handleCancel();
+    dispatch(setReload());
+  };
+  await postData(path, payload, closeModel);
+  setIsLoading(false);
+};
+
 
     return (
         <>

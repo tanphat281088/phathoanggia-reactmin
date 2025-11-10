@@ -82,7 +82,7 @@ export default function ReceivablesList() {
       width: 140,
     },
     {
-      title: "Aging (0–30/31–60/61–90/>90)",
+      title: "Tuổi nợ (0–30/31–60/61–90/>90 ngày)",
       key: "aging",
       render: (_, r) =>
         `${(r.age_0_30||0).toLocaleString("vi-VN")} / ${(r.age_31_60||0).toLocaleString("vi-VN")} / ${(r.age_61_90||0).toLocaleString("vi-VN")} / ${(r.age_91_plus||0).toLocaleString("vi-VN")}`,

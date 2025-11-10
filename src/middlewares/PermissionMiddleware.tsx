@@ -58,6 +58,7 @@ const MODULE_ALIAS: Record<string, string> = {
 
       "cong-no-khach-hang": "quan-ly-cong-no",  // 👈 THÊM
       "kiem-toan": "kiem-toan",
+        "cashflow": "cashflow",          
         // HR → Bảng lương
   "bang-luong-cua-toi": "payrollMe", // ✅ trang /admin/quan-ly-nhan-su/bang-luong-cua-toi
   "bang-luong": "payroll",           // ✅ trang /admin/quan-ly-nhan-su/bang-luong

@@ -121,26 +121,50 @@ export default function VtReceiptsPage(): JSX.Element {
 
   const submit = async () => {
     try {
-      const v = await form.validateFields();
-      const payload = {
-        so_ct: v.so_ct || undefined, // service sẽ tự omit khi create
-        ngay_ct: v.ngay_ct?.format("YYYY-MM-DD"),
-        tham_chieu: v.tham_chieu || undefined,
-        ghi_chu: v.ghi_chu || undefined,
-        items: items.map(r => ({
-          vt_item_id: Number(r.vt_item_id),
-          so_luong: Number(r.so_luong),
-          don_gia: r.don_gia === null || r.don_gia === undefined ? null : Number(r.don_gia),
-          ghi_chu: r.ghi_chu || undefined,
-        })),
-      };
+const v = await form.validateFields();
+
+// làm sạch số an toàn (bỏ mọi ký tự không phải 0-9.-)
+const toNum = (val: any) => {
+  if (val === null || val === undefined) return undefined;
+  const n = Number(String(val).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const payload = {
+  so_ct: v.so_ct || undefined, // service sẽ tự omit khi create
+  ngay_ct: v.ngay_ct?.format("YYYY-MM-DD"),
+  tham_chieu: v.tham_chieu || undefined,
+  ghi_chu: v.ghi_chu || undefined,
+  items: items.map(r => {
+    const id = toNum(r.vt_item_id);
+    const sl = toNum(r.so_luong);
+    const dg = r.don_gia === null || r.don_gia === undefined ? null : toNum(r.don_gia);
+    return {
+      vt_item_id: id as number,
+      so_luong:   sl as number,
+      don_gia:    dg === undefined ? null : (dg as number),
+      ghi_chu:    r.ghi_chu || undefined,
+    };
+  }),
+};
+
+// Guard: bắt lỗi thiếu VT/SL trước khi gọi API
+const bad = payload.items.find(it => !Number.isFinite(it.vt_item_id) || !Number.isFinite(it.so_luong));
+if (bad) { message.error("Dòng vật tư không hợp lệ: thiếu Vật tư hoặc Số lượng"); return; }
+
       if (!payload.items.length) { message.warning("Thêm ít nhất 1 dòng vật tư"); return; }
       if (editing) await vtReceiptUpdate(editing.id, payload);
       else await vtReceiptCreate(payload);
       message.success(editing ? "Đã cập nhật phiếu nhập" : "Đã tạo phiếu nhập");
       setOpen(false);
       fetchList();
-    } catch { /* ignore */ }
+} catch (e: any) {
+  const msg = e?.response?.data?.message || e?.message || "Không thể lưu phiếu nhập";
+  const errs = e?.response?.data?.errors;
+  console.error("[VT Receipts][PUT/POST] error", { msg, errs });
+  message.error(msg);
+}
+
   };
 
   // VtReceiptsPage.tsx
@@ -381,9 +405,15 @@ function ItemRowEditor({
   row, onChange, onRemove
 }: { row: ItemRow; onChange: (r: ItemRow) => void; onRemove: () => void }) {
   const [opts, setOpts] = useState<any[]>([]);
-  useEffect(() => { (async () => {
-    const res = await vtItemOptions(); setOpts(res?.data || []);
-  })(); }, []);
+useEffect(() => { (async () => {
+  const raw = (await vtItemOptions())?.data || [];
+  // Chuẩn hoá: value = number; loại option không parse được
+  const opts = raw
+    .map((o: any) => ({ value: Number(o.value), label: String(o.label ?? o.text ?? "") }))
+    .filter((o: any) => Number.isFinite(o.value));
+  setOpts(opts);
+})(); }, []);
+
 
   return (
     <Card size="small" style={{ marginBottom: 8 }}>
@@ -397,6 +427,7 @@ function ItemRowEditor({
               value={row.vt_item_id || undefined}
               onChange={(v) => onChange({ ...row, vt_item_id: Number(v) })}
               options={opts}
+               optionFilterProp="label"
               filterOption={(input, option) =>
                 (option?.label as string)?.toLowerCase()?.includes(input.toLowerCase())
               }

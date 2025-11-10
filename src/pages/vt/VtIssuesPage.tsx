@@ -115,21 +115,48 @@ export default function VtIssuesPage(): JSX.Element {
 
   const submit = async () => {
     try {
-      const v = await form.validateFields();
-      const payload = {
-        so_ct: v.so_ct || undefined, // service sẽ tự omit khi create
-        ngay_ct: v.ngay_ct?.format("YYYY-MM-DD"),
-        ly_do: v.ly_do,
-        tham_chieu: v.tham_chieu || undefined,
-        ghi_chu: v.ghi_chu || undefined,
-        items: items.map(r => ({ vt_item_id: Number(r.vt_item_id), so_luong: Number(r.so_luong), ghi_chu: r.ghi_chu || undefined })),
-      };
+const v = await form.validateFields();
+
+// làm sạch số an toàn (bỏ mọi ký tự không phải 0-9.-)
+const toNum = (val: any) => {
+  if (val === null || val === undefined) return undefined;
+  const n = Number(String(val).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const payload = {
+  so_ct: v.so_ct || undefined, // service sẽ tự omit khi create
+  ngay_ct: v.ngay_ct?.format("YYYY-MM-DD"),
+  ly_do: v.ly_do,
+  tham_chieu: v.tham_chieu || undefined,
+  ghi_chu: v.ghi_chu || undefined,
+  items: items.map(r => {
+    const id = toNum(r.vt_item_id);
+    const sl = toNum(r.so_luong);
+    return {
+      vt_item_id: id as number,
+      so_luong:   sl as number,
+      ghi_chu:    r.ghi_chu || undefined,
+    };
+  }),
+};
+
+// Guard: bắt lỗi thiếu VT/SL trước khi gọi API
+const bad = payload.items.find(it => !Number.isFinite(it.vt_item_id) || !Number.isFinite(it.so_luong));
+if (bad) { message.error("Dòng vật tư không hợp lệ: thiếu Vật tư hoặc Số lượng"); return; }
+
       if (!payload.items.length) { message.warning("Thêm ít nhất 1 dòng"); return; }
       if (editing) await vtIssueUpdate(editing.id, payload);
       else await vtIssueCreate(payload);
       message.success(editing ? "Đã cập nhật phiếu xuất" : "Đã tạo phiếu xuất");
       setOpen(false); fetchList();
-    } catch { /* ignore */ }
+} catch (e: any) {
+  const msg = e?.response?.data?.message || e?.message || "Không thể lưu phiếu xuất";
+  const errs = e?.response?.data?.errors;
+  console.error("[VT Issues][PUT/POST] error", { msg, errs });
+  message.error(msg);
+}
+
   };
 
   // VtIssuesPage.tsx
@@ -342,7 +369,17 @@ const del = (r: Issue) => {
 
 function IssueRowEditor({ row, onChange, onRemove }: { row: ItemRow; onChange: (r: ItemRow) => void; onRemove: () => void; }) {
   const [opts, setOpts] = useState<any[]>([]);
-  useEffect(() => { (async () => { const res = await vtItemOptions(); setOpts(res?.data || []); })(); }, []);
+useEffect(() => {
+  (async () => {
+    const raw = (await vtItemOptions())?.data || [];
+    // Chuẩn hoá: value = number; loại option không parse được
+    const opts = raw
+      .map((o: any) => ({ value: Number(o.value), label: String(o.label ?? o.text ?? "") }))
+      .filter((o: any) => Number.isFinite(o.value));
+    setOpts(opts);
+  })();
+}, []);
+
   return (
     <Space align="start" style={{ display: "flex", marginBottom: 8 }}>
       <Select
@@ -352,6 +389,7 @@ function IssueRowEditor({ row, onChange, onRemove }: { row: ItemRow; onChange: (
         value={row.vt_item_id || undefined}
         onChange={(v) => onChange({ ...row, vt_item_id: Number(v) })}
         options={opts}
+          optionFilterProp="label"
         filterOption={(input, option) => (option?.label as string)?.toLowerCase()?.includes(input.toLowerCase())}
       />
       <InputNumber min={1} value={row.so_luong} onChange={(v) => onChange({ ...row, so_luong: Number(v || 1) })} addonAfter="SL" />

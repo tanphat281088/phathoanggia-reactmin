@@ -197,7 +197,7 @@ export default function BangCongQuanLy() {
             title={`Kỳ công: ${item.thang} — ${item.user_name ?? `#${item.user_id}`}`}
           >
             <Descriptions.Item label="Số ngày công">{item.so_ngay_cong}</Descriptions.Item>
-            <Descriptions.Item label="Số giờ công">{item.so_gio_cong}</Descriptions.Item>
+     <Descriptions.Item label="Số phút công">{item.so_gio_cong}</Descriptions.Item>
             <Descriptions.Item label="Đi trễ (phút)">{item.di_tre_phut}</Descriptions.Item>
             <Descriptions.Item label="Về sớm (phút)">{item.ve_som_phut}</Descriptions.Item>
             <Descriptions.Item label="Nghỉ phép (ngày / giờ)">
@@ -206,7 +206,7 @@ export default function BangCongQuanLy() {
             <Descriptions.Item label="Nghỉ không lương (ngày / giờ)">
               {item.nghi_khong_luong_ngay} ngày / {item.nghi_khong_luong_gio} giờ
             </Descriptions.Item>
-            <Descriptions.Item label="Làm thêm (giờ)">{item.lam_them_gio}</Descriptions.Item>
+<Descriptions.Item label="Làm thêm (phút)">{item.lam_them_gio}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
               {item.locked ? <Tag color="red">Đã khóa</Tag> : <Tag color="green">Chưa khóa</Tag>}
             </Descriptions.Item>

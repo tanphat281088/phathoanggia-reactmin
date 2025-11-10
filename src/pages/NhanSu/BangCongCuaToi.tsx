@@ -73,7 +73,8 @@ const fetchData = async () => {
         {item ? (
           <Descriptions bordered size="small" column={1} title={`Kỳ công: ${item.thang}`}>
             <Descriptions.Item label="Số ngày công">{item.so_ngay_cong}</Descriptions.Item>
-            <Descriptions.Item label="Số giờ công">{item.so_gio_cong}</Descriptions.Item>
+       <Descriptions.Item label="Số phút công">{item.so_gio_cong}</Descriptions.Item>
+
             <Descriptions.Item label="Đi trễ (phút)">{item.di_tre_phut}</Descriptions.Item>
             <Descriptions.Item label="Về sớm (phút)">{item.ve_som_phut}</Descriptions.Item>
             <Descriptions.Item label="Nghỉ phép (ngày / giờ)">

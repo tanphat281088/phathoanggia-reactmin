@@ -22,6 +22,10 @@ const SuaQuanLyBanHang = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form] = Form.useForm();
   const dispatch = useDispatch();
+  // ===== policy cho phép sửa field nào (FE) =====
+const [allowedFields, setAllowedFields] = useState<string[] | undefined>(undefined);
+const [lockAll, setLockAll] = useState(false);
+
 
   const showModal = async () => {
     setIsModalOpen(true);
@@ -82,6 +86,43 @@ const SuaQuanLyBanHang = ({
       vat_rate,
       danh_sach_san_pham: danhSachSanPham,
     });
+
+    // ===== BUILD POLICY (allowedFields) =====
+const isDelivered = Number(data?.trang_thai_don_hang ?? 0) === 2;
+const totalGrand  = Number(data?.tong_tien_can_thanh_toan ?? 0);
+const paidGrand   = Number(data?.so_tien_da_thanh_toan ?? 0);
+const stPaid      = Number(data?.trang_thai_thanh_toan ?? 0);
+const isPaidFull  = stPaid === 2 || (totalGrand > 0 && paidGrand >= totalGrand);
+const isOlderThan10Days = dayjs().diff(dayjs(data?.ngay_tao_don_hang), "day") > 10;
+
+let _allowed: string[] | undefined = undefined;
+let _lockAll = false;
+
+// Ưu tiên: (1) đã giao + đã thanh toán đủ → khoá toàn bộ
+//          (2) đã giao → chỉ thanh toán + ghi chú
+//          (3) >10 ngày → trạng thái/giờ nhận/thanh toán/ghi chú + ĐỊA CHỈ (chỉ khi CHƯA giao)
+//          (4) còn lại → không giới hạn (undefined)
+if (isDelivered && isPaidFull) {
+  _allowed = [];
+  _lockAll = true;
+} else if (isDelivered) {
+  _allowed = ["loai_thanh_toan","so_tien_da_thanh_toan","ghi_chu"];
+} else if (isOlderThan10Days) {
+  _allowed = [
+    "trang_thai_don_hang",
+    "nguoi_nhan_thoi_gian",
+    "loai_thanh_toan",
+    "so_tien_da_thanh_toan",
+    "ghi_chu",
+    "dia_chi_giao_hang",   // chỉ hợp lệ vì CHƯA giao; nếu đã giao thì đã vào nhánh trên rồi
+  ];
+} else {
+  _allowed = undefined; // không giới hạn
+}
+
+setAllowedFields(_allowed);
+setLockAll(_lockAll);
+
 // ===== Sync thanh toán từ DB (đúng quy ước) =====
 // total = tổng cần thanh toán (grand total)
 // paid  = đã thanh toán (thực tế)
@@ -188,6 +229,7 @@ form.setFieldsValue({
             htmlType="submit"
             size="large"
             loading={isSubmitting}
+             disabled={lockAll}   // ⬅️ thêm
           >
             Lưu
           </Button>,
@@ -202,7 +244,8 @@ form.setFieldsValue({
             console.error("Form validation failed:", errorInfo);
           }}
         >
-          <FormQuanLyBanHang form={form} />
+     <FormQuanLyBanHang form={form} allowedFields={allowedFields} />
+
         </Form>
       </Modal>
     </>

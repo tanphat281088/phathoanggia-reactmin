@@ -68,7 +68,7 @@ export const getSidebar = (items: any, phan_quyen: any) => {
 
   // ✅ LUÔN HIỂN THỊ các nhóm sau (bất kể quyền FE)
   const ALWAYS_SHOW_TOP = new Set<string>([
-    "quan-ly-vat-tu",
+
     "quan-ly-tien-ich", // <— nhóm “Quản lý tiện ích”
   ]);
 
@@ -93,7 +93,8 @@ export const getSidebar = (items: any, phan_quyen: any) => {
   ];
 
   // Alias quyền → key menu
-  const PERMISSION_ALIAS: Record<string, string> = {
+const PERMISSION_ALIAS: Record<string, string | string[]> = {
+
     "quan-ly-giao-hang": "quan-ly-ban-hang",
 
     // HR
@@ -126,7 +127,9 @@ export const getSidebar = (items: any, phan_quyen: any) => {
     "cong-no-khach-hang": "quan-ly-cong-no",
 
       "kiem-toan": "kiem-toan",   // ⬅️ Module RBAC “Kiểm toán”
-       "cashflow": "cash",  
+"cashflow": ["cashflow", "cash-accounts", "cash-aliases", "cash-ledger", "cash-internal-transfers"],
+
+
 
 
   };
@@ -144,24 +147,42 @@ export const getSidebar = (items: any, phan_quyen: any) => {
 
     // Lọc như cũ
     if (item.children) {
-      const checkChildren = item.children.filter((child: any) => {
-        const cKey = String(child?.key ?? "");
-        if (ALWAYS_SHOW_CHILDREN.includes(cKey)) return true;
-        const compareKey = PERMISSION_ALIAS[cKey] ?? cKey;
-        return phanQuyen.some(
-          (role: any) => role?.actions?.showMenu && role?.name === compareKey
-        );
-      });
+const checkChildren = item.children.filter((child: any) => {
+  const cKey = String(child?.key ?? "");
+  if (ALWAYS_SHOW_CHILDREN.includes(cKey)) return true;
+
+  const alias = PERMISSION_ALIAS[cKey];
+  if (Array.isArray(alias)) {
+    // any-of: chỉ cần 1 module cash-* có showMenu + index
+    return phanQuyen.some(
+      (r: any) => alias.includes(String(r?.name)) && r?.actions?.showMenu && r?.actions?.index
+    );
+  }
+
+  const compareKey = alias ?? cKey;
+  return phanQuyen.some(
+    (role: any) => role?.actions?.showMenu && role?.name === compareKey
+  );
+});
+
       return { ...item, children: checkChildren };
     } else {
-      if (!isKeyValid(key)) {
-        const compareKey = PERMISSION_ALIAS[key] ?? key;
-        const ok = phanQuyen.some(
-          (role: any) => role?.actions?.showMenu && role?.name === compareKey
-        );
-        return ok ? item : null;
-      }
-      return item;
+if (!isKeyValid(key)) {
+  const alias = PERMISSION_ALIAS[key];
+  if (Array.isArray(alias)) {
+    const okAny = phanQuyen.some(
+      (r: any) => alias.includes(String(r?.name)) && r?.actions?.showMenu && r?.actions?.index
+    );
+    return okAny ? item : null;
+  }
+  const compareKey = alias ?? key;
+  const ok = phanQuyen.some(
+    (role: any) => role?.actions?.showMenu && role?.name === compareKey
+  );
+  return ok ? item : null;
+}
+return item;
+
     }
   });
 

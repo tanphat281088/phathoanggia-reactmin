@@ -4,6 +4,8 @@ import { Button, DatePicker, List, InfiniteScroll, SearchBar, Space, Tag, Toast 
 import dayjs from "dayjs";
 import axios from "../../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../../configs/api-route-config";
+import { createFilterQueryFromArray } from "../../../utils/utils";
+
 import type { JSX } from "react/jsx-runtime";
 
 type Order = {
@@ -50,6 +52,11 @@ export default function OrdersPage(): JSX.Element {
   const [rows, setRows] = useState<Order[]>([]);
   const pageSize = 20;
   const loadingRef = useRef(false);
+  const [fromVisible, setFromVisible] = useState(false);
+const [toVisible,   setToVisible]   = useState(false);
+
+const blurActive = () => (document.activeElement as (HTMLElement|null))?.blur?.();
+
 
   const resetAndLoad = () => {
     setRows([]);
@@ -58,25 +65,49 @@ export default function OrdersPage(): JSX.Element {
   };
 
   // Tạo params từ filter hiện tại
-  const queryParams = useMemo(() => {
-    const f: any[] = [];
-    if (q.trim()) {
-      // tìm trên nhiều cột
-      f.push({ field: "ma_don_hang", operator: "contain", value: q.trim() });
-      f.push({ field: "ten_khach_hang", operator: "contain", value: q.trim() });
-      f.push({ field: "so_dien_thoai", operator: "contain", value: q.trim() });
-    }
-    // lọc theo khoảng ngày tạo
-    f.push({ field: "ngay_tao_don_hang", operator: "between_date", value: `${dateRange.from}|${dateRange.to}` });
+const queryParams = useMemo(() => {
+  const filters: any[] = [];
+  const kwRaw = q || "";
+  const kw = kwRaw.trim();
+  const KW = kw.toUpperCase();
 
-    return {
-      page,
-      limit: pageSize,
-      sort_column: "id",
-      sort_direction: "desc",
-      f
-    };
-  }, [page, q, dateRange]);
+  if (kw) {
+    // 1) Mã đơn kiểu DH..., #DH..., có/không khoảng trắng
+    if (/^#?\s*D\s*H\s*\d+$/i.test(kw)) {
+      const code = KW.replace(/^#?/, "").replace(/\s+/g, ""); // "# DH 00314" -> "DH00314"
+      filters.push({ field: "ma_don_hang", operator: "contain", value: code });
+    }
+    // 2) Chỉ số dài (≥9): coi như SĐT
+    else if (/^\d{9,}$/.test(kw)) {
+      filters.push({ field: "so_dien_thoai", operator: "contain", value: kw });
+    }
+    // 3) Chỉ số ngắn (3–8): coi như đuôi mã đơn (VD "00314")
+    else if (/^\d{3,8}$/.test(kw)) {
+      filters.push({ field: "ma_don_hang", operator: "contain", value: kw });
+    }
+    // 4) Mặc định: tên KH
+    else {
+      filters.push({ field: "ten_khach_hang", operator: "contain", value: kw });
+    }
+  }
+
+  // Lọc theo ngày tạo (YYYY-MM-DD|YYYY-MM-DD)
+  filters.push({
+    field: "ngay_tao_don_hang",
+    operator: "between_date",
+    value: `${dateRange.from}|${dateRange.to}`,
+  });
+
+  return {
+    page,
+    limit: pageSize,
+    sort_column: "id",
+    sort_direction: "desc",
+    ...createFilterQueryFromArray(filters), // ⬅️ flatten giống desktop
+  };
+}, [page, q, dateRange.from, dateRange.to]);
+
+
 
   const loadPage = async () => {
     if (loadingRef.current || !hasMore) return;
@@ -162,30 +193,49 @@ export default function OrdersPage(): JSX.Element {
         </div>
 
         {/* Tùy chọn đổi ngày tay (giữ đơn giản 2 nút) */}
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <DatePicker
-            title="Từ ngày"
-            value={dayjs(dateRange.from).toDate()}
-            onConfirm={(d) => setDateRange(r => ({ ...r, from: dayjs(d).format("YYYY-MM-DD") }))}
-          >
-            {(val) => (
-              <Button size="small" fill="outline">
-                Từ: {dayjs(val || dateRange.from).format("DD/MM/YYYY")}
-              </Button>
-            )}
-          </DatePicker>
-          <DatePicker
-            title="Đến ngày"
-            value={dayjs(dateRange.to).toDate()}
-            onConfirm={(d) => setDateRange(r => ({ ...r, to: dayjs(d).format("YYYY-MM-DD") }))}
-          >
-            {(val) => (
-              <Button size="small" fill="outline">
-                Đến: {dayjs(val || dateRange.to).format("DD/MM/YYYY")}
-              </Button>
-            )}
-          </DatePicker>
-        </div>
+<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+  <Button
+    size="small"
+    fill="outline"
+    onClick={() => { blurActive(); setFromVisible(true); }}
+  >
+    Từ: {dayjs(dateRange.from).format("DD/MM/YYYY")}
+  </Button>
+
+  <Button
+    size="small"
+    fill="outline"
+    onClick={() => { blurActive(); setToVisible(true); }}
+  >
+    Đến: {dayjs(dateRange.to).format("DD/MM/YYYY")}
+  </Button>
+</div>
+
+{/* DatePickers điều khiển bằng visible */}
+<DatePicker
+  precision="day"
+  destroyOnClose
+  visible={fromVisible}
+  value={dayjs(dateRange.from).toDate()}
+  onClose={() => setFromVisible(false)}
+  onConfirm={(d) => {
+    setDateRange(r => ({ ...r, from: dayjs(d).format("YYYY-MM-DD") }));
+    setFromVisible(false);
+  }}
+/>
+
+<DatePicker
+  precision="day"
+  destroyOnClose
+  visible={toVisible}
+  value={dayjs(dateRange.to).toDate()}
+  onClose={() => setToVisible(false)}
+  onConfirm={(d) => {
+    setDateRange(r => ({ ...r, to: dayjs(d).format("YYYY-MM-DD") }));
+    setToVisible(false);
+  }}
+/>
+
       </div>
 
       {/* Card list */}

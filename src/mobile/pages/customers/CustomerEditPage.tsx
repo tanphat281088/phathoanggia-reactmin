@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog, Input, List, Segmented, Toast } from "antd-mobile";
+import { Button, Dialog, Input, List, Picker, Toast } from "antd-mobile";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "../../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../../configs/api-route-config";
@@ -27,6 +27,10 @@ export default function CustomerEditPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // UI: Picker cho kênh liên hệ (tránh tràn/bể layout)
+  const [kenhVisible, setKenhVisible] = useState(false);
+  const KENH_COLUMNS = [KENH_OPTIONS.map(v => ({ label: v, value: v }))];
 
   // nạp dữ liệu
   const load = async () => {
@@ -93,26 +97,48 @@ export default function CustomerEditPage() {
   }
 
   return (
-    <div style={{ padding: 12 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Sửa khách hàng</div>
+    <div style={{ padding: 12, paddingBottom: 110 }}>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>Sửa khách hàng</div>
       <List>
         <List.Item>
           <Input value={ten} onChange={setTen} placeholder="Tên khách hàng *" clearable />
         </List.Item>
         <List.Item>
-          <Input value={sdt} onChange={setSdt} placeholder="Số điện thoại (0… hoặc +84…) *" clearable />
+          <Input
+            value={sdt}
+            onChange={setSdt}
+            placeholder="Số điện thoại (0… hoặc +84…) *"
+            inputMode="tel"
+            type="tel"
+            clearable
+          />
         </List.Item>
         <List.Item>
           <Input value={email} onChange={setEmail} placeholder="Email (không bắt buộc)" clearable type="email" />
         </List.Item>
+
+        {/* Kênh liên hệ: dùng Picker (bottom-sheet) để không tràn */}
         <List.Item description="Kênh liên hệ *">
-          <Segmented
+          <Button
             block
-            options={KENH_OPTIONS.map((v) => ({ label: v, value: v }))}
-            value={kenh}
-            onChange={(v) => setKenh(String(v))}
+            onClick={() => setKenhVisible(true)}
+            style={{ justifyContent: "flex-start" }}
+          >
+            {kenh ? `Kênh: ${kenh}` : "Chọn kênh liên hệ"}
+          </Button>
+          <Picker
+            columns={KENH_COLUMNS}
+            visible={kenhVisible}
+            onClose={() => setKenhVisible(false)}
+            onConfirm={(vals) => {
+              setKenh(String(vals?.[0] || ""));
+              setKenhVisible(false);
+            }}
+            confirmText="Chọn"
+            cancelText="Huỷ"
           />
         </List.Item>
+
         <List.Item>
           <Input value={diaChi} onChange={setDiaChi} placeholder="Địa chỉ *" clearable />
         </List.Item>
@@ -121,11 +147,26 @@ export default function CustomerEditPage() {
         </List.Item>
       </List>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-        <Button block color="primary" loading={saving} onClick={submit}>
-          Lưu thay đổi
-        </Button>
-        <Button block onClick={() => nav(-1)}>Huỷ</Button>
+      {/* Sticky footer: nút to, dễ bấm */}
+      <div className="sticky-actions">
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className="primary-btn"
+            onClick={submit}
+            disabled={saving}
+            style={{ flex: 1 }}
+            aria-label="Lưu thay đổi"
+          >
+            {saving ? "Đang lưu…" : "Lưu thay đổi"}
+          </button>
+          <button
+            className="primary-btn danger-btn"
+            onClick={() => nav(-1)}
+            style={{ flex: 1 }}
+          >
+            Huỷ
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -86,7 +86,8 @@ const items = sidebarConfig(
       });
     };
     const updatedItems = getSelectedKey(items);
-    return { items: updatedItems, openKeys };
+return { items: updatedItems, rawItems: items, openKeys };
+
   }
   // ================================================
 
@@ -129,7 +130,7 @@ const items = sidebarConfig(
     // Thu chi
     "bao-cao": "bao-cao-thu-chi",
     // Cashflow: chỉ cần có bất kỳ module cash-* là hiển thị
-    "cashflow": ["cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"],
+    "cashflow": ["cash","cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"],
       "cong-no-khach-hang": "quan-ly-cong-no",   // 👈 THÊM DÒNG NÀY
         "kiem-toan": "kiem-toan",   // RBAC module “Kiểm toán”
 
@@ -184,10 +185,11 @@ const MANAGER_HR_KEYS = new Set<string>([
   const resolveModuleForMenu = (parentKey: string, childKey?: string): string | null => {
     if (childKey) {
       const mapped = CHILD_TO_MODULE[childKey];
-      if (Array.isArray(mapped)) {
-        const ok = mapped.some((m) => hasMenu(m));
-        return ok ? mapped[0] : null;
-      }
+if (Array.isArray(mapped)) {
+  const matched = mapped.find((m) => hasMenu(m));
+  return matched || null;
+}
+
       if (typeof mapped === "string") return mapped;
       if (grantedNames.has(childKey)) return childKey;
     }
@@ -256,13 +258,15 @@ const filteredChildren = item.children.filter((child: any) => {
     });
   };
 
-  const visibleItems = filterByPermission(items);
-  const updatedItems = getSelectedKey(visibleItems);
+const visibleItems = filterByPermission(items);
+const updatedItems = getSelectedKey(visibleItems);
 
-  return {
-    items: updatedItems,
-    openKeys,
-  };
+return {
+  items: updatedItems as any[],
+  rawItems: (items as any[]) ?? [],
+  openKeys,
+};
+
 };
 
 export default useSidebar;

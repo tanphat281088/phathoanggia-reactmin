@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Input, Space, Toast } from "antd-mobile";
 
+
 import dayjs from "dayjs";
 import axios from "../../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../../configs/api-route-config";
@@ -52,6 +53,17 @@ const toNumber = (v: any, d = 0) => {
 
 // Hiển thị tiền kiểu Việt Nam
 const formatVND = (n: number = 0) => Number(n || 0).toLocaleString("vi-VN");
+
+// ===== Safe confirm for all antd-mobile versions =====
+// ===== Safe confirm (native) — tránh lỗi version antd-mobile =====
+async function confirmAsync(
+  message: string,
+  okText = "OK",          // tham số giữ lại để sau này dễ đổi UI
+  cancelText = "Hủy"
+): Promise<boolean> {
+  return window.confirm(message);
+}
+
 
 
 // ==== Helpers preview nháp ====
@@ -395,8 +407,24 @@ const openOrderList = () => {
     window.open(`${apiBase}/quan-ly-ban-hang/xem-truoc-hoa-don/${realId}`, "_blank");
   };
 
+  // Tự đồng bộ phiếu thu theo mã đơn (giống desktop)
+async function autoSyncReceiptByCode(code?: string | null) {
+  if (!code) return;
+  const webBase = (import.meta as any).env?.VITE_WEB_BASE_URL ?? "https://api.phgfloral.com";
+  try {
+    const url = `${webBase}/admin/thu-chi/re-sync-by-code/${encodeURIComponent(code)}`;
+    await fetch(url, { method: "GET", headers: { Accept: "application/json" } }).catch(() => null);
+  } catch {
+    /* bỏ qua lỗi, không chặn luồng */
+  }
+}
+
+
   // ===== Submit (TẠO ĐƠN) =====
   const submitOrder = async () => {
+      console.log("[Mobile] submitOrder CLICKED");
+  Toast.show({ content: "Đang chuẩn bị tạo đơn…", duration: 800 });
+
     if (submitting) return; // chống bấm lặp
 
     // Điều kiện tối thiểu để cho bấm tạo đơn — UI đã hướng dẫn chọn DVT/Loại giá ở panel/giỏ
@@ -421,8 +449,11 @@ const openOrderList = () => {
       if (paid > grandTotal) { Toast.show("Số tiền đã thanh toán không vượt tổng thanh toán"); return; }
     }
 
-const ok = window.confirm("Xác nhận TẠO ĐƠN mới?");
+const ok = await confirmAsync("Xác nhận TẠO ĐƠN mới?", "Tạo đơn", "Hủy");
 if (!ok) return;
+
+
+
 
 setSubmitting(true);
 
@@ -468,9 +499,18 @@ if (newId) {
   setLastOrderNotice({ id: newId, code: newCode ?? undefined });
   Toast.show({ content: `Tạo đơn thành công ${newCode ? `#${newCode}` : ""}`, icon: "success" });
 
+  // Nếu có thu tiền (một phần / toàn bộ) thì đồng bộ phiếu thu
+if ((draft.loai_thanh_toan ?? 0) !== 0) {
+  autoSyncReceiptByCode(newCode);
+}
+
+
   // (Tuỳ chọn) hỏi mở hóa đơn
-  const open = window.confirm("Mở hóa đơn HTML xem trước?");
-  if (open) openInvoice(newId);
+const open = await confirmAsync("Mở hóa đơn HTML xem trước?", "Mở", "Để sau");
+if (open) openInvoice(newId);
+
+
+
 
   // clear giỏ …
   setDraft((d) => ({ ...d, items: [], so_tien_da_thanh_toan: null, loai_thanh_toan: 0 }));
@@ -495,6 +535,7 @@ if (newId) {
   try { console.log("[PAYLOAD]", JSON.parse(JSON.stringify(payload))); } catch {}
 } finally {
   setSubmitting(false);
+  try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {}
 }
 
   };
@@ -529,6 +570,14 @@ return (
       >
         Xem hóa đơn
       </Button>
+      <Button
+  size="mini"
+  style={{ marginLeft: 8 }}
+  onClick={openOrderList}
+>
+  Đến danh sách
+</Button>
+
     </div>
   </div>
 )}
@@ -763,27 +812,27 @@ return (
     </div>
 
     {/* STICKY ORDER SUMMARY (Pastel) */}
-    <OrderSummaryBar
-      subtotal={subtotal}
-      taxMode={taxMode}
-      vatRate={taxMode === 1 ? vatRate : null}
-      vatAmount={taxMode === 1 ? vatAmount : null}
-      grandTotal={grandTotal}
-      paidAmount={paidAmount}
-      primaryLabel="Tạo đơn"
-      onPrimary={submitOrder}
-      secondaryLabel="Xoá nháp"
-      onSecondary={clearDraft}
-      primaryLoading={submitting}
-     disabled={
-  submitting ||
-  !draft.dia_chi_giao_hang ||
-  draft.items.length === 0 ||
-  (draft.loai_khach_hang === 0 ? !draft.khach_hang_id : !(draft.ten_khach_hang && draft.so_dien_thoai)) ||
-  (draft.loai_thanh_toan === 1 && !toNumber(draft.so_tien_da_thanh_toan ?? 0))
-}
+<OrderSummaryBar
+  subtotal={subtotal}
+  taxMode={taxMode}
+  vatRate={taxMode === 1 ? vatRate : null}
+  vatAmount={taxMode === 1 ? vatAmount : null}
+  grandTotal={grandTotal}
+  paidAmount={paidAmount}
+  primaryLabel="Tạo đơn"
+  onPrimary={() => {
+    console.log("[Mobile] TẠO ĐƠN: button pressed");
+    Toast.show({ content: "Đang chuẩn bị tạo đơn…", duration: 800 });
+    submitOrder();
+  }}
+  secondaryLabel="Xoá nháp"
+  onSecondary={clearDraft}
+  primaryLoading={submitting}
+  /* Chỉ khoá nút khi đang submit để tránh cảm giác 'đơ' */
+  disabled={submitting}
+/>
 
-    />
+
   </div>
 );
 

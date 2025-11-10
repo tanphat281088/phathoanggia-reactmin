@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import {
   Button,
   Dialog,
@@ -12,6 +13,8 @@ import {
 import axios from "../../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../../configs/api-route-config";
 import { useNavigate } from "react-router-dom";
+import { createFilterQueryFromArray } from "../../../utils/utils";
+
 
 /** ===== Helpers: normalize các shape list khác nhau ===== */
 function normalizeList(resp: any): any[] {
@@ -22,7 +25,6 @@ function normalizeList(resp: any): any[] {
   if (Array.isArray(resp?.collection)) return resp.collection;
   if (Array.isArray(resp?.data?.collection)) return resp.data.collection;
   if (Array.isArray(resp?.data?.data)) return resp.data.data;
-  // có thể backend bọc thêm {data: {items: []}}
   if (Array.isArray(resp?.data?.items)) return resp.data.items;
   return [];
 }
@@ -37,6 +39,7 @@ type Customer = {
   dia_chi?: string | null;
   address?: string | null;
   trang_thai?: number | boolean | null;
+  kenh_lien_he?: string | null;
   [k: string]: any;
 };
 
@@ -55,84 +58,148 @@ export default function CustomersPage() {
   const [openDetail, setOpenDetail] = useState(false);
   const [detail, setDetail] = useState<Customer | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Debounce cho ô tìm kiếm
+const debounceRef = useRef<number | undefined>(undefined);
+const [typing, setTyping] = useState(false);
+
 
   // view helpers
-  const viewName = (c: Customer) => c.ten_khach_hang || c.ten || `#${c.id}`;
+  const viewName  = (c: Customer) => c.ten_khach_hang || c.ten || `#${c.id}`;
   const viewPhone = (c: Customer) => c.so_dien_thoai || c.sdt || "";
+  const viewAddr  = (c: Customer) => c.dia_chi || c.address || "";
+
+  // *** Click helpers — đảm bảo onClick trả về void
+  const openSelf  = (url: string) => { window.open(url, "_self");  };
+  const openBlank = (url: string) => { window.open(url, "_blank"); };
 
   // ====== fetch ======
-// ====== fetch ======
 const fetchPage = async (nextPage = 1, keyword = q) => {
   setLoading(true);
   try {
-    // ✅ ép kiểu any để TS không coi là AxiosResponse
-    const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, {
-      params: { page: nextPage, per_page: perPage, q: keyword || undefined },
+    const kw = (keyword || "").trim();
+
+    // ---- Không có từ khóa: dùng paging chuẩn của BE ----
+    if (!kw) {
+      const params = {
+        page: nextPage,
+        limit: perPage,
+        sort_column: "id",
+        sort_direction: "desc",
+      };
+      const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
+      const items = normalizeList(resp);
+
+      const r: any = resp;
+      const meta =
+        r?.pagination || r?.data?.pagination || r?.meta || r?.data?.meta || undefined;
+
+      let newHasMore = true;
+      if (
+        meta &&
+        typeof meta.current_page !== "undefined" &&
+        typeof meta.last_page !== "undefined"
+      ) {
+        newHasMore = (meta.current_page ?? nextPage) < (meta.last_page ?? nextPage);
+      } else {
+        newHasMore = items.length >= perPage;
+      }
+
+      if (nextPage === 1) setRows(items);
+      else setRows((prev: any) => [...(Array.isArray(prev) ? prev : []), ...items]);
+
+      setPage(nextPage);
+      setHasMore(newHasMore);
+      return;
+    }
+
+    // ---- Có từ khóa: OR theo 3 trường (union kết quả) ----
+    const buildParams = (field: string) => ({
+      page: 1,
+      limit: perPage * 3, // lấy rộng để đủ union
+      sort_column: "id",
+      sort_direction: "desc",
+      ...createFilterQueryFromArray([{ field, operator: "contain", value: kw }]),
+      // Nếu BE cần 'contains', đổi 'contain' -> 'contains' ở dòng trên.
     });
 
-    const items = normalizeList(resp);
+    const [byCode, byName, byPhone] = await Promise.all([
+      axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params: buildParams("ma_kh") }),
+      axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params: buildParams("ten_khach_hang") }),
+      axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params: buildParams("so_dien_thoai") }),
+    ]);
 
-    // ✅ meta có thể nằm ở nhiều nơi → xử lý lỏng tay qua biến any
-    const r: any = resp;
-    const meta =
-      r?.meta ||
-      r?.data?.meta ||
-      r?.pagination ||
-      r?.data?.pagination ||
-      r?.pager ||
-      r?.data?.pager ||
-      undefined;
+    const seen: Record<string, 1> = {};
+    const merged = [
+      ...normalizeList(byCode),
+      ...normalizeList(byName),
+      ...normalizeList(byPhone),
+    ].filter((row: any) => {
+      const k = String(row?.id ?? "");
+      if (!k || seen[k]) return false;
+      seen[k] = 1;
+      return true;
+    });
 
-    const newHasMore = meta
-      ? (meta.current_page ?? nextPage) < (meta.last_page ?? nextPage)
-      : items.length >= perPage;
+    // Phân trang trên FE cho chế độ OR
+    const start = (nextPage - 1) * perPage;
+    const pageItems = merged.slice(start, start + perPage);
+    const newHasMore = start + perPage < merged.length;
 
-    if (nextPage === 1) {
-      setRows(items);
-    } else {
-      setRows((prev: any) => [...(Array.isArray(prev) ? prev : []), ...items]);
-    }
+    if (nextPage === 1) setRows(pageItems);
+    else setRows((prev: any) => [...(Array.isArray(prev) ? prev : []), ...pageItems]);
+
     setPage(nextPage);
     setHasMore(newHasMore);
   } catch (err) {
     console.error("KH list error", err);
     Dialog.alert({ content: "Không tải được danh sách khách hàng." });
-    setRows([]); // đảm bảo là array để .map không lỗi
+    setRows([]);
   } finally {
     setLoading(false);
   }
 };
 
+// Gọi API sau 350ms kể từ lần gõ cuối
+const onChangeQ = (val: string) => {
+  setQ(val);
+  setTyping(true);
+  if (debounceRef.current) window.clearTimeout(debounceRef.current);
+  debounceRef.current = window.setTimeout(async () => {
+    await fetchPage(1, val);
+    setTyping(false);
+  }, 350);
+};
 
-  const onSearch = async (keyword: string) => {
-    setQ(keyword);
-    await fetchPage(1, keyword);
-  };
+const onSearch = async (keyword: string) => {
+  setQ(keyword);
+  await fetchPage(1, keyword);
+};
 
-  const onRefresh = async () => {
-    await fetchPage(1, q);
-  };
+const onRefresh = async () => {
+  await fetchPage(1, q);
+};
 
-  const loadMore = async () => {
-    if (loading || !hasMore) return;
-    await fetchPage(page + 1, q);
-  };
+const loadMore = async () => {
+  if (loading || !hasMore) return;
+  await fetchPage(page + 1, q);
+};
 
-  const openCustomer = async (c: Customer) => {
-    setOpenDetail(true);
-    setDetailLoading(true);
-    try {
-      const resp = await axios.get(`${API_ROUTE_CONFIG.KHACH_HANG}/${c.id}`);
-      const d = resp?.data ?? resp;
-      setDetail(d);
-    } catch (err) {
-      console.error("KH show error", err);
-      Dialog.alert({ content: "Không tải được chi tiết khách hàng." });
-      setOpenDetail(false);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+const openCustomer = async (c: Customer) => {
+  setOpenDetail(true);
+  setDetailLoading(true);
+  try {
+    const resp = await axios.get(`${API_ROUTE_CONFIG.KHACH_HANG}/${c.id}`);
+    const d = (resp as any)?.data ?? resp;
+    setDetail(d);
+  } catch (err) {
+    console.error("KH show error", err);
+    Dialog.alert({ content: "Không tải được chi tiết khách hàng." });
+    setOpenDetail(false);
+  } finally {
+    setDetailLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchPage(1, "");
@@ -144,17 +211,29 @@ const fetchPage = async (nextPage = 1, keyword = q) => {
     return <Tag color={on ? "success" : "default"}>{on ? "Kích hoạt" : "Không kích hoạt"}</Tag>;
   };
 
+  const ellipsis: React.CSSProperties = {
+    opacity: 0.85,
+    maxWidth: "60vw",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  };
+
   const safeRows = Array.isArray(rows) ? rows : [];
 
   return (
     <div style={{ padding: 12 }}>
-      <SearchBar
-        value={q}
-        placeholder="Tìm theo tên / SĐT"
-        onChange={setQ}
-        onSearch={onSearch}
-        onClear={() => onSearch("")}
-      />
+     <SearchBar
+  value={q}
+  placeholder="Tìm theo tên / SĐT"
+  onChange={onChangeQ}         // ⬅️ dùng debounce
+  onSearch={onSearch}          // Enter vẫn chạy ngay
+  onClear={() => onSearch("")} // Clear trả về full list
+/>
+{(typing || loading) && (
+  <div style={{ opacity: .6, fontSize: 12, marginTop: 4 }}>Đang tìm…</div>
+)}
+
 
       {/* Nút Thêm KH */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
@@ -164,21 +243,28 @@ const fetchPage = async (nextPage = 1, keyword = q) => {
       </div>
 
       <PullToRefresh onRefresh={onRefresh}>
-        <List header={`Danh sách khách hàng`} style={{ marginTop: 8 }}>
+        <List header="Danh sách khách hàng" style={{ marginTop: 8 }}>
           {safeRows.map((c: Customer) => (
             <List.Item
               key={String(c.id)}
               description={
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  {viewPhone(c) && <span style={{ opacity: 0.8 }}>{viewPhone(c)}</span>}
-                  {c.email && <span style={{ opacity: 0.8 }}>{c.email}</span>}
+                  {viewPhone(c) && <span style={ellipsis}>{viewPhone(c)}</span>}
+                  {c.email && <span style={ellipsis}>{c.email}</span>}
                   {"trang_thai" in c && <StatusTag v={c.trang_thai} />}
                 </div>
               }
               onClick={() => openCustomer(c)}
               arrow
             >
-              {viewName(c)}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 700 }}>{viewName(c)}</span>
+                {c.kenh_lien_he ? (
+                  <span className="chip" style={{ maxWidth: "40vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.kenh_lien_he}
+                  </span>
+                ) : null}
+              </div>
             </List.Item>
           ))}
         </List>
@@ -211,21 +297,60 @@ const fetchPage = async (nextPage = 1, keyword = q) => {
             </div>
           ) : detail ? (
             <>
-              <h3 style={{ marginBottom: 6 }}>{viewName(detail)}</h3>
+              <h3 style={{ marginBottom: 6, fontWeight: 800 }}>{viewName(detail)}</h3>
               <div style={{ lineHeight: 1.7 }}>
                 {viewPhone(detail) && <div>📞 {viewPhone(detail)}</div>}
                 {detail.email && <div>✉️ {detail.email}</div>}
-                {(detail.dia_chi || detail.address) && (
-                  <div>📍 {detail.dia_chi || detail.address}</div>
-                )}
+                {viewAddr(detail) && <div>📍 {viewAddr(detail)}</div>}
                 {"trang_thai" in detail && (
                   <div style={{ marginTop: 6 }}>
                     Trạng thái: <StatusTag v={detail.trang_thai} />
                   </div>
                 )}
+                {detail.kenh_lien_he && (
+                  <div style={{ marginTop: 6 }}>
+                    Kênh: <span className="chip">{detail.kenh_lien_he}</span>
+                  </div>
+                )}
               </div>
 
-              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              {/* Hành động nhanh */}
+              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {viewPhone(detail) && (
+                  <>
+                    <Button
+                      size="small"
+                      onClick={() => { openSelf(`tel:${viewPhone(detail)}`); }}
+                    >
+                      📞 Gọi
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={() => { openSelf(`sms:${viewPhone(detail)}`); }}
+                    >
+                      ✉️ SMS
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={() => { openBlank(`https://zalo.me/${viewPhone(detail)}`); }}
+                    >
+                      🟦 Zalo
+                    </Button>
+                  </>
+                )}
+                {viewAddr(detail) && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        viewAddr(detail)
+                      )}`;
+                      openBlank(url);
+                    }}
+                  >
+                    🗺️ Bản đồ
+                  </Button>
+                )}
                 <Button
                   size="small"
                   color="primary"
@@ -234,7 +359,7 @@ const fetchPage = async (nextPage = 1, keyword = q) => {
                     nav(`/admin/m/customers/${detail.id}/edit`);
                   }}
                 >
-                  Sửa
+                  ✏️ Sửa
                 </Button>
               </div>
             </>

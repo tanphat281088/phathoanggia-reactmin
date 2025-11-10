@@ -30,8 +30,8 @@ export default function MobileShell() {
       <div className="min-h-screen bg-white flex flex-col" style={{ minHeight: "100dvh" }}>
         {/* Header pastel */}
         <div className="phg-header" style={{ padding: "12px 16px" }}>
-          <div className="phg-title">PHG ERP — Mobile</div>
-          <div className="phg-subtitle">Sales • Delivery • CRM</div>
+          <div className="phg-title">PHG ERP phiên bản Mobile</div>
+          <div className="phg-subtitle">Developed by Phat13</div>
         </div>
 
         {/* Nội dung trang con */}

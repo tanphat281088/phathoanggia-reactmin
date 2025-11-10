@@ -361,7 +361,7 @@ if (res?.success) {
                         Xem
                       </Button>
                       <Button size="mini" onClick={() => onRecompute(r.user_id)}>
-                        Recompute
+                        Tính lại
                       </Button>
                       <Button
                         size="mini"
@@ -459,7 +459,7 @@ if (res?.success) {
               </List>
               <Space style={{ marginTop: 12 }} wrap>
                 <Button size="small" onClick={() => onRecompute(detail.user_id)}>
-                  Recompute
+                  Tính lại
                 </Button>
                 <Button size="small" onClick={() => onLockToggle(!detail.locked, detail.user_id)}>
                   {detail.locked ? "Mở khóa" : "Khóa"}

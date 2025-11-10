@@ -1,5 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Card, Col, DatePicker, Row, Statistic, Table, Typography, Button, Space, Drawer, Tabs, Tag, ConfigProvider } from "antd";
+import {
+  Card,
+  Col,
+  DatePicker,
+  Row,
+  Statistic,
+  Table,
+  Typography,
+  Button,
+  Space,
+  Drawer,
+  Tabs,
+  Tag,
+  ConfigProvider,
+  Modal,
+  Descriptions,
+  Divider,
+  Collapse,
+} from "antd";
 import viVN from "antd/locale/vi_VN";
 
 import dayjs from "dayjs";
@@ -7,15 +25,34 @@ import "dayjs/locale/vi";
 dayjs.locale("vi");
 
 import axios from "../../configs/axios";
+import axiosFile from "../../configs/axios-file";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import { useEffect, useState } from "react";
 import { formatter } from "../../utils/utils";
-import axiosFile from "../../configs/axios-file";
-
 
 const { RangePicker } = DatePicker;
 
-// ====== CẬP NHẬT Summary keys để khớp backend mới ======
+/* ================= Helpers ================= */
+const mapPTTT = (v?: number | string) => {
+  const n = typeof v === "string" ? parseInt(v, 10) : v ?? 0;
+  // map phổ biến trong hệ thống: 1=Tiền mặt, 2=Chuyển khoản, 3=Thẻ/QR, 4=Khác
+  switch (n) {
+    case 1: return "Tiền mặt";
+    case 2: return "Chuyển khoản";
+    case 3: return "Thẻ/QR";
+    case 4: return "Khác";
+    default: return v ? `#${v}` : "";
+  }
+};
+const formatDate = (v?: string) => {
+  if (!v) return "";
+  // hỗ trợ ISO hoặc DD/MM/YYYY HH:mm:ss
+  const d = v.includes("T") ? dayjs(v) : dayjs(v, "DD/MM/YYYY HH:mm:ss");
+  return d.isValid() ? d.format("DD/MM/YYYY HH:mm") : v;
+};
+const safe = (v: any, fallback = "") => (v === null || v === undefined ? fallback : v);
+
+/* ================= Types ================= */
 type Summary = {
   ["01_doanh_thu_ban_hang"]: number;
   ["02_gia_von_hang_ban"]: number;
@@ -24,11 +61,11 @@ type Summary = {
   ["05_chi_phi_tai_chinh"]: number;
   ["06_chi_phi_ban_hang"]: number;
   ["07_chi_phi_quan_ly_dn"]: number;
-  ["08_chi_phi_dau_tu_ccdc"]: number;            // MỚI
-  ["09_loi_nhuan_thuan_hd_kd"]: number;          // MỚI
+  ["08_chi_phi_dau_tu_ccdc"]: number;
+  ["09_loi_nhuan_thuan_hd_kd"]: number;
   ["10_chi_phi_khac"]: number;
-  ["11_thu_nhap_khac"]: number;                  // MỚI
-  ["12_loi_nhuan_khac"]: number;                 // MỚI (12 = 10 − 11)
+  ["11_thu_nhap_khac"]: number;
+  ["12_loi_nhuan_khac"]: number;
   ["13_loi_nhuan_truoc_thue"]: number;
 };
 
@@ -39,14 +76,13 @@ type DetailResp = {
   rows: Array<any>;
 };
 
-// ====== CẬP NHẬT map để hỗ trợ xem chi tiết cho line 8 (CCDC) ======
 const LINE_MAP: Record<number, { title: string }> = {
   1:  { title: "01. Doanh thu" },
   2:  { title: "02. Giá vốn" },
   5:  { title: "05. Chi phí tài chính" },
   6:  { title: "06. Chi phí bán hàng" },
   7:  { title: "07. Chi phí QLDN" },
-  8:  { title: "08. Chi phí CCDC" },            // MỚI
+  8:  { title: "08. Chi phí CCDC" },
   10: { title: "10. Chi phí khác" },
 };
 
@@ -63,6 +99,11 @@ export default function BaoCaoKQKD() {
   const [detail, setDetail] = useState<DetailResp | null>(null);
   const [detailLine, setDetailLine] = useState<number | null>(null);
 
+  // Modal "Xem chứng từ"
+  const [docOpen, setDocOpen] = useState(false);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docPayload, setDocPayload] = useState<any>(null);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -71,7 +112,7 @@ export default function BaoCaoKQKD() {
         params.from = range[0].format("YYYY-MM-DD");
         params.to   = range[1].format("YYYY-MM-DD");
       }
-      const res = await axios.get(API_ROUTE_CONFIG.BAO_CAO_KQKD, { params }) as any;
+      const res = (await axios.get(API_ROUTE_CONFIG.BAO_CAO_KQKD, { params })) as any;
       setSum(res.data.summary);
       setSeries(res.data.series || []);
     } finally {
@@ -87,45 +128,63 @@ export default function BaoCaoKQKD() {
         params.from = range[0].format("YYYY-MM-DD");
         params.to   = range[1].format("YYYY-MM-DD");
       }
-      const res = await axios.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_DETAIL, { params }) as any;
+      const res = (await axios.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_DETAIL, { params })) as any;
       setDetail(res.data as DetailResp);
     } finally {
       setDetailLoading(false);
     }
   };
 
-const exportFile = async (fmt: "xlsx" | "pdf") => {
-  const params: any = { group_by: "month", format: fmt };
-  if (range) {
-    params.from = range[0].format("YYYY-MM-DD");
-    params.to   = range[1].format("YYYY-MM-DD");
-  }
+  // Xem chi tiết 1 chứng từ trong danh sách
+  const viewDocument = async (row: any) => {
+    try {
+      // Doanh thu (line=1) → mở hóa đơn xem trước (public)
+      if (detailLine === 1) {
+        const apiBase = import.meta.env.VITE_API_URL?.replace(/\/+$/,''); // ví dụ https://api.phgfloral.com/api
+        window.open(`${apiBase}/quan-ly-ban-hang/xem-truoc-hoa-don/${row.id}`, "_blank", "noopener,noreferrer");
+        return;
+      }
 
-  // QUAN TRỌNG: ép Axios giữ nguyên blob, không transform/parse
-const res = await axiosFile.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_EXPORT, { params });
-const blob = new Blob([res.data], { type: fmt === "pdf"
-  ? "application/pdf"
-  : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      // Chi phí → lấy chi tiết phiếu chi & mở modal
+      setDocLoading(true);
+      const res = (await axios.get(`/phieu-chi/${row.id}`)) as any;
+      setDocPayload(res.data?.data || res.data);
+      setDocOpen(true);
+    } finally {
+      setDocLoading(false);
+    }
+  };
 
+  const exportFile = async (fmt: "xlsx" | "pdf") => {
+    const params: any = { group_by: "month", format: fmt };
+    if (range) {
+      params.from = range[0].format("YYYY-MM-DD");
+      params.to   = range[1].format("YYYY-MM-DD");
+    }
+    const res = await axiosFile.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_EXPORT, { params });
+    const blob = new Blob([res.data], { type: fmt === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `BaoCao_KQKD_${dayjs().format("YYYYMMDD_HHmmss")}.${fmt}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
-};
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `BaoCao_KQKD_${dayjs().format("YYYYMMDD_HHmmss")}.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
-
-  useEffect(() => { fetchData(); /* eslint-disable react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openDetail = (line: number) => {
     setDetailLine(line);
     setDetailTitle(LINE_MAP[line]?.title || `Chi tiết (line=${line})`);
     setOpen(true);
-    // chỉ fetch detail nếu backend hỗ trợ line đó
     if ([1,2,5,6,7,8,10].includes(line)) {
       fetchDetail(line);
     } else {
@@ -140,7 +199,6 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
     </Space>
   );
 
-  // ====== CẬP NHẬT bộ KPI để hiển thị thêm 04, 08, 09, 11, 12 ======
   const kpiItems = [
     { key: "01", title: "01. Doanh thu",            value: sum?.["01_doanh_thu_ban_hang"] ?? 0, onClick: ()=>openDetail(1)  },
     { key: "02", title: "02. Giá vốn",              value: sum?.["02_gia_von_hang_ban"] ?? 0,   onClick: ()=>openDetail(2)  },
@@ -160,21 +218,20 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
     { key: "13", title: "13. Lợi nhuận trước thuế", value: sum?.["13_loi_nhuan_truoc_thue"] ?? 0, onClick: ()=>{ setOpen(true); setDetailTitle("13 = 09 + 12"); setDetail(null); setDetailLine(null);} },
   ];
 
-  // ====== CẬP NHẬT cột bảng tháng để bám series mới ======
   const columns = [
     { title: "Kỳ (YYYY-MM)", dataIndex: "ym" },
     { title: "01 Doanh thu", dataIndex: "01", align:"right", render:(v:number)=>formatter(v) },
     { title: "02 Giá vốn",   dataIndex: "02", align:"right", render:(v:number)=>formatter(v) },
     { title: "03 Lợi nhuận gộp", dataIndex: "03", align:"right", render:(v:number)=>formatter(v) },
-    { title: "04 DT tài chính",  dataIndex: "04", align:"right", render:(v:number)=>formatter(v) },   // MỚI
+    { title: "04 DT tài chính",  dataIndex: "04", align:"right", render:(v:number)=>formatter(v) },
     { title: "05 CP TC",     dataIndex: "05", align:"right", render:(v:number)=>formatter(v) },
     { title: "06 CP BH",     dataIndex: "06", align:"right", render:(v:number)=>formatter(v) },
     { title: "07 CP QLDN",   dataIndex: "07", align:"right", render:(v:number)=>formatter(v) },
-    { title: "08 CP CCDC",   dataIndex: "08", align:"right", render:(v:number)=>formatter(v) },        // MỚI
-    { title: "09 LN thuần",  dataIndex: "09", align:"right", render:(v:number)=>formatter(v) },        // MỚI
+    { title: "08 CP CCDC",   dataIndex: "08", align:"right", render:(v:number)=>formatter(v) },
+    { title: "09 LN thuần",  dataIndex: "09", align:"right", render:(v:number)=>formatter(v) },
     { title: "10 CP khác",   dataIndex: "10", align:"right", render:(v:number)=>formatter(v) },
-    { title: "11 TN khác",   dataIndex: "11", align:"right", render:(v:number)=>formatter(v) },        // MỚI
-    { title: "12 LN khác",   dataIndex: "12", align:"right", render:(v:number)=>formatter(v) },        // MỚI (12 = 10 − 11)
+    { title: "11 TN khác",   dataIndex: "11", align:"right", render:(v:number)=>formatter(v) },
+    { title: "12 LN khác",   dataIndex: "12", align:"right", render:(v:number)=>formatter(v) },
     { title: "13 LNTT",      dataIndex: "13", align:"right", render:(v:number)=>formatter(v) },
   ];
 
@@ -190,7 +247,7 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
                   value={range as any}
                   onChange={(v)=>setRange(v as any)}
                   format="YYYY-MM-DD"
-                  placeholder={["Ngày bắt đầu", "Ngày kết thúc"]}   // VIỆT HOÁ
+                  placeholder={["Ngày bắt đầu", "Ngày kết thúc"]}
                   allowClear
                 />
               </ConfigProvider>
@@ -198,31 +255,23 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
               <Button type="primary" onClick={fetchData} loading={loading}>Xem báo cáo</Button>
               <Button onClick={() => exportFile("xlsx")} loading={loading}>Xuất Excel</Button>
               <Button onClick={() => exportFile("pdf")}  loading={loading}>Xuất PDF</Button>
-<Button
-  onClick={async () => {
-    // gom tham số giống export
-    const params: any = { group_by: "month", format: "pdf" };
-    if (range) {
-      params.from = range[0].format("YYYY-MM-DD");
-      params.to   = range[1].format("YYYY-MM-DD");
-    }
 
-    // tải bằng axiosFile để mang theo Authorization
-    const res = await axiosFile.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_EXPORT, { params });
-    const blob = new Blob([res.data], { type: "application/pdf" });
-
-    // mở trong tab mới (không tải về)
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-
-    // (tuỳ chọn) thu hồi URL sau vài giây
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }}
->
-  Xem PDF
-</Button>
-
-
+              <Button
+                onClick={async () => {
+                  const params: any = { group_by: "month", format: "pdf" };
+                  if (range) {
+                    params.from = range[0].format("YYYY-MM-DD");
+                    params.to   = range[1].format("YYYY-MM-DD");
+                  }
+                  const res = await axiosFile.get(API_ROUTE_CONFIG.BAO_CAO_KQKD_EXPORT, { params });
+                  const blob = new Blob([res.data], { type: "application/pdf" });
+                  const url = window.URL.createObjectURL(blob);
+                  window.open(url, "_blank", "noopener,noreferrer");
+                  setTimeout(() => URL.revokeObjectURL(url), 10000);
+                }}
+              >
+                Xem PDF
+              </Button>
             </Space>
           </Col>
         </Row>
@@ -248,7 +297,7 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
         width={1000}
         onClose={()=>setOpen(false)}
       >
-        {/* KPI tổng hợp (03/04/09/11/12/13) → hiển thị công thức & nút mở cấu phần khi có */}
+        {/* KPI tổng hợp */}
         {!detail && (detailLine === null) && (
           <Space direction="vertical">
             {detailTitle.startsWith("03") && (
@@ -284,7 +333,7 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
           </Space>
         )}
 
-        {/* KPI đơn (01 / 02 / 05 / 06 / 07 / 08 / 10) — có API detail */}
+        {/* KPI đơn có API detail */}
         {detail && (
           <Tabs
             items={[
@@ -332,11 +381,19 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
                       { title: "Mã chứng từ", dataIndex: (detailLine===1?'ma_phieu_thu':'ma_phieu_chi') as any },
                       { title: "Ngày", dataIndex: (detailLine===1?'ngay':'ngay_chi') as any },
                       { title: "Người", dataIndex: (detailLine===1?'nguoi_tra':'nguoi_nhan') as any },
-
                       ...(detailLine===1 ? [] : [
                         { title: "Danh mục", dataIndex: "category_name" as any },
                       ]),
                       { title: "Số tiền", dataIndex: "so_tien" as any, align:"right", render:(v:number)=>formatter(v) },
+                      {
+                        title: "",
+                        key: "action",
+                        render: (_: any, r: any) => (
+                          <Button onClick={() => viewDocument(r)}>
+                            Xem chứng từ
+                          </Button>
+                        )
+                      },
                     ]}
                     dataSource={detail.rows}
                     pagination={{ pageSize: 10 }}
@@ -346,6 +403,107 @@ const blob = new Blob([res.data], { type: fmt === "pdf"
             ]}
           />
         )}
+
+        {/* Modal chi tiết Phiếu chi – VIỆT HOÁ ĐẲNG CẤP */}
+        <Modal
+          title="Chi tiết chứng từ"
+          open={docOpen}
+          onCancel={() => setDocOpen(false)}
+          footer={<Button onClick={() => setDocOpen(false)}>Đóng</Button>}
+          width={820}
+        >
+          {docLoading ? (
+            <Typography.Paragraph>Đang tải…</Typography.Paragraph>
+          ) : !docPayload ? (
+            <Typography.Paragraph>Không có dữ liệu.</Typography.Paragraph>
+          ) : (
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {/* Header */}
+              <Descriptions
+                column={2}
+                labelStyle={{ fontWeight: 600 }}
+                bordered
+                size="middle"
+              >
+                <Descriptions.Item label="Mã chứng từ" span={1}>
+                  {safe(docPayload.ma_phieu_chi || docPayload.code || docPayload.id)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngày chi" span={1}>
+                  {formatDate(docPayload.ngay_chi || docPayload.ngay)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Người nhận" span={1}>
+                  {safe(docPayload.nguoi_nhan)}
+                </Descriptions.Item>
+                <Descriptions.Item label="PT thanh toán" span={1}>
+                  {mapPTTT(docPayload.phuong_thuc_thanh_toan)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Danh mục" span={2}>
+                  <Space>
+                    {docPayload.category?.parent?.name && (
+                      <Tag>{docPayload.category.parent.name}</Tag>
+                    )}
+                    <Tag color="blue">{docPayload.category?.name || safe(docPayload.category_name)}</Tag>
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="Số tiền" span={2}>
+                  <Typography.Title level={4} style={{ margin: 0 }}>
+                    {formatter(docPayload.so_tien || 0)}
+                  </Typography.Title>
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Divider style={{ margin: "16px 0" }} />
+
+              {/* Banking & Lý do */}
+              <Descriptions
+                column={2}
+                labelStyle={{ fontWeight: 600 }}
+                size="small"
+                bordered
+              >
+                <Descriptions.Item label="Số tài khoản">
+                  {safe(docPayload.so_tai_khoan)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngân hàng">
+                  {safe(docPayload.ngan_hang)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Lý do chi" span={2}>
+                  {safe(docPayload.ly_do_chi)}
+                </Descriptions.Item>
+                {docPayload.ghi_chu && (
+                  <Descriptions.Item label="Ghi chú" span={2}>
+                    {docPayload.ghi_chu}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+
+              <Divider style={{ margin: "16px 0" }} />
+
+              {/* Người lập/sửa */}
+              <Descriptions
+                column={2}
+                labelStyle={{ fontWeight: 600 }}
+                size="small"
+                bordered
+              >
+                <Descriptions.Item label="Người tạo">
+                  {safe(docPayload.ten_nguoi_tao)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Người cập nhật">
+                  {safe(docPayload.ten_nguoi_cap_nhat)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Thời gian tạo">
+                  {formatDate(docPayload.created_at)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Thời gian cập nhật">
+                  {formatDate(docPayload.updated_at)}
+                </Descriptions.Item>
+              </Descriptions>
+
+        
+            </Space>
+          )}
+        </Modal>
       </Drawer>
     </Space>
   );

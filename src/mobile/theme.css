@@ -32,10 +32,18 @@
   font-size: 12px;
   color: var(--phg-ink-weak);
 }
+
+/* TabBar cố định + safe-area */
 .phg-tabbar {
+  position: sticky;           /* bám đáy trang */
+  bottom: 0;
+  z-index: 1000;
   border-top: 1px solid var(--phg-border);
   background: var(--phg-bg);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
+/* Antd-mobile tabbar container */
+.adm-tab-bar { z-index: 1000; }
 
 /* ===== Cards / Containers ===== */
 .phg-card {
@@ -44,9 +52,22 @@
   border-radius: 14px;
   box-shadow: var(--phg-shadow);
 }
+.phg-card:hover {
+  border-color: #f2d3de;
+}
 .phg-section {
   padding: 12px;
   background: var(--phg-bg);
+  border-radius: 12px;
+  border: 1px solid var(--phg-border);
+}
+
+/* KPI text helpers */
+.amount      { font-feature-settings: "tnum"; tab-size: 4; }
+.amount-strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .2px;
 }
 
 /* ===== Chips / Badges ===== */
@@ -66,11 +87,12 @@
 .sticky-actions {
   position: sticky;
   bottom: 0;
-  z-index: 6;
+  z-index: 1200;
   background: var(--phg-bg);
   padding: 10px 12px calc(env(safe-area-inset-bottom, 0) + 10px);
   border-top: 1px solid var(--phg-border);
   box-shadow: 0 -10px 24px rgba(0,0,0,.04);
+  pointer-events: auto;
 }
 .sticky-actions .summary {
   display: flex;
@@ -93,12 +115,12 @@
   font-weight: 800;
   font-size: 15px;
   cursor: pointer;
+  transition: transform .05s ease, filter .15s ease;
 }
-.sticky-actions .danger-btn {
-  background: #ef476f;
-}
+.sticky-actions .primary-btn:active { transform: translateY(1px); }
+.sticky-actions .danger-btn { background: #ef476f; }
 
-/* ===== Utilities ===== */
+/* ===== Utilities / Layout helpers ===== */
 .phg-muted { color: var(--phg-ink-weak); }
 .phg-row   { display:flex; align-items:center; gap:8px; }
 .phg-col   { display:flex; flex-direction:column; gap:6px; }
@@ -115,6 +137,33 @@ button, .adm-button, .adm-list-item, .adm-segmented-item {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Small helpers for amounts */
-.amount { font-feature-settings: "tnum"; tab-size: 4; }
-.amount-strong { font-size: 16px; font-weight: 800; }
+/* Padding đáy trang để không bị TabBar che */
+.pb-safe {
+  padding-bottom: calc(70px + env(safe-area-inset-bottom, 0));
+}
+
+/* ===== List section headers (fake "extra" cho antd-mobile List) ===== */
+.phg-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 800;
+  padding: 2px 4px;
+}
+.phg-list-head .right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Quick action buttons (nhẹ, pastel) ===== */
+.phg-action {
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(246,166,193,.18);
+}
+.phg-action:active { transform: translateY(1px); }
+
+/* ===== Minor polish for Antd-Mobile defaults ===== */
+.adm-list-header { font-weight: 700; }
+.adm-list-item-content-main { font-weight: 600; }
+.adm-button-primary { --adm-color-primary: var(--phg-primary); }
