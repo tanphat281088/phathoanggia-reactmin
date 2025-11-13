@@ -131,6 +131,20 @@ if (pathAfterAdmin.startsWith("quan-ly-thu-chi/")) {
   }
 }
 
+// Mở nhóm Báo cáo quản trị khi đang ở bất kỳ trang con /bao-cao-quan-tri/*
+if (pathAfterAdmin.startsWith("bao-cao-quan-tri/")) {
+  if (!defaultOpenKeys.includes("bao-cao-quan-tri")) {
+    defaultOpenKeys.push("bao-cao-quan-tri");
+  }
+}
+
+// Mở nhóm CSKH khi đang ở bất kỳ trang con /cham-soc-khach-hang/*
+if (pathAfterAdmin.startsWith("cham-soc-khach-hang/")) {
+  if (!defaultOpenKeys.includes("cham-soc-khach-hang")) {
+    defaultOpenKeys.push("cham-soc-khach-hang");
+  }
+}
+
 
   // (Giữ lại biến sidebar cũ để không phá cấu trúc; không còn dùng ở Menu)
   const sidebar = getSidebar(items, user?.vai_tro?.phan_quyen);

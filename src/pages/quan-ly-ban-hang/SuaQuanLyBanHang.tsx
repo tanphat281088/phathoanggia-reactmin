@@ -57,14 +57,21 @@ const [lockAll, setLockAll] = useState(false);
     // Transform chi_tiet_don_hangs thành format cho FormList
     let danhSachSanPham: any[] = [];
     if (data?.chi_tiet_don_hangs && Array.isArray(data.chi_tiet_don_hangs)) {
-      danhSachSanPham = data.chi_tiet_don_hangs.map((item: any) => ({
-        san_pham_id: +item.san_pham_id,
-        don_vi_tinh_id: +item.don_vi_tinh_id,
-        so_luong: item.so_luong,
-        don_gia: item.don_gia,
-        tong_tien: item.tong_tien,
-        loai_gia: item?.loai_gia ?? 1,
-      }));
+danhSachSanPham = data?.chi_tiet_don_hangs.map((item: any) => {
+  const sp = item.san_pham || item.sanPham || {};
+  const code = sp.ma_san_pham || sp.ma_vt || sp.ma_sp || sp.code || "";
+  const name = sp.ten_san_pham || sp.ten_vat_tu || sp.ten || sp.name || "";
+  return {
+    san_pham_id: +item.san_pham_id,
+    don_vi_tinh_id: +item.don_vi_tinh_id,
+    so_luong: item.so_luong,
+    don_gia: item.don_gia,
+    tong_tien: item.tong_tien,
+    loai_gia: item?.loai_gia ?? 1,
+    san_pham_label: [code, name].filter(Boolean).join(" - ") || String(item.san_pham_id),
+  };
+});
+
     }
 
     // ===== NEW: Thuế (tương thích ngược) =====
@@ -86,6 +93,9 @@ const [lockAll, setLockAll] = useState(false);
       vat_rate,
       danh_sach_san_pham: danhSachSanPham,
     });
+console.log("[SUA] danhSachSanPham:", danhSachSanPham);
+console.log("[SUA] label mẫu:", danhSachSanPham?.[0]?.san_pham_label);
+console.log("[SUA] item[0]:", danhSachSanPham?.[0]);
 
     // ===== BUILD POLICY (allowedFields) =====
 const isDelivered = Number(data?.trang_thai_don_hang ?? 0) === 2;

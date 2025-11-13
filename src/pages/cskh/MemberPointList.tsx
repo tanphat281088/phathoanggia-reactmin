@@ -299,7 +299,8 @@ setPerPage(p?.per_page ?? _perPage);
         fixed: "right" as const,
         width: 140,
         render: (_: any, r: PointEventRow) => {
-          const canSend = r.zns_status === "pending" && Number(r.delta_points || 0) !== 0;
+    const canSend = (["pending","failed"].includes(r.zns_status)) && Number(r.delta_points || 0) !== 0;
+
 
 return (
   <Space>
@@ -465,7 +466,8 @@ return (
         onCancel={() => setSendModalOpen(false)}
         onOk={handleSend}
         confirmLoading={sending}
-        okButtonProps={{ disabled: selectedRow?.zns_status !== "pending" }}
+ okButtonProps={{ disabled: !["pending","failed"].includes(selectedRow?.zns_status || "") }}
+
         okText="Gửi ngay"
         cancelText="Hủy"
       >

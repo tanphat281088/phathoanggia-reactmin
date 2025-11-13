@@ -53,21 +53,32 @@ Object.keys(data || {}).forEach((key) => {
         // Transform chi_tiet_don_hangs thành format cho FormList
         let danhSachSanPham: any[] = [];
         if (data.chi_tiet_don_hangs && Array.isArray(data.chi_tiet_don_hangs)) {
-            danhSachSanPham = data.chi_tiet_don_hangs.map((item: any) => {
-                return {
-                    san_pham_id: +item.san_pham_id,
-                    don_vi_tinh_id: +item.don_vi_tinh_id,
-                    so_luong: item.so_luong,
-                    don_gia: item.don_gia,
-                    tong_tien: item.tong_tien,
-                };
-            });
+   danhSachSanPham = data.chi_tiet_don_hangs.map((item: any) => {
+  const sp = item.san_pham || item.sanPham || {};
+  const code = sp.ma_san_pham || sp.ma_vt || sp.ma_sp || sp.code || "";
+  const name = sp.ten_san_pham || sp.ten_vat_tu || sp.ten || sp.name || "";
+  return {
+    san_pham_id: +item.san_pham_id,
+    don_vi_tinh_id: +item.don_vi_tinh_id,
+    so_luong: item.so_luong,
+    don_gia: item.don_gia,
+    tong_tien: item.tong_tien,
+    loai_gia: item?.loai_gia ?? 1,
+    san_pham_label: [code, name].filter(Boolean).join(" - ") || String(item.san_pham_id),
+  };
+});
+
         }
 
         form.setFieldsValue({
             ...data,
             danh_sach_san_pham: danhSachSanPham,
         });
+
+        console.log("[CTDH] danhSachSanPham:", danhSachSanPham);
+console.log("[CTDH] label mẫu:", danhSachSanPham?.[0]?.san_pham_label);
+console.log("[CTDH] item[0]:", danhSachSanPham?.[0]);
+
         setIsLoading(false);
     };
 

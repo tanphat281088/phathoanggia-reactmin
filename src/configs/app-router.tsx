@@ -54,8 +54,15 @@ import ThietLapLuong from "../pages/NhanSu/ThietLapLuong";         // MỚI: Thi
 
 import BaoCaoQuanTri from "../pages/bao-cao-quan-tri";
 
+import BaoCaoTaiChinh from "../pages/bao-cao-quan-tri/BaoCaoTaiChinh";
+
+
 /** ✅✅✅ Import mới: CSKH → Điểm thành viên */
 import MemberPointList from "../pages/cskh/MemberPointList";
+
+/** ✅ Import: CSKH → Đánh giá dịch vụ */
+import ReviewInviteList from "../pages/cskh/ReviewInviteList";
+
 
 import { URL_CONSTANTS } from "./api-route-config";
 
@@ -225,6 +232,13 @@ export const router = createBrowserRouter([
             element: <MainLayout />,
             children: [{ index: true, element: <MemberPointList /> }],
           },
+
+          {
+  path: "danh-gia-dich-vu",
+  element: <MainLayout />,
+  children: [{ index: true, element: <ReviewInviteList /> }],
+},
+
         ],
       },
 
@@ -353,6 +367,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <BaoCaoQuanTri /> },   // /admin/bao-cao-quan-tri
           { path: "kqkd", element: <BaoCaoQuanTri /> },  // /admin/bao-cao-quan-tri/kqkd
+          { path: "tai-chinh", element: <BaoCaoTaiChinh /> }, // /admin/bao-cao-quan-tri/tai-chinh
+
         ],
       },
 

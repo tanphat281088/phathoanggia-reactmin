@@ -161,6 +161,15 @@ export const sidebarConfig = (
           icon: React.createElement(HeartHandshake, { style: iconStyle }),
           onClick: () => navigate(URL_CONSTANTS.CSKH_POINTS), // "/admin/cham-soc-khach-hang/diem-thanh-vien"
         },
+        
+        {
+          key: "danh-gia-dich-vu",
+          label: "Đánh giá dịch vụ",
+          icon: React.createElement(HeartHandshake, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.CSKH_REVIEW), // "/admin/cham-soc-khach-hang/danh-gia-dich-vu"
+        },
+
+
       ],
     },
 
@@ -434,6 +443,14 @@ export const sidebarConfig = (
           icon: React.createElement(BarChart3, { style: iconStyle }),
           onClick: () => navigate(URL_CONSTANTS.BAO_CAO_KQKD), // "/admin/bao-cao-quan-tri/kqkd"
         },
+
+            {
+      key: "tai-chinh",
+      label: "Báo cáo Tài chính",
+      icon: React.createElement(BarChart3, { style: iconStyle }),
+      onClick: () => navigate(URL_CONSTANTS.BAO_CAO_TAI_CHINH), // "/admin/bao-cao-quan-tri/tai-chinh"
+    },
+
       ],
     },
 

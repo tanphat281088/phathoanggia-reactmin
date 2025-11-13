@@ -56,15 +56,24 @@ function ProductPicker({
   onChange,
   disabled,
   placeholder,
+  fallbackLabel, // NEW
 }: {
   value?: number | string;
   onChange?: (v: any, opt?: any) => void;
   disabled?: boolean;
   placeholder?: string;
+  fallbackLabel?: string; // NEW
 }) {
+
+
   const [options, setOptions] = useState<OptionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const kwRef = useRef("");
+// Chuẩn hoá value: nếu Form bơm {value,label} thì lấy id; nếu là số/string thì cast
+const valueId: string | undefined =
+  value && typeof value === "object" && "value" in (value as any)
+    ? String((value as any).value)
+    : (value == null ? undefined : String(value));
 
   const fetchOptions = async (kw = "") => {
     setLoading(true);
@@ -79,7 +88,8 @@ function ProductPicker({
       });
       const list: OptionItem[] = Array.isArray(data)
         ? data.map((it: any) => ({
-            value: it.id ?? it.value,
+       value: String(it.id ?? it.value),
+
             label:
               it.label ??
               it.ten_san_pham ??
@@ -95,10 +105,70 @@ function ProductPicker({
     }
   };
 
+  // NEW: tải 1 sản phẩm theo id để dựng label đầy đủ khi mở form xem/sửa
+// NEW: tải 1 sản phẩm theo id (unwrap dạng {data: {...}}) để dựng label đầy đủ
+// DÙNG AXIOS (getDataSelect) ĐỂ BẢO TOÀN AUTH/COOKIE
+const fetchOneById = async (id: number | string) => {
+  try {
+    const raw: any = await getDataSelect(`${API_ROUTE_CONFIG.SAN_PHAM}/${id}`, {});
+    const it: any = raw?.data ?? raw ?? {};
+
+    const code =
+      it?.ma_san_pham ?? it?.ma_vt ?? it?.ma_sp ?? it?.code ?? "";
+    const name =
+      it?.ten_san_pham ?? it?.ten_vat_tu ?? it?.ten ?? it?.name ?? "";
+
+    return {
+      value: String(it?.id ?? id),
+      label: [code, name].filter(Boolean).join(" - ") || String(id),
+      code,
+    } as OptionItem;
+  } catch {
+    return null;
+  }
+};
+
+
+
   useEffect(() => {
     fetchOptions("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // DEBUG: log lần đầu vào
+useEffect(() => {
+  console.log("[PP] mount value=", value, " fallbackLabel=", fallbackLabel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+
+// NEW: Nếu có fallbackLabel từ BE (đã load kèm đơn) → bơm option ngay
+useEffect(() => {
+  if (!fallbackLabel || !valueId) return;
+  const exists = options.some((o) => String(o.value) === valueId);
+  if (!exists) {
+    setOptions((prev) => sortWithPriority([{ value: valueId, label: fallbackLabel }, ...prev]));
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [valueId, fallbackLabel]);
+
+
+
+
+// NEW: Khi mở Xem/Sửa, nếu value hiện tại chưa có trong options thì tải 1 bản ghi và thêm vào
+useEffect(() => {
+  (async () => {
+    if (!valueId) return;
+    const exists = options.some((o) => String(o.value) === valueId);
+    if (exists) return;
+    const one = await fetchOneById(valueId);
+    if (one) setOptions((prev) => sortWithPriority([one, ...prev]));
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [valueId]);
+
+
+
 
   const handleSearch = (kw: string) => {
     kwRef.current = kw;
@@ -106,28 +176,36 @@ function ProductPicker({
     (handleSearch as any)._t = window.setTimeout(() => fetchOptions(kw), 300);
   };
 
-  return (
-    <Select
-      value={value}
-      onChange={onChange}
-      options={options}
-      showSearch
-      allowClear
-      placeholder={placeholder}
-      loading={loading}
-      filterOption={false}
-      onSearch={handleSearch}
-      optionFilterProp="label"
-      disabled={disabled}
-      style={{ width: "100%" }}
-      getPopupContainer={(node) =>
-        (node && (node.closest(".ant-modal") as HTMLElement)) || document.body
-      }
-      dropdownMatchSelectWidth={false}
-      popupClassName="phg-dd"
-      notFoundContent={loading ? "Đang tìm..." : "Không có dữ liệu"}
-    />
-  );
+
+
+
+
+
+return (
+  <Select
+    labelInValue
+    value={value as any}          // ⬅️ FORWARD GIÁ TRỊ TỪ FORM XUỐNG SELECT
+    onChange={(v: any, opt: any) => onChange?.(v?.value ?? v, opt)}
+    options={options}
+    showSearch
+    allowClear
+    placeholder={placeholder}
+    loading={loading}
+    filterOption={false}
+    onSearch={handleSearch}
+    optionFilterProp="label"
+    disabled={disabled}
+    style={{ width: "100%" }}
+    getPopupContainer={(node) =>
+      (node && (node.closest(".ant-modal") as HTMLElement)) || document.body
+    }
+    dropdownMatchSelectWidth={false}
+    popupClassName="phg-dd"
+    notFoundContent={loading ? "Đang tìm..." : "Không có dữ liệu"}
+  />
+);
+
+
 }
 // ===== HẾT BLOCK ƯU TIÊN =====
 
@@ -164,13 +242,9 @@ const extractCodeFromOption = (opt?: any): string | null => {
 const loadProductCodeById = async (id?: number | string): Promise<string | null> => {
   if (!id) return null;
   try {
-    const res = await fetch(`${API_ROUTE_CONFIG.SAN_PHAM}/${id}`, {
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data?.ma_san_pham || data?.ma_sp || data?.code || null) as string | null;
+    const raw: any = await getDataSelect(`${API_ROUTE_CONFIG.SAN_PHAM}/${id}`, {});
+    const it: any = raw?.data ?? raw ?? {};
+    return (it?.ma_san_pham || it?.ma_sp || it?.code || it?.ma_vt || null) as string | null;
   } catch {
     return null;
   }
@@ -287,19 +361,34 @@ const handleChangeSanPham = useCallback(
                       style={{ marginBottom: 8 }}
                     >
 <Col span={7}>
-  <Form.Item
-    {...restField}
-    name={[name, "san_pham_id"]}
-    rules={[{ required: true, message: "Vui lòng chọn sản phẩm!" }]}
-  >
-<ProductPicker
-  placeholder="Chọn sản phẩm"
-  disabled={isDetail}
-  onChange={(v: any, opt: any) => handleChangeSanPham(name, v, opt)}
-/>
+<Form.Item
+  {...restField}
+  name={[name, "san_pham_id"]}
+  rules={[{ required: true, message: "Vui lòng chọn sản phẩm!" }]}
 
+  // ✅ Quan trọng: nếu form đã có dạng {value,label} thì trả nguyên xi,
+  //   còn nếu là id (số/chuỗi) thì bọc thành {value,label} để Select hiển thị đúng
+  getValueProps={(val: any) => {
+    if (val && typeof val === "object" && "value" in val) {
+      // Form đang giữ object { value, label } → trả thẳng, KHÔNG stringify
+      return { value: val };
+    }
+    const v = val == null ? undefined : String(val);
+    const lbl = danhSachSanPham?.[name]?.san_pham_label || v;
+    return v == null ? { value: undefined } : { value: { value: v, label: lbl } };
+  }}
 
-  </Form.Item>
+  // Khi người dùng chọn lại, chỉ lưu id thuần (để BE nhận id)
+  getValueFromEvent={(opt: any) => (opt && opt.value) ? opt.value : opt}
+>
+  <ProductPicker
+    placeholder="Chọn sản phẩm"
+    disabled={isDetail}
+    onChange={(v: any, opt: any) => handleChangeSanPham(name, v, opt)}
+    fallbackLabel={danhSachSanPham?.[name]?.san_pham_label || undefined}
+  />
+</Form.Item>
+
 </Col>
 
 

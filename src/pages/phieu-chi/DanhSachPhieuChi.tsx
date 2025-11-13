@@ -241,6 +241,7 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
       title: "Ngày chi",
       dataIndex: "ngay_chi",
+       width: 120,  
       ...dateSearch({ dataIndex: "ngay_chi", nameColumn: "Ngày chi" }),
       render: (record: string): string => {
         const date = dayjs(record);
@@ -250,6 +251,7 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
       title: "Loại phiếu chi",
       dataIndex: "loai_phieu_chi",
+       width: 150,    
       render: (loai_phieu_chi: number) => {
         return OPTIONS_LOAI_PHIEU_CHI.find(
           (item: any) => item.value === loai_phieu_chi
@@ -267,6 +269,8 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
       title: "Danh mục chi",
       dataIndex: "category_id",
+       width: 200,                // ⬅️ cố định
+  ellipsis: true,            // ⬅️ bật ellipsis
       render: (category_id?: number) => {
         if (!category_id) return <Tag color="default">Chưa phân loại</Tag>;
         const info = categoryMap.get(Number(category_id));
@@ -291,6 +295,8 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
     {
       title: "Số tiền chi",
       dataIndex: "so_tien",
+       width: 120,                         // ⬅️ cố định độ rộng
+  align: "right",                     // ⬅️ canh phải
       render: (so_tien: number) => {
         return (formatter(so_tien) || 0) + " đ";
       },
@@ -374,7 +380,8 @@ const tree: ExpenseTreeNode[] = res.data ?? [];
             dataTable={danhSach?.data}
             defaultColumns={defaultColumns}
             filter={filter}
-            scroll={{ x: 1100 }}
+            scroll={{ x: 1280 }}
+             tableLayout="fixed"             // ⬅️ THÊM DÒNG NÀY
             handlePageChange={handlePageChange}
             handleLimitChange={handleLimitChange}
             total={danhSach?.total}

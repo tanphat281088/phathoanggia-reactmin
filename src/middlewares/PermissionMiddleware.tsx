@@ -50,6 +50,8 @@ const MODULE_ALIAS: Record<string, string> = {
   // CSKH (mới)
   "cham-soc-khach-hang": "cskh",
   "diem-thanh-vien": "cskh-points",
+  "danh-gia-dich-vu": "cskh-review",
+
 
     // Utilities → Tư vấn Facebook
   "utilities": "utilities",
@@ -58,7 +60,10 @@ const MODULE_ALIAS: Record<string, string> = {
 
       "cong-no-khach-hang": "quan-ly-cong-no",  // 👈 THÊM
       "kiem-toan": "kiem-toan",
-        "cashflow": "cashflow",          
+        "cashflow": "cashflow",      
+        
+        "tai-chinh": "bao-cao-tai-chinh",
+
         // HR → Bảng lương
   "bang-luong-cua-toi": "payrollMe", // ✅ trang /admin/quan-ly-nhan-su/bang-luong-cua-toi
   "bang-luong": "payroll",           // ✅ trang /admin/quan-ly-nhan-su/bang-luong

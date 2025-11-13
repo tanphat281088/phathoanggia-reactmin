@@ -13,6 +13,8 @@ import {
 
 import axios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
+import { createFilterQueryFromArray } from "../../utils/utils";
+
 
 type Customer = {
   id: number | string;
@@ -55,9 +57,30 @@ const CustomerPicker: React.FC<Props> = ({ value, onChange }) => {
   const search = async (keyword: string) => {
     setLoading(true);
     try {
-      const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, {
-        params: { q: keyword || undefined, page: 1, per_page: 10 },
-      });
+// ===== params mới: dùng limit + filter flatten (giống OrdersPage) =====
+// ===== params mới: dùng helper flatten giống desktop/OrdersPage =====
+const kw = (keyword || "").trim();
+const filters: any[] = [];
+
+if (kw) {
+  if (/^\d{9,}$/.test(kw)) {
+    filters.push({ field: "so_dien_thoai", operator: "contain", value: kw });
+  } else {
+    filters.push({ field: "ten_khach_hang", operator: "contain", value: kw });
+  }
+}
+
+const params = {
+  page: 1,
+  limit: 20,                  // ⬅️ đúng khoá BE (không dùng per_page)
+  sort_column: "id",
+  sort_direction: "desc",
+  ...createFilterQueryFromArray(filters),  // ⬅️ auto flatten filters[i][*]
+};
+
+const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
+
+
       const list: Customer[] =
         resp?.data?.collection ??
         resp?.data ??
@@ -154,17 +177,23 @@ const CustomerPicker: React.FC<Props> = ({ value, onChange }) => {
       {value.loai_khach_hang === 0 && (
         <>
           <div style={{ fontWeight: 800, margin: "12px 0 6px" }}>Chọn khách hàng</div>
-          <SearchBar
-            ref={sbRef}
-            value={q}
-            placeholder="Tìm theo tên / SĐT"
-            onChange={onSearchChange}
-            onSearch={() => search(q)}
-            onClear={() => {
-              setQ("");
-              setRows([]);
-            }}
-          />
+<SearchBar
+  ref={sbRef}
+  value={q}
+  placeholder="Tìm theo tên / SĐT"
+  onChange={onSearchChange}
+  onSearch={() => search(q)}
+  onClear={() => {
+    setQ("");
+    setRows([]);
+  }}
+    onCompositionEnd={() => search(q)}   // ⬅️ NEW: chốt chuỗi khi gõ tiếng Việt
+  // ⬇️ NGĂN BUBBLE khiến input bị blur ngay khi bấm (mất bàn phím)
+  onFocus={(e) => e.stopPropagation()}
+
+  style={{ "--background": "#fff" }}
+/>
+
           <List style={{ marginTop: 6 }}>
             {rows.map((c) => (
               <List.Item

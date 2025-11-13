@@ -122,6 +122,8 @@ return { items: updatedItems, rawItems: items, openKeys };
   const CHILD_TO_MODULE: Record<string, string | string[]> = {
     // CSKH
     "diem-thanh-vien": "cskh-points",
+      "danh-gia-dich-vu": "cskh-review",
+
 
     // Utilities
     "fb-inbox": "utilities-fb",
@@ -129,6 +131,9 @@ return { items: updatedItems, rawItems: items, openKeys };
 
     // Thu chi
     "bao-cao": "bao-cao-thu-chi",
+
+    "tai-chinh": "bao-cao-tai-chinh",
+
     // Cashflow: chỉ cần có bất kỳ module cash-* là hiển thị
     "cashflow": ["cash","cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"],
       "cong-no-khach-hang": "quan-ly-cong-no",   // 👈 THÊM DÒNG NÀY

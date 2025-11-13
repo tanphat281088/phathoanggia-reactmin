@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+ /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import type { User } from "../../types/user.type";
@@ -314,7 +314,7 @@ const DanhSachQuanLyBanHang = ({
             subtitle={(r) =>
               `${r.ten_khach_hang || "KH vãng lai"} • ${
                 r.ngay_tao_don_hang
-                  ? dayjs(r.ngay_tao_don_hang).format("DD/MM/YYYY HH:mm")
+                  ? dayjs(r.ngay_tao_don_hang).format("DD/MM/YYYY")
                   : ""
               }`
             }

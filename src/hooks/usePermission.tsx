@@ -15,6 +15,8 @@ const PATH_ALIAS: Record<string, string> = {
   "cskh/points": "cskh-points",
   "cskh-points": "cskh-points",
   cskh: "cskh",
+  "cskh/reviews": "cskh-review",
+
 
   // Utilities
   "utilities/fb": "utilities-fb",
@@ -73,6 +75,10 @@ const PATH_ALIAS: Record<string, string> = {
   "phieu-chi": "phieu-chi",
   "thu-chi/bao-cao": "bao-cao-thu-chi",
   "bao-cao-quan-tri": "bao-cao-quan-tri",
+
+  "bao-cao-quan-tri/tai-chinh": "bao-cao-tai-chinh",
+"tai-chinh": "bao-cao-tai-chinh",
+
     // HR → Bảng lương
   "nhan-su/bang-luong/my": "payrollMe", // lương của tôi
   "nhan-su/bang-luong": "payroll",      // quản lý (/, /list, /recompute, /lock, /unlock, /update-manual)

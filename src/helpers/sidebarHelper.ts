@@ -117,6 +117,8 @@ const PERMISSION_ALIAS: Record<string, string | string[]> = {
     // CSKH
     "cham-soc-khach-hang": "cskh",
     "diem-thanh-vien": "cskh-points",
+    "danh-gia-dich-vu": "cskh-review",
+
 
     // Utilities (không đổi tên quyền)
     "utilities-fb": "utilities-fb",
@@ -128,6 +130,9 @@ const PERMISSION_ALIAS: Record<string, string | string[]> = {
 
       "kiem-toan": "kiem-toan",   // ⬅️ Module RBAC “Kiểm toán”
 "cashflow": ["cashflow", "cash-accounts", "cash-aliases", "cash-ledger", "cash-internal-transfers"],
+
+"tai-chinh": "bao-cao-tai-chinh",
+
 
 
 

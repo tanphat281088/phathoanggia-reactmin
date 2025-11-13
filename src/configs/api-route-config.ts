@@ -127,6 +127,15 @@ export const API_ROUTE_CONFIG = {
   BAO_CAO_KQKD_DETAIL: "/bao-cao-quan-tri/kqkd-detail",
   BAO_CAO_KQKD_EXPORT: "/bao-cao-quan-tri/kqkd-export",
 
+  // Báo cáo Tài chính (API)
+FINANCE_REPORT_SUMMARY: "/bao-cao-quan-tri/tai-chinh/summary",
+FINANCE_REPORT_RECEIVABLES: "/bao-cao-quan-tri/tai-chinh/receivables",
+FINANCE_REPORT_ORDERS: "/bao-cao-quan-tri/tai-chinh/orders",
+FINANCE_REPORT_RECEIPTS: "/bao-cao-quan-tri/tai-chinh/receipts",
+FINANCE_REPORT_PAYMENTS: "/bao-cao-quan-tri/tai-chinh/payments",
+FINANCE_REPORT_LEDGER: "/bao-cao-quan-tri/tai-chinh/ledger",
+
+
   // ==========================================
   // ✅✅ MỚI: CSKH → Điểm thành viên (API BE)
   // ==========================================
@@ -138,6 +147,19 @@ export const API_ROUTE_CONFIG = {
   CSKH_POINTS_SEND_ZNS: (eventId: number | string) =>
     `/cskh/points/events/${eventId}/send-zns`, // POST: gửi ZNS 1 lần/biến động
   CSKH_POINTS_RESYNC: "/cskh/points/resync",
+
+  // ==== CSKH · ĐÁNH GIÁ DỊCH VỤ (ZNS Review) ====
+CSKH_REVIEW_INVITES_LIST: "/cskh/reviews/invites",
+CSKH_REVIEW_INVITES_CREATE_FROM_ORDER: (donHangId: number | string) =>
+  `/cskh/reviews/invites/from-order/${donHangId}`,
+CSKH_REVIEW_INVITES_SEND: (id: number | string) =>
+  `/cskh/reviews/invites/${id}/send`,
+CSKH_REVIEW_INVITES_BULK_SEND: "/cskh/reviews/bulk-send",
+CSKH_REVIEW_INVITES_BACKFILL: "/cskh/reviews/backfill",
+
+CSKH_REVIEW_INVITES_CANCEL: (id: number | string) =>
+  `/cskh/reviews/invites/${id}/cancel`,
+
 
   // ===== Cash (Quản lý dòng tiền) =====
   CASH_ACCOUNTS: "/cash/accounts",
@@ -270,12 +292,17 @@ CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
   // ========================
   BAO_CAO_QUAN_TRI: "/admin/bao-cao-quan-tri",
   BAO_CAO_KQKD: "/admin/bao-cao-quan-tri/kqkd",
+  BAO_CAO_TAI_CHINH: "/admin/bao-cao-quan-tri/tai-chinh",
+
 
   // ==========================================
   // ✅✅ MỚI: URL CSKH → Điểm thành viên (FE)
   // ==========================================
   CSKH: "/admin/cham-soc-khach-hang",
   CSKH_POINTS: "/admin/cham-soc-khach-hang/diem-thanh-vien",
+  // ✅ MỚI: URL CSKH → Đánh giá dịch vụ
+CSKH_REVIEW: "/admin/cham-soc-khach-hang/danh-gia-dich-vu",
+
 } as const;
 
 
