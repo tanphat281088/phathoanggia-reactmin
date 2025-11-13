@@ -70,6 +70,9 @@ export interface IActions {
 export interface ILoaiKhachHang {
     id?: number;
     ten_loai_khach_hang: string;
+    nguong_doanh_thu: number;   // Ngưỡng doanh thu (VNĐ)
+    gia_tri_uu_dai: number;     // Giá trị ưu đãi (VNĐ) - anh nhập
+    nguong_diem?: number;       // Ngưỡng điểm - backend tự tính, nên optional
     mo_ta?: string;
     trang_thai: number;
 }

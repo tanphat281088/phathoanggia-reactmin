@@ -17,6 +17,7 @@ import {
   Tooltip,
   Typography,
   Checkbox,
+  message as antdMessage,
 } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import baseAxios from "../../configs/axios";
@@ -75,15 +76,58 @@ const fmtPoint = (v?: number | string | null) =>
   new Intl.NumberFormat("vi-VN").format(Number(v ?? 0));
 
 /** Nhãn trạng thái gửi ZNS */
+/** Nhãn trạng thái gửi ZNS */
 const ZnsStatusTag = ({ status }: { status: ZnsStatus }) => {
   if (status === "pending") return <Tag color="gold">Chờ gửi</Tag>;
   if (status === "sent") return <Tag color="green">Đã gửi</Tag>;
   return <Tag color="red">Thất bại</Tag>;
 };
 
+// 👉 Preview nội dung ZNS đúng theo template đã được duyệt
+const buildZnsPointPreview = (row: PointEventRow) => {
+  const name = row.ten_khach_hang || "";
+  const customerCode = row.ma_kh || String(row.khach_hang_id || "");
+  const orderCode = row.order_code || "";
+  const date = row.order_date
+    ? dayjs(row.order_date).format("DD/MM/YYYY")
+    : "";
+  const priceText = String(row.price ?? 0);           // <price> gửi số
+  const pointText = String(row.delta_points ?? 0);    // <point>
+  const totalPointText = String(row.new_points ?? 0); // <total_point>
+
+  return (
+`Thông báo điểm tích luỹ hạng thành viên PHG Floral & Decor
+
+Cảm ơn quý khách ${name} đã sử dụng sản phẩm hoa tươi của chúng tôi. Quý khách được ghi nhận tích lũy điểm thành viên thành công với các thông tin sau:
+
+Mã khách hàng
+${customerCode}
+
+Đơn hàng
+${orderCode}
+
+Ngày mua hàng
+${date}
+
+Giá trị đơn hàng
+${priceText}
+
+Điểm thưởng gia tăng
+${pointText}
+
+Tổng điểm hiện tại
+${totalPointText}`
+  );
+};
+
 export default function MemberPointList() {
-  const { message, modal } = App.useApp?.() ?? { message: { success: () => {}, error: () => {}, warning: () => {} }, modal: Modal };
+
+  // Dùng trực tiếp instance global của AntD, không xài App.useApp nữa
+  const message = antdMessage;
+  const modal = Modal;
   const [form] = Form.useForm();
+
+
 
   // ------- State -------
   const [loading, setLoading] = useState(false);
@@ -99,6 +143,16 @@ export default function MemberPointList() {
   const [note, setNote] = useState<string>("");
     // Resync button state
   const [resyncLoading, setResyncLoading] = useState(false);
+
+  // 👉 NEW: state cho Modal lịch sử điểm
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRows, setHistoryRows] = useState<PointEventRow[]>([]);
+  const [historyCustomer, setHistoryCustomer] = useState<{
+    id: number | string;
+    name?: string | null;
+    code?: string | null;
+  } | null>(null);
 
     // ===== permissions (RBAC) cho CSKH → Điểm thành viên =====
   const permPts = usePermission("/cskh/points");
@@ -188,22 +242,73 @@ setPerPage(p?.per_page ?? _perPage);
       };
 
       const res = await baseAxios.post(API_ROUTE_CONFIG.CSKH_POINTS_RESYNC, body);
+      console.log("[MemberPointList] resync response =", res?.data);
       const ok  = res?.data?.success !== false;
 
       if (ok) {
         const s = res?.data?.data || {};
-        message?.success?.(
-          `Đã rà ${s.scanned ?? 0} đơn, cập nhật ${s.synced ?? 0} đơn, tạo ${s.created_events ?? 0} biến động.`
+
+        // ⚠️ DÙNG ALERT THẲNG CHO CHẮC ĂN
+        window.alert(
+          `Cập nhật điểm thành viên:\n` +
+          `- Đã rà ${s.scanned ?? 0} đơn\n` +
+          `- Cập nhật ${s.synced ?? 0} đơn\n` +
+          `- Tạo ${s.created_events ?? 0} biến động`
         );
+
         // reload danh sách để thấy biến động pending mới
         await fetchList(page, perPage);
       } else {
-        message?.error?.(res?.data?.message || "Rà soát thất bại.");
+        window.alert(res?.data?.message || "Rà soát thất bại.");
       }
     } catch (e: any) {
-      message?.error?.(e?.response?.data?.message || "Không chạy được cập nhật điểm.");
+      console.error("[MemberPointList] handleResync error =", e);
+      window.alert(e?.response?.data?.message || "Không chạy được cập nhật điểm.");
     } finally {
       setResyncLoading(false);
+    }
+  };
+
+  /** Mở Modal lịch sử điểm của 1 khách hàng */
+  const openHistory = async (row: PointEventRow) => {
+    try {
+      if (!row.khach_hang_id) {
+        window.alert("Bản ghi này không có khách hàng hệ thống.");
+        return;
+      }
+
+      setHistoryOpen(true);
+      setHistoryLoading(true);
+      setHistoryCustomer({
+        id: row.khach_hang_id,
+        name: row.ten_khach_hang,
+        code: row.ma_kh,
+      });
+
+      const url = API_ROUTE_CONFIG.CSKH_POINTS_EVENTS_BY_CUSTOMER(
+        row.khach_hang_id
+      );
+
+      const res = await baseAxios.get<Paged<PointEventRow>>(url, {
+     params: { per_page: 200, page: 1 },
+      });
+
+      const payload: any = res?.data ?? res;
+      const p =
+        payload?.data && Array.isArray(payload.data)
+          ? payload
+          : payload?.data ?? payload;
+
+      const rowsData = p?.data ?? p?.collection ?? [];
+      setHistoryRows(rowsData);
+    } catch (e: any) {
+      console.error("[MemberPointList] openHistory error =", e);
+      window.alert(
+        e?.response?.data?.message ||
+          "Không tải được lịch sử điểm của khách hàng."
+      );
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -270,7 +375,7 @@ setPerPage(p?.per_page ?? _perPage);
   },
 },
 
-      {
+       {
         title: "Trạng thái ZNS",
         dataIndex: "zns_status",
         key: "zns_status",
@@ -293,31 +398,42 @@ setPerPage(p?.per_page ?? _perPage);
           </Space>
         ),
       },
+      // 👉 NEW: cột Lịch sử điểm
+      {
+        title: "Lịch sử điểm",
+        key: "history",
+        width: 130,
+        render: (_: any, r: PointEventRow) => (
+          <Button size="small" onClick={() => openHistory(r)}>
+            Lịch sử điểm
+          </Button>
+        ),
+      },
       {
         title: "Thao tác",
         key: "actions",
         fixed: "right" as const,
         width: 140,
         render: (_: any, r: PointEventRow) => {
-    const canSend = (["pending","failed"].includes(r.zns_status)) && Number(r.delta_points || 0) !== 0;
+          const canSend =
+            (["pending", "failed"].includes(r.zns_status)) &&
+            Number(r.delta_points || 0) !== 0;
 
-
-return (
-  <Space>
-    <Button
-      type="primary"
-      disabled={!canSendZns || !canSend}
-      onClick={() => openSendModal(r)}
-    >
-      Gửi ZNS
-    </Button>
-  </Space>
-);
-
+          return (
+            <Space>
+              <Button
+                type="primary"
+                disabled={!canSendZns || !canSend}
+                onClick={() => openSendModal(r)}
+              >
+                Gửi ZNS
+              </Button>
+            </Space>
+          );
         },
       },
     ];
-}, [canSendZns]);
+  }, [canSendZns]);
 
 
   const openSendModal = (row: PointEventRow) => {
@@ -507,12 +623,101 @@ return (
               showCount
             />
 
+    
+
+            {/* 👉 Preview: Nội dung ZNS sẽ gửi (theo template Zalo) */}
+            <Card
+              size="small"
+              style={{ background: "#fafafa" }}
+              title="Nội dung ZNS sẽ gửi"
+            >
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "inherit",
+                  lineHeight: 1.6,
+                }}
+              >
+                {buildZnsPointPreview(selectedRow)}
+              </pre>
+            </Card>
+
             <Text type="secondary" style={{ fontSize: 12 }}>
               * Chỉ gửi 1 lần/biến động. Sau khi gửi thành công, trạng thái sẽ chuyển sang “Đã gửi”.
             </Text>
+
+
+          
           </Space>
         ) : null}
+      </Modal>
+
+            {/* Modal Lịch sử điểm của 1 khách hàng */}
+      <Modal
+        open={historyOpen}
+        title={
+          historyCustomer
+            ? `Lịch sử điểm - KH: ${historyCustomer.name || "—"} (Mã KH: ${
+                historyCustomer.code || historyCustomer.id
+              })`
+            : "Lịch sử điểm"
+        }
+        onCancel={() => {
+          setHistoryOpen(false);
+          setHistoryRows([]);
+        }}
+        footer={null}
+        width={800}
+      >
+        <Table<PointEventRow>
+          size="small"
+          loading={historyLoading}
+          rowKey={(r) => String(r.id)}
+          dataSource={historyRows}
+          pagination={false}
+          columns={[
+            {
+              title: "Thời gian",
+              dataIndex: "order_date",
+              key: "order_date",
+              render: (v: string) =>
+                v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "—",
+            },
+            {
+              title: "Đơn hàng",
+              dataIndex: "order_code",
+              key: "order_code",
+              render: (v: string) => <Text strong>#{v}</Text>,
+            },
+            {
+              title: "Giá trị",
+              key: "price",
+              render: (_: any, r: PointEventRow) => fmtVND(r.price),
+            },
+            {
+              title: "Điểm ±",
+              key: "delta_points",
+              render: (_: any, r: PointEventRow) => {
+                const signed = Number(r.delta_points || 0);
+                const sign = signed >= 0 ? "+ " : "− ";
+                return (
+                  <Text>
+                    {sign}
+                    {fmtPoint(Math.abs(signed))}
+                  </Text>
+                );
+              },
+            },
+            {
+              title: "Tổng điểm sau",
+              key: "new_points",
+              render: (_: any, r: PointEventRow) => fmtPoint(r.new_points),
+            },
+          ]}
+        />
       </Modal>
     </div>
   );
 }
+

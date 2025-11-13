@@ -37,10 +37,12 @@ const DanhSachLoaiKhachHang = ({
     const [danhSach, setDanhSach] = useState<
         { data: User[]; total: number } | undefined
     >({ data: [], total: 0 });
+
     const { filter, handlePageChange, handleLimitChange } = usePagination({
         page: 1,
         limit: 20,
     });
+
     const {
         inputSearch,
         query,
@@ -48,11 +50,20 @@ const DanhSachLoaiKhachHang = ({
         selectSearch,
         selectSearchWithOutApi,
     } = useColumnSearch();
+
     const [isLoading, setIsLoading] = useState(false);
 
     const getDanhSach = async () => {
         setIsLoading(true);
-        const params = { ...filter, ...createFilterQueryFromArray(query) };
+
+        // 🔹 ÉP sort mặc định theo nguong_doanh_thu DESC
+        const params = {
+            ...filter,
+            sort_column: "nguong_doanh_thu",
+            sort_direction: "desc",
+            ...createFilterQueryFromArray(query),
+        };
+
         const danhSach = await getListData(path, params);
         if (danhSach) {
             setIsLoading(false);
@@ -114,6 +125,30 @@ const DanhSachLoaiKhachHang = ({
                 return formatVietnameseCurrency(record);
             },
         },
+        // 🔹 Cột mới: Giá trị ưu đãi (%)
+        {
+            title: "Giá trị ưu đãi (%)",
+            dataIndex: "gia_tri_uu_dai",
+            ...inputSearch({
+                dataIndex: "gia_tri_uu_dai",
+                operator: "equal",
+                nameColumn: "Giá trị ưu đãi",
+            }),
+            render: (record: number) => {
+                const value = record ?? 0;
+                return `${value} %`;
+            },
+        },
+        // 🔹 Cột mới: Ngưỡng điểm
+        {
+            title: "Ngưỡng điểm",
+            dataIndex: "nguong_diem",
+            ...inputSearch({
+                dataIndex: "nguong_diem",
+                operator: "equal",
+                nameColumn: "Ngưỡng điểm",
+            }),
+        },
         {
             title: "Trạng thái",
             dataIndex: "trang_thai",
@@ -144,7 +179,10 @@ const DanhSachLoaiKhachHang = ({
         {
             title: "Ngày tạo",
             dataIndex: "created_at",
-            ...dateSearch({ dataIndex: "created_at", nameColumn: "Ngày tạo" }),
+            ...dateSearch({
+                dataIndex: "created_at",
+                nameColumn: "Ngày tạo",
+            }),
         },
         {
             title: "Người cập nhật",
@@ -192,7 +230,7 @@ const DanhSachLoaiKhachHang = ({
                     dataTable={danhSach?.data}
                     defaultColumns={defaultColumns}
                     filter={filter}
-                    scroll={{ x: 1000 }}
+                    scroll={{ x: 1200 }}
                     handlePageChange={handlePageChange}
                     handleLimitChange={handleLimitChange}
                     total={danhSach?.total}
