@@ -209,15 +209,30 @@ const DanhSachKhachHang = ({
         return formatVietnameseCurrency(record);
       },
     },
-    {
-      title: "Ghi chú",
-      dataIndex: "ghi_chu",
-      ...inputSearch({
-        dataIndex: "ghi_chu",
-        operator: "contain",
-        nameColumn: "Ghi chú",
-      }),
-    },
+{
+  title: "Ghi chú",
+  dataIndex: "ghi_chu",
+  ...inputSearch({
+    dataIndex: "ghi_chu",
+    operator: "contain",
+    nameColumn: "Ghi chú",
+  }),
+  render: (_text: any, record: any) => {
+    // 1 điểm = 1.000 VNĐ (giống MemberPointService)
+    const rate = 1000;
+    const revenue = record?.doanh_thu_tich_luy ?? 0;
+    const point = Math.floor(revenue / rate);
+
+    const note = record?.ghi_chu ?? "";
+
+    if (note && note.trim() !== "") {
+      return `${point} điểm - ${note}`;
+    }
+
+    return `${point} điểm`;
+  },
+},
+
     {
       title: "Trạng thái",
       dataIndex: "trang_thai",
