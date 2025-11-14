@@ -146,6 +146,13 @@ export const sidebarConfig = (
           icon: React.createElement(User, { style: iconStyle }),
           onClick: () => navigate(URL_CONSTANTS.KHACH_HANG_VANG_LAI),
         },
+        {
+          key: "khach-hang-pass-ctv",
+          label: "Khách hàng Pass đơn & CTV",
+          icon: React.createElement(User, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.KHACH_HANG_PASS_CTV),
+        },
+
       ],
     },
 

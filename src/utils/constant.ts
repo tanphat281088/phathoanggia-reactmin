@@ -52,6 +52,7 @@ export const OPTIONS_PHUONG_THUC_THANH_TOAN = [
 export const OPTIONS_LOAI_KHACH_HANG = [
     { value: 0, label: "Khách hàng hệ thống" },
     { value: 1, label: "Khách hàng vãng lai" },
+     { value: 2, label: "Khách hàng Pass đơn & CTV" },
 ];
 
 export const OPTIONS_LOAI_THANH_TOAN = [

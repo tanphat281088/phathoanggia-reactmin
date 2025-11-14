@@ -22,14 +22,16 @@ type Customer = {
   ten?: string;
   sdt?: string;
   so_dien_thoai?: string;
+  customer_mode?: number; // 0 = thường, 1 = Pass/CTV (từ BE)
 };
 
 type CustomerValue = {
-  loai_khach_hang: 0 | 1; // 0 = hệ thống, 1 = vãng lai
+  loai_khach_hang: 0 | 1 | 2; // 0 = Hệ thống, 1 = Vãng lai, 2 = Pass đơn & CTV
   khach_hang_id?: number | string;
   ten_khach_hang?: string;
   so_dien_thoai?: string;
 };
+
 
 type Props = {
   value: CustomerValue;
@@ -52,6 +54,25 @@ const CustomerPicker: React.FC<Props> = ({ value, onChange }) => {
   // 👉 ref đúng chuẩn cho SearchBar (để clear/blur sau khi chọn)
   const sbRef = useRef<SearchBarRef>(null);
   const blurActive = () => (document.activeElement as (HTMLElement | null))?.blur?.();
+    // Lọc list phù hợp theo loại KH (0 = Hệ thống, 1 = Vãng lai, 2 = Pass/CTV)
+  const effectiveRows = useMemo(() => {
+    const list = Array.isArray(rows) ? rows : [];
+    const mode = value.loai_khach_hang;
+
+    // Hệ thống: chỉ KH customer_mode != 1 (tức thường)
+    if (mode === 0) {
+      return list.filter((c) => Number((c as any).customer_mode ?? 0) === 0);
+    }
+
+    // Pass/CTV: chỉ KH customer_mode = 1
+    if (mode === 2) {
+      return list.filter((c) => Number((c as any).customer_mode ?? 0) === 1);
+    }
+
+    // Vãng lai: không dùng danh sách khách
+    return list;
+  }, [rows, value.loai_khach_hang]);
+
 
   // ========== search ==========
   const search = async (keyword: string) => {
@@ -121,7 +142,7 @@ const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
   // ========== actions ==========
   const applyPick = (c: Customer) => {
     onChange({
-      loai_khach_hang: 0,
+      loai_khach_hang: value.loai_khach_hang, // 0 = Hệ thống, 2 = Pass/CTV
       khach_hang_id: c.id,
       ten_khach_hang: viewName(c),
       so_dien_thoai: viewPhone(c),
@@ -137,19 +158,23 @@ const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
     Toast.show("Đã chọn khách hàng");
   };
 
-  const setLoai = (v: 0 | 1) => {
+  const setLoai = (v: 0 | 1 | 2) => {
     if (v === value.loai_khach_hang) return;
-    if (v === 0) {
+
+    // 0 = Hệ thống, 2 = Pass/CTV → dùng KH có sẵn trong hệ thống
+    if (v === 0 || v === 2) {
       onChange({
-        loai_khach_hang: 0,
+        loai_khach_hang: v,
         khach_hang_id: undefined,
         ten_khach_hang: undefined,
         so_dien_thoai: undefined,
       });
     } else {
+      // 1 = Vãng lai → nhập tay tên + SĐT
       onChange({ loai_khach_hang: 1, ten_khach_hang: "", so_dien_thoai: "" });
     }
   };
+
 
   const setTenVL = (s: string) =>
     onChange({ ...value, ten_khach_hang: s, loai_khach_hang: 1 });
@@ -166,40 +191,43 @@ const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
     <div className="phg-card" style={{ padding: 12, margin: "12px 0" }}>
       {/* LOẠI KH */}
       <div style={{ fontWeight: 800, marginBottom: 8 }}>Loại khách hàng</div>
-      <Radio.Group value={value.loai_khach_hang} onChange={(v) => setLoai(v as 0 | 1)}>
+      <Radio.Group value={value.loai_khach_hang} onChange={(v) => setLoai(v as 0 | 1 | 2)}>
         <Space>
           <Radio value={0}>Hệ thống</Radio>
           <Radio value={1}>Vãng lai</Radio>
+          <Radio value={2}>Pass đơn & CTV</Radio>
         </Space>
       </Radio.Group>
 
-      {/* KH HỆ THỐNG */}
-      {value.loai_khach_hang === 0 && (
-        <>
-          <div style={{ fontWeight: 800, margin: "12px 0 6px" }}>Chọn khách hàng</div>
-<SearchBar
-  ref={sbRef}
-  value={q}
-  placeholder="Tìm theo tên / SĐT"
-  onChange={onSearchChange}
-  onSearch={() => search(q)}
-  onClear={() => {
-    setQ("");
-    setRows([]);
-  }}
-    onCompositionEnd={() => search(q)}   // ⬅️ NEW: chốt chuỗi khi gõ tiếng Việt
-  // ⬇️ NGĂN BUBBLE khiến input bị blur ngay khi bấm (mất bàn phím)
-  onFocus={(e) => e.stopPropagation()}
 
-  style={{ "--background": "#fff" }}
-/>
+      {/* KH HỆ THỐNG / PASS & CTV */}
+      {(value.loai_khach_hang === 0 || value.loai_khach_hang === 2) && (
+        <>
+          <div style={{ fontWeight: 800, margin: "12px 0 6px" }}>
+            {value.loai_khach_hang === 2
+              ? "Chọn khách hàng Pass đơn & CTV"
+              : "Chọn khách hàng hệ thống"}
+          </div>
+          <SearchBar
+            ref={sbRef}
+            value={q}
+            placeholder="Tìm theo tên / SĐT"
+            onChange={onSearchChange}
+            onSearch={() => search(q)}
+            onClear={() => {
+              setQ("");
+              setRows([]);
+            }}
+            onCompositionEnd={() => search(q)}
+            onFocus={(e) => e.stopPropagation()}
+            style={{ "--background": "#fff" }}
+          />
 
           <List style={{ marginTop: 6 }}>
-            {rows.map((c) => (
+            {effectiveRows.map((c) => (
               <List.Item
                 key={String(c.id)}
                 description={viewPhone(c)}
-                // bấm cả dòng cũng chọn; chặn nổi bọt
                 onClick={(e) => {
                   e.stopPropagation();
                   applyPick(c);
@@ -232,6 +260,7 @@ const resp: any = await axios.get(API_ROUTE_CONFIG.KHACH_HANG, { params });
           )}
         </>
       )}
+
 
       {/* KH VÃNG LAI */}
       {value.loai_khach_hang === 1 && (

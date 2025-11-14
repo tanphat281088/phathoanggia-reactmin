@@ -29,6 +29,13 @@ export const API_ROUTE_CONFIG = {
   // ✅ MỚI: Khách hàng vãng lai
   KHACH_HANG_VANG_LAI: "/khach-hang-vang-lai",
   KHACH_HANG_VANG_LAI_CONVERT: "/khach-hang-vang-lai/convert",
+    // ✅ MỚI: Khách hàng Pass đơn & CTV
+  KHACH_HANG_PASS_CTV: "/khach-hang-pass-ctv",
+  KHACH_HANG_PASS_CTV_CONVERT_TO_PASS: (id: number | string) =>
+    `/khach-hang-pass-ctv/convert-to-pass/${id}`,
+  KHACH_HANG_PASS_CTV_CONVERT_TO_NORMAL: (id: number | string) =>
+    `/khach-hang-pass-ctv/convert-to-normal/${id}`,
+
 
   NHA_CUNG_CAP: "/nha-cung-cap",
   DANH_MUC_SAN_PHAM: "/danh-muc-san-pham",
@@ -215,6 +222,9 @@ export const URL_CONSTANTS = {
 
   // ✅ MỚI: URL trang Khách hàng vãng lai
   KHACH_HANG_VANG_LAI: "/admin/quan-ly-khach-hang/khach-hang-vang-lai",
+    // ✅ MỚI: URL trang Khách hàng Pass đơn & CTV
+  KHACH_HANG_PASS_CTV: "/admin/quan-ly-khach-hang/khach-hang-pass-ctv",
+
 
   NHA_CUNG_CAP: "/admin/quan-ly-san-pham/nha-cung-cap",
   DANH_MUC_SAN_PHAM: "/admin/quan-ly-san-pham/danh-muc-san-pham",

@@ -35,6 +35,8 @@ import BaoCaoThuChi from "../pages/thu-chi/BaoCaoThuChi";
 
 /** ✅ Import mới: Khách hàng vãng lai */
 import KHVangLai from "../pages/khach-hang/KHVangLai";
+import KhachHangPassCtv from "../pages/khach-hang/KhachHangPassCtv";
+
 
 /** ✅✅ Import mới: Nhân sự (HR) */
 import ChamCongNhanVien from "../pages/NhanSu/ChamCongNhanVien";
@@ -220,6 +222,12 @@ export const router = createBrowserRouter([
             element: <MainLayout />,
             children: [{ index: true, element: <KHVangLai /> }],
           },
+          {
+            path: "khach-hang-pass-ctv",
+            element: <MainLayout />,
+            children: [{ index: true, element: <KhachHangPassCtv /> }],
+          },
+
         ],
       },
 

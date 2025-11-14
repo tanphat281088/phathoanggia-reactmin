@@ -138,18 +138,48 @@ export default function OrderDetailPage() {
   const tongHang = Math.max(tongTienHangDB || 0, tongHangFromItems || 0);
 
   const giamGia = Number(get(data, "giam_gia") ?? 0);
-  const chiPhi = Number(get(data, "chi_phi") ?? get(data, "chi_phi_van_chuyen") ?? 0);
+  const chiPhi  = Number(get(data, "chi_phi") ?? get(data, "chi_phi_van_chuyen") ?? 0);
+
+  // Giảm giá thành viên
+  const memberPercent = Number(get(data, "member_discount_percent") ?? 0);
+  const memberAmountDb = Number(get(data, "member_discount_amount") ?? 0);
+  const memberAmountCalc =
+    memberPercent > 0 ? Math.round(tongHang * memberPercent / 100) : 0;
+  const memberAmount = memberAmountDb || memberAmountCalc;
 
   // Thuế
   const taxMode = Number(get(data, "tax_mode") ?? 0); // 0=Không thuế, 1=Có VAT
   const vatRate = Number(get(data, "vat_rate") ?? 0);
 
-  const subtotal = Math.max(0, tongHang - giamGia + chiPhi);
-  const vatAmount = taxMode === 1 && vatRate > 0 ? Math.round((subtotal * vatRate) / 100) : 0;
-  const grandTotal =
-    taxMode === 1
-      ? subtotal + vatAmount
-      : subtotal;
+  // Subtotal: ưu tiên lấy từ DB nếu có; nếu không thì tự tính: hàng - giảm tay - giảm member + phí
+  const subtotalFromDb = get(data, "subtotal");
+  const subtotal =
+    subtotalFromDb != null
+      ? Number(subtotalFromDb)
+      : Math.max(0, tongHang - giamGia - memberAmount + chiPhi);
+
+  // VAT & tổng thanh toán
+  const vatAmountFromDb = get(data, "vat_amount");
+  const grandTotalFromDb = get(data, "grand_total");
+
+  let vatAmount = 0;
+  let grandTotal = 0;
+
+  if (taxMode === 1) {
+    vatAmount =
+      vatAmountFromDb != null
+        ? Number(vatAmountFromDb)
+        : (vatRate > 0 ? Math.round(subtotal * vatRate / 100) : 0);
+    grandTotal =
+      grandTotalFromDb != null ? Number(grandTotalFromDb) : subtotal + vatAmount;
+  } else {
+    vatAmount = 0;
+    grandTotal = subtotal;
+  }
+
+  // Tổng cần thanh toán: ưu tiên field legacy, fallback grandTotal
+  const tongCanTT = Number(get(data, "tong_tien_can_thanh_toan") ?? grandTotal);
+
 
   // Thanh toán
   const loaiThanhToan = Number(get(data, "loai_thanh_toan") ?? LOAI_TT.CHUA);
@@ -163,16 +193,17 @@ export default function OrderDetailPage() {
     loaiThanhToan === LOAI_TT.TOAN_BO
       ? 0
       : loaiThanhToan === LOAI_TT.CHUA
-      ? Math.max(0, grandTotal)
-      : Math.max(0, grandTotal - soTienDaThanhToan);
+      ? Math.max(0, tongCanTT)
+      : Math.max(0, tongCanTT - soTienDaThanhToan);
 
   // Trạng thái thanh toán tổng quát (giống cột desktop)
   const thanhToanStatus =
-    conLai === 0 && grandTotal > 0
+    conLai === 0 && tongCanTT > 0
       ? 2 // Đã hoàn thành
       : soTienDaThanhToan > 0
       ? 1 // Một phần
       : 0; // Chưa hoàn thành
+
 
   const TT_LABEL: Record<number, { text: string; color: any }> = {
     0: { text: "Chưa hoàn thành", color: "danger" },
@@ -249,6 +280,20 @@ export default function OrderDetailPage() {
             <List header="Tổng hợp">
               <List.Item prefix="Tổng hàng" extra={<b>{money(tongHang)}</b>} />
               <List.Item prefix="Giảm giá" extra={money(giamGia)} />
+
+              {memberAmount > 0 && (
+                <>
+                  <List.Item
+                    prefix="Giảm giá thành viên (%)"
+                    extra={`${memberPercent} %`}
+                  />
+                  <List.Item
+                    prefix="Giảm thành viên"
+                    extra={`-${money(memberAmount)}đ`}
+                  />
+                </>
+              )}
+
               <List.Item prefix="Chi phí vận chuyển" extra={money(chiPhi)} />
               <List.Item
                 prefix="Thuế"
@@ -262,8 +307,12 @@ export default function OrderDetailPage() {
                   )
                 }
               />
-              <List.Item prefix="Tổng thanh toán" extra={<b>{money(grandTotal)}</b>} />
+              <List.Item
+                prefix="Tổng cần thanh toán"
+                extra={<b>{money(tongCanTT)}</b>}
+              />
             </List>
+
 
             {/* Thanh toán */}
             <List header="Thanh toán">

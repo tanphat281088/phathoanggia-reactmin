@@ -17,6 +17,9 @@ type Order = {
   tong_tien_can_thanh_toan?: number;
   so_tien_da_thanh_toan?: number;
   trang_thai_don_hang?: 0 | 1 | 2 | 3;
+    member_discount_percent?: number;
+  member_discount_amount?: number;
+
 };
 
 const fmt = (n: number = 0) => Number(n || 0).toLocaleString("vi-VN");
@@ -243,6 +246,9 @@ const queryParams = useMemo(() => {
         {rows.map((r) => {
           const remain = Math.max(0, Number(r.tong_tien_can_thanh_toan || 0) - Number(r.so_tien_da_thanh_toan || 0));
           const st = Number(r.trang_thai_don_hang ?? 0) as 0 | 1 | 2 | 3;
+                    const memberAmount = Number(r.member_discount_amount ?? 0);
+          const memberPercent = Number(r.member_discount_percent ?? 0);
+
           return (
             <List.Item
               key={String(r.id)}
@@ -255,6 +261,14 @@ const queryParams = useMemo(() => {
                   </div>
                   <div>Ngày tạo: {r.ngay_tao_don_hang ? dayjs(r.ngay_tao_don_hang).format("DD/MM/YYYY") : "--"}</div>
                   <div>Tổng cần TT: <b>{fmt(Number(r.tong_tien_can_thanh_toan || 0))}đ</b> • Đã thu: {fmt(Number(r.so_tien_da_thanh_toan || 0))}đ</div>
+
+                  {memberAmount > 0 && (
+                    <div>
+                      Giảm thành viên: <b>-{fmt(memberAmount)}đ</b>
+                      {memberPercent ? ` (${memberPercent}%)` : ""}
+                    </div>
+                  )}
+
                   <div>Còn lại: <b className="amount">{fmt(remain)}đ</b></div>
                   <div>
                     <Space wrap>

@@ -41,6 +41,8 @@ type Customer = {
   trang_thai?: number | boolean | null;
   kenh_lien_he?: string | null;
   [k: string]: any;
+    customer_mode?: number;
+
 };
 
 export default function CustomersPage() {
@@ -264,7 +266,23 @@ const openCustomer = async (c: Customer) => {
                     {c.kenh_lien_he}
                   </span>
                 ) : null}
+                {Number((c as any).customer_mode ?? 0) === 1 && (
+                  <span
+                    className="chip"
+                    style={{
+                      backgroundColor: "#fff7e6",
+                      color: "#ad6800",
+                      maxWidth: "40vw",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Pass/CTV
+                  </span>
+                )}
               </div>
+
             </List.Item>
           ))}
         </List>
@@ -312,6 +330,12 @@ const openCustomer = async (c: Customer) => {
                     Kênh: <span className="chip">{detail.kenh_lien_he}</span>
                   </div>
                 )}
+                                {Number((detail as any).customer_mode ?? 0) === 1 && (
+                  <div style={{ marginTop: 6 }}>
+                    Nhóm: <span className="chip">Khách hàng Pass đơn & CTV</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Hành động nhanh */}

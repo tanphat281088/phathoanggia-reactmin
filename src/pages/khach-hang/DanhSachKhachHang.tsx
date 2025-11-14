@@ -8,7 +8,8 @@ import {
   createFilterQueryFromArray,
   formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Flex, Row, Space, Tag } from "antd";
+import { Col, Flex, Row, Space, Tag, Button, message } from "antd";
+
 import SuaKhachHang from "./SuaKhachHang";
 import Delete from "../../components/Delete";
 import { useDispatch, useSelector } from "react-redux";
@@ -21,6 +22,9 @@ import { OPTIONS_STATUS } from "../../utils/constant";
 import dayjs from "dayjs";
 import ImportExcel from "../../components/ImportExcel";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
+
+import axios from "../../configs/axios";
+
 
 /** Danh sách cố định cho dropdown Kênh liên hệ */
 const KENH_LIEN_HE_OPTIONS = [
@@ -79,6 +83,36 @@ const DanhSachKhachHang = ({
     setDanhSach(danhSach);
   };
 
+  const handleConvertToPassCtv = async (id: number) => {
+    try {
+      const url = API_ROUTE_CONFIG.KHACH_HANG_PASS_CTV_CONVERT_TO_PASS(id);
+      const resp: any = await axios.post(url);
+
+      // Interceptor có thể trả resp hoặc resp.data, gom lại cho chắc
+      const data = resp?.data ?? resp ?? {};
+
+      const msg =
+        data?.message ||
+        data?.msg ||
+        "Đã chuyển sang Khách hàng Pass đơn & CTV";
+
+      message.success(msg);
+      // Reload lại danh sách sau khi chuyển
+      getDanhSach();
+    } catch (e: any) {
+      console.error("[KH] convert to Pass/CTV error", e);
+      const data = e?.response?.data ?? e;
+      const msg =
+        data?.message ||
+        data?.error ||
+        e?.message ||
+        "Chuyển sang Khách hàng Pass đơn & CTV thất bại";
+      message.error(String(msg));
+    }
+  };
+
+
+
   const defaultColumns: any = [
     {
       title: "STT",
@@ -100,16 +134,29 @@ const DanhSachKhachHang = ({
         nameColumn: "Mã KH",
       }),
     },
-    {
+        {
       title: "Thao tác",
       dataIndex: "id",
       align: "center",
-      render: (id: number) => {
+      render: (id: number, record: any) => {
+        const isPassCtv = Number(record?.customer_mode ?? 0) === 1;
+
         return (
-          <Space size={0}>
+          <Space size={4}>
             {permission.edit && (
               <SuaKhachHang path={path} id={id} title={title} />
             )}
+
+            {/* Nút chuyển sang KH Pass đơn & CTV – chỉ hiện nếu KH hiện không phải Pass/CTV */}
+            {permission.edit && !isPassCtv && (
+              <Button
+                size="small"
+                onClick={() => handleConvertToPassCtv(id)}
+              >
+                Pass/CTV
+              </Button>
+            )}
+
             {permission.delete && (
               <Delete path={path} id={id} onShow={getDanhSach} />
             )}
@@ -117,6 +164,7 @@ const DanhSachKhachHang = ({
         );
       },
     },
+
     {
       title: "Tên khách hàng",
       dataIndex: "ten_khach_hang",

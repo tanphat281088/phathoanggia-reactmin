@@ -48,6 +48,23 @@ const ThemQuanLyBanHang = ({
         ...rest
       } = values || {};
 
+      // ===== Chuẩn hoá loai_khach_hang cho BE =====
+      // UI: 0 = Hệ thống, 1 = Vãng lai, 2 = Pass/CTV
+      // BE: 0 = có khach_hang_id (hệ thống + Pass/CTV), 1 = vãng lai
+      let loaiKhRaw = rest?.loai_khach_hang;
+      let loaiKhForPayload: number | undefined;
+
+      if (loaiKhRaw === 1) {
+        // Khách vãng lai
+        loaiKhForPayload = 1;
+      } else if (loaiKhRaw === 2) {
+        // Khách Pass đơn & CTV → BE vẫn nhận 0
+        loaiKhForPayload = 0;
+      } else {
+        // Mặc định: khách hệ thống
+        loaiKhForPayload = 0;
+      }
+
       // ===== NEW (an toàn): chỉ gửi thuế khi chọn "Có thuế" =====
       const taxModeNum = Number(values?.tax_mode ?? 0);
       const taxPatch =
@@ -62,22 +79,21 @@ const ThemQuanLyBanHang = ({
             }
           : {};
 
-// ⬇️ THAY THẾ NGUYÊN KHỐI payload BẰNG ĐOẠN NÀY
-const payload = {
-  ...rest,
-  ...taxPatch, // chỉ có khi tax_mode = 1
-  // Chuẩn hoá ngày theo LOCAL, KHÔNG dùng toISOString (tránh lệch UTC)
-  ngay_tao_don_hang: values?.ngay_tao_don_hang
-    ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
-    : null,
-  nguoi_nhan_thoi_gian: values?.nguoi_nhan_thoi_gian
-    ? dayjs(values.nguoi_nhan_thoi_gian).format("YYYY-MM-DD HH:mm:ss")
-    : null,
-  so_tien_da_thanh_toan: values?.so_tien_da_thanh_toan
-    ? values.so_tien_da_thanh_toan
-    : 0,
-};
-
+      const payload = {
+        ...rest,
+        loai_khach_hang: loaiKhForPayload, // ⬅️ dùng giá trị đã chuẩn hoá
+        ...taxPatch, // chỉ có khi tax_mode = 1
+        // Chuẩn hoá ngày theo LOCAL, KHÔNG dùng toISOString (tránh lệch UTC)
+        ngay_tao_don_hang: values?.ngay_tao_don_hang
+          ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
+          : null,
+        nguoi_nhan_thoi_gian: values?.nguoi_nhan_thoi_gian
+          ? dayjs(values.nguoi_nhan_thoi_gian).format("YYYY-MM-DD HH:mm:ss")
+          : null,
+        so_tien_da_thanh_toan: values?.so_tien_da_thanh_toan
+          ? values.so_tien_da_thanh_toan
+          : 0,
+      };
 
       // postData thường trả { success, data, message }
       const closeModel = () => {
@@ -101,6 +117,7 @@ const payload = {
       setIsLoading(false);
     }
   };
+
 
   return (
     <>

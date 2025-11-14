@@ -54,6 +54,8 @@ const PATH_ALIAS: Record<string, string> = {
   "loai-khach-hang": "loai-khach-hang",
   "khach-hang": "khach-hang",
   "khach-hang-vang-lai": "khach-hang-vang-lai",
+    "khach-hang-pass-ctv": "khach-hang-pass-ctv",
+
 
   "nha-cung-cap": "nha-cung-cap",
   "danh-muc-san-pham": "danh-muc-san-pham",

@@ -16,7 +16,7 @@ import OrderSummaryBar from "../../../mobile/components/OrderSummaryBar";
 /* ===== Types ===== */
 type DraftItem = CartItem; // thống nhất 1 kiểu item cho toàn trang
 type DraftOrder = {
-  loai_khach_hang?: 0 | 1; // 0=KH hệ thống, 1=Vãng lai
+  loai_khach_hang?: 0 | 1 | 2; // 0=Hệ thống, 1=Vãng lai, 2=Pass đơn & CTV
   khach_hang_id?: number | string;
   ten_khach_hang?: string;
   so_dien_thoai?: string;
@@ -431,11 +431,20 @@ async function autoSyncReceiptByCode(code?: string | null) {
     if (!draft.dia_chi_giao_hang) { Toast.show("Nhập địa chỉ giao hàng"); return; }
     if (!draft.items.length) { Toast.show("Chưa chọn sản phẩm"); return; }
 
-    if (draft.loai_khach_hang === 0) {
-      if (!draft.khach_hang_id) { Toast.show("Chọn khách hàng hệ thống"); return; }
+    // 0 = Hệ thống, 2 = Pass/CTV → bắt buộc chọn KH có sẵn
+    if (draft.loai_khach_hang === 0 || draft.loai_khach_hang === 2) {
+      if (!draft.khach_hang_id) {
+        Toast.show("Chọn khách hàng từ hệ thống");
+        return;
+      }
     } else {
-      if (!draft.ten_khach_hang || !draft.so_dien_thoai) { Toast.show("Nhập tên & SĐT khách vãng lai"); return; }
+      // 1 = Vãng lai → nhập tay
+      if (!draft.ten_khach_hang || !draft.so_dien_thoai) {
+        Toast.show("Nhập tên & SĐT khách vãng lai");
+        return;
+      }
     }
+
 
     for (const it of draft.items) {
       if (!it.don_vi_tinh_id) { Toast.show(`Chọn ĐVT cho ${it.ten_sp}`); return; }
@@ -457,12 +466,15 @@ if (!ok) return;
 
 setSubmitting(true);
 
+    const loaiKhRaw = draft.loai_khach_hang ?? 0;
+    // BE: 0 = có khach_hang_id (Hệ thống + Pass/CTV), 1 = vãng lai
+    const loaiKhForPayload = loaiKhRaw === 1 ? 1 : 0;
 
     const payload: any = {
    ngay_tao_don_hang: dayjs().format("YYYY-MM-DD"),
 
       dia_chi_giao_hang: draft.dia_chi_giao_hang,
-      loai_khach_hang: draft.loai_khach_hang ?? 0,
+       loai_khach_hang: loaiKhForPayload,
       loai_thanh_toan: draft.loai_thanh_toan ?? 0,
       ...(draft.loai_thanh_toan === 1 ? { so_tien_da_thanh_toan: toNumber(draft.so_tien_da_thanh_toan ?? 0) } : {}),
       giam_gia: toNumber(draft.giam_gia),
@@ -470,9 +482,15 @@ setSubmitting(true);
       trang_thai_don_hang: draft.trang_thai_don_hang ?? 0,
       ghi_chu: draft.ghi_chu || undefined,
       ...(draft.tax_mode === 1 ? { tax_mode: 1, vat_rate: draft.vat_rate ?? 8 } : { tax_mode: 0 }),
-      ...(draft.loai_khach_hang === 0
-        ? { khach_hang_id: draft.khach_hang_id }
-        : { ten_khach_hang: draft.ten_khach_hang, so_dien_thoai: draft.so_dien_thoai }),
+            ...(loaiKhRaw === 1
+        ? {
+            ten_khach_hang: draft.ten_khach_hang,
+            so_dien_thoai: draft.so_dien_thoai,
+          }
+        : {
+            khach_hang_id: draft.khach_hang_id,
+          }),
+
       ...(draft.nguoi_nhan_ten ? { nguoi_nhan_ten: draft.nguoi_nhan_ten } : {}),
       ...(draft.nguoi_nhan_sdt ? { nguoi_nhan_sdt: draft.nguoi_nhan_sdt } : {}),
       ...(draft.nguoi_nhan_thoi_gian ? { nguoi_nhan_thoi_gian: draft.nguoi_nhan_thoi_gian } : {}),

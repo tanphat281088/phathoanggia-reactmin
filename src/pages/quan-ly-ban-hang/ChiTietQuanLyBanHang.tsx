@@ -67,13 +67,51 @@ Object.keys(data || {}).forEach((key) => {
     san_pham_label: [code, name].filter(Boolean).join(" - ") || String(item.san_pham_id),
   };
 });
+        }
 
+
+        // ===== NEW: Map loại khách hàng DB → form (0: Hệ thống, 1: Vãng lai, 2: Pass/CTV) =====
+        let formLoaiKhachHang = 0; // mặc định: Hệ thống
+
+        if (data?.loai_khach_hang === 1) {
+          // Đơn vãng lai
+          formLoaiKhachHang = 1;
+        } else {
+          // Đơn gắn KH hệ thống → xem customer_mode
+          const customerMode = Number(data?.khach_hang?.customer_mode ?? 0);
+          if (customerMode === 1) {
+            // Khách Pass đơn & CTV
+            formLoaiKhachHang = 2;
+          } else {
+            // Khách hệ thống thường
+            formLoaiKhachHang = 0;
+          }
+        }
+        // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho chi tiết =====
+        // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho chi tiết =====
+        let khachHangDisplay: string | undefined = undefined;
+        let kenhLienHeDisplay: string | undefined = undefined;
+
+        const kh = (data as any)?.khach_hang;
+        if (kh) {
+          const code  = kh.ma_kh ?? "";
+          const name  = kh.ten_khach_hang ?? "";
+          const phone = kh.so_dien_thoai ?? "";
+          khachHangDisplay = [code, name, phone].filter(Boolean).join(" - ");
+
+          // 🔹 Kênh liên hệ lấy trực tiếp từ khách hàng
+          kenhLienHeDisplay = kh.kenh_lien_he ?? undefined;
         }
 
         form.setFieldsValue({
-            ...data,
-            danh_sach_san_pham: danhSachSanPham,
+          ...data,
+          loai_khach_hang: formLoaiKhachHang,
+          khach_hang_display: khachHangDisplay,
+          kenh_lien_he_display: kenhLienHeDisplay, // 🔹 NEW
+          danh_sach_san_pham: danhSachSanPham,
         });
+
+
 
         console.log("[CTDH] danhSachSanPham:", danhSachSanPham);
 console.log("[CTDH] label mẫu:", danhSachSanPham?.[0]?.san_pham_label);

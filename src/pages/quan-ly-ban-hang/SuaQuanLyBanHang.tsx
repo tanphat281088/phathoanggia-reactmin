@@ -87,12 +87,47 @@ danhSachSanPham = data?.chi_tiet_don_hangs.map((item: any) => {
             : 8)
         : undefined;
 
+            // % giảm giá thành viên lấy từ DB (nếu có)
+    const memberPercent = Number(data?.member_discount_percent ?? 0);
+
+    // ===== Map loại khách hàng DB → form (0: hệ thống, 1: vãng lai, 2: Pass/CTV) =====
+    let formLoaiKhachHang = 0; // mặc định: hệ thống
+
+    if (data?.loai_khach_hang === 1) {
+      // Đơn vãng lai
+      formLoaiKhachHang = 1;
+    } else {
+      // Đơn gắn khách hàng hệ thống → xem customer_mode
+      const customerMode = Number(data?.khach_hang?.customer_mode ?? 0);
+      if (customerMode === 1) {
+        // Khách Pass đơn & CTV
+        formLoaiKhachHang = 2;
+      } else {
+        // Khách hệ thống thường
+        formLoaiKhachHang = 0;
+      }
+    }
+    // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho SỬA đơn =====
+    let khachHangDisplay: string | undefined = undefined;
+    const kh = (data as any)?.khach_hang;
+    if (kh) {
+      const code  = kh.ma_kh ?? "";
+      const name  = kh.ten_khach_hang ?? "";
+      const phone = kh.so_dien_thoai ?? "";
+      khachHangDisplay = [code, name, phone].filter(Boolean).join(" - ");
+    }
+
+
     form.setFieldsValue({
       ...data,
+      loai_khach_hang: formLoaiKhachHang,
+      khach_hang_display: khachHangDisplay,   // 🔹 NEW
       tax_mode,
       vat_rate,
       danh_sach_san_pham: danhSachSanPham,
     });
+
+
 console.log("[SUA] danhSachSanPham:", danhSachSanPham);
 console.log("[SUA] label mẫu:", danhSachSanPham?.[0]?.san_pham_label);
 console.log("[SUA] item[0]:", danhSachSanPham?.[0]);
@@ -170,6 +205,23 @@ form.setFieldsValue({
       // Không gửi mã đơn
       const { ma_don_hang, ...rest } = values || {};
 
+      // ===== Chuẩn hoá loai_khach_hang cho BE =====
+      // UI: 0 = Hệ thống, 1 = Vãng lai, 2 = Pass/CTV
+      // BE: 0 = có khach_hang_id, 1 = vãng lai
+      let loaiKhRaw = rest?.loai_khach_hang;
+      let loaiKhForPayload: number | undefined;
+
+      if (loaiKhRaw === 1) {
+        // Khách vãng lai
+        loaiKhForPayload = 1;
+      } else if (loaiKhRaw === 2) {
+        // Khách Pass đơn & CTV → BE vẫn nhận 0
+        loaiKhForPayload = 0;
+      } else {
+        // Mặc định: khách hệ thống
+        loaiKhForPayload = 0;
+      }
+
       // Format ngày: ngày tạo chỉ cần date; ngày nhận cần cả giờ
       const ngayTao: string | null = values?.ngay_tao_don_hang
         ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
@@ -199,6 +251,7 @@ form.setFieldsValue({
       // Không bắt buộc phải đính kèm danh_sach_san_pham khi chỉ sửa thông tin người nhận
       const payload: any = {
         ...rest,
+        loai_khach_hang: loaiKhForPayload,
         ...taxPatch, // ⬅️ chỉ có khi tax_mode=1
         ngay_tao_don_hang: ngayTao,
         nguoi_nhan_thoi_gian: tgNhan,
@@ -214,6 +267,7 @@ form.setFieldsValue({
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <>
