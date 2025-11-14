@@ -89,7 +89,9 @@ Object.keys(data || {}).forEach((key) => {
         }
         // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho chi tiết =====
         // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho chi tiết =====
-        let khachHangDisplay: string | undefined = undefined;
+       let khachHangDisplay: string | undefined =
+  (data as any)?.khach_hang_display ?? undefined;
+
         let kenhLienHeDisplay: string | undefined = undefined;
 
         const kh = (data as any)?.khach_hang;

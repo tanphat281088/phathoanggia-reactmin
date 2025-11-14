@@ -64,9 +64,10 @@ const FormQuanLyBanHang = ({
   const loaiKhachHang = Form.useWatch("loai_khach_hang", form);
   const loaiThanhToan = Form.useWatch("loai_thanh_toan", form);
     const khachHangId = Form.useWatch("khach_hang_id", form);
-      const khachHangDisplay = Form.useWatch("khach_hang_display", form);
-       const kenhLienHeDisplay = Form.useWatch("kenh_lien_he_display", form); // 🔹 NEW
 
+     // 🔹 Đọc chuỗi hiển thị "Mã KH - Tên KH - SĐT" từ form (đã set ở ChiTiet/Sửa)
+  const khachHangDisplay =
+    (form.getFieldValue("khach_hang_display") as string | undefined) || "";
 
 
   const [tongTienHang, setTongTienHang] = useState<number>(0);
@@ -432,7 +433,6 @@ useEffect(() => {
             )}
           </Col>
 
-
           {/* Loại khách hàng (hạng) – chỉ đọc */}
           <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
             <Form.Item
@@ -447,6 +447,7 @@ useEffect(() => {
           </Col>
         </>
       )}
+
 
 
 
@@ -578,9 +579,7 @@ disabled={d("nguoi_nhan_thoi_gian")}
           />
         </Form.Item>
       </Col>
-      {/* ===== END – THÔNG TIN NGƯỜI NHẬN ===== */}
 
-            {/* Kênh liên hệ – chỉ hiển thị trong màn Chi tiết đơn hàng */}
       {isDetail && (
         <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
           <Form.Item
@@ -594,8 +593,10 @@ disabled={d("nguoi_nhan_thoi_gian")}
           </Form.Item>
         </Col>
       )}
-      {/* ===== END – THÔNG TIN NGƯỜI NHẬN ===== */}
 
+
+
+      {/* ===== END – THÔNG TIN NGƯỜI NHẬN ===== */}
 
       <Col span={24} style={{ marginBottom: 20 }}>
 <DanhSachSanPham form={form} isDetail={isDetail || !can("danh_sach_san_pham")} />

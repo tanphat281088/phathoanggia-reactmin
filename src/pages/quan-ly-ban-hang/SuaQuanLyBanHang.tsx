@@ -108,14 +108,17 @@ danhSachSanPham = data?.chi_tiet_don_hangs.map((item: any) => {
       }
     }
     // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho SỬA đơn =====
-    let khachHangDisplay: string | undefined = undefined;
-    const kh = (data as any)?.khach_hang;
-    if (kh) {
-      const code  = kh.ma_kh ?? "";
-      const name  = kh.ten_khach_hang ?? "";
-      const phone = kh.so_dien_thoai ?? "";
-      khachHangDisplay = [code, name, phone].filter(Boolean).join(" - ");
-    }
+let khachHangDisplay: string | undefined =
+  (data as any)?.khach_hang_display ?? undefined;
+
+const kh = (data as any)?.khach_hang;
+if (!khachHangDisplay && kh) {
+  const code  = kh.ma_kh ?? "";
+  const name  = kh.ten_khach_hang ?? "";
+  const phone = kh.so_dien_thoai ?? "";
+  khachHangDisplay = [code, name, phone].filter(Boolean).join(" - ");
+}
+
 
 
     form.setFieldsValue({
