@@ -2,7 +2,11 @@
 import { useEffect, useState } from "react";
 import { App, Button, Card, Descriptions, Flex, Space, Typography, DatePicker, Tag } from "antd";
 import dayjs from "dayjs";
-import { timesheetMy, type BangCongItem } from "../../services/bangCong.api";
+import {
+  timesheetMy,
+  type BangCongItem,
+  computeTimesheetMinuteStats, // ✅ NEW: helper tính phút chuẩn / tăng ca
+} from "../../services/bangCong.api";
 
 const { Title, Text } = Typography;
 
@@ -12,46 +16,50 @@ export default function BangCongCuaToi() {
   const [loading, setLoading] = useState(false);
   const [item, setItem] = useState<BangCongItem | null>(null);
 
-const fetchData = async () => {
-  setLoading(true);
-  try {
-    const resp = await timesheetMy(thang);
-    // resp có thể là:
-    // 1) { success, data: { thang, item } }  (kiểu cũ)
-    // 2) { thang, item, debug? }             (kiểu hiện tại bạn đang nhận)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const resp = await timesheetMy(thang);
+      // resp có thể là:
+      // 1) { success, data: { thang, item } }  (kiểu cũ)
+      // 2) { thang, item, debug? }             (kiểu hiện tại bạn đang nhận)
 
-    // Chuẩn hoá:
-    const payload =
-      resp && "data" in resp
-        ? (resp as any).data                            // kiểu cũ
-        : resp;                                         // kiểu mới
+      // Chuẩn hoá:
+      const payload =
+        resp && "data" in resp
+          ? (resp as any).data // kiểu cũ
+          : resp; // kiểu mới
 
-    console.log("[timesheetMy] normalized =", payload);
+      console.log("[timesheetMy] normalized =", payload);
 
-    // Đồng bộ lại tháng từ server (kỳ 6→5)
-    if (payload?.thang && payload.thang !== thang) {
-      setThang(payload.thang);
+      // Đồng bộ lại tháng từ server (kỳ 6→5)
+      if (payload?.thang && payload.thang !== thang) {
+        setThang(payload.thang);
+      }
+
+      setItem(payload?.item ?? null);
+    } catch (e: any) {
+      console.error("[timesheetMy] error =", e);
+      message.error(e?.message || "Không tải được bảng công.");
+      setItem(null);
+    } finally {
+      setLoading(false);
     }
-
-    setItem(payload?.item ?? null);
-  } catch (e: any) {
-    console.error("[timesheetMy] error =", e);
-    message.error(e?.message || "Không tải được bảng công.");
-    setItem(null);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line
   }, [thang]);
 
+  // ✅ Tính thêm các chỉ số phút công (tiêu chuẩn / tăng ca) để hiển thị
+  const minuteStats = item ? computeTimesheetMinuteStats(item) : null;
+
   return (
     <Flex vertical gap={16}>
-      <Title level={3} style={{ margin: 0 }}>Bảng công của tôi</Title>
+      <Title level={3} style={{ margin: 0 }}>
+        Bảng công của tôi
+      </Title>
 
       <Card>
         <Space align="end" wrap>
@@ -65,7 +73,9 @@ const fetchData = async () => {
               format="MM/YYYY"
             />
           </Space>
-          <Button onClick={fetchData} loading={loading}>Làm mới</Button>
+          <Button onClick={fetchData} loading={loading}>
+            Làm mới
+          </Button>
         </Space>
       </Card>
 
@@ -73,7 +83,17 @@ const fetchData = async () => {
         {item ? (
           <Descriptions bordered size="small" column={1} title={`Kỳ công: ${item.thang}`}>
             <Descriptions.Item label="Số ngày công">{item.so_ngay_cong}</Descriptions.Item>
-       <Descriptions.Item label="Số phút công">{item.so_gio_cong}</Descriptions.Item>
+            <Descriptions.Item label="Số phút công (thực tế)">
+              {item.so_gio_cong}
+            </Descriptions.Item>
+
+            {/* ✅ MỚI: hiển thị phút công tiêu chuẩn & phút tăng ca dùng cho tính lương */}
+            <Descriptions.Item label="Số phút công tiêu chuẩn (28 ngày x 8h x 60p)">
+              {minuteStats?.standard_minutes}
+            </Descriptions.Item>
+            <Descriptions.Item label="Số phút tăng ca (tính lương)">
+              {minuteStats?.ot_minutes ?? 0}
+            </Descriptions.Item>
 
             <Descriptions.Item label="Đi trễ (phút)">{item.di_tre_phut}</Descriptions.Item>
             <Descriptions.Item label="Về sớm (phút)">{item.ve_som_phut}</Descriptions.Item>
@@ -83,11 +103,14 @@ const fetchData = async () => {
             <Descriptions.Item label="Nghỉ không lương (ngày / giờ)">
               {item.nghi_khong_luong_ngay} ngày / {item.nghi_khong_luong_gio} giờ
             </Descriptions.Item>
-            <Descriptions.Item label="Làm thêm (giờ)">{item.lam_them_gio}</Descriptions.Item>
+            {/* ⚠️ lam_them_gio đang là PHÚT OT → đổi label cho đúng */}
+            <Descriptions.Item label="Làm thêm (phút)">{item.lam_them_gio}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
               {item.locked ? <Tag color="red">Đã khóa</Tag> : <Tag color="green">Chưa khóa</Tag>}
             </Descriptions.Item>
-            <Descriptions.Item label="Tổng hợp lúc">{item.computed_at || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Tổng hợp lúc">
+              {item.computed_at || "-"}
+            </Descriptions.Item>
           </Descriptions>
         ) : (
           <Text type="secondary">Chưa có dữ liệu bảng công cho tháng này.</Text>

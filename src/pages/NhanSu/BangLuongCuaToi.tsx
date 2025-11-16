@@ -57,7 +57,15 @@ export default function BangLuongCuaToi() {
 
   const header = useMemo(
     () => (
-      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div
+        style={{
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           Bảng lương của tôi
         </Title>
@@ -123,6 +131,19 @@ export default function BangLuongCuaToi() {
   const T_advance = data.T_advance ?? Number(data.tam_ung || 0);
   const U_net = data.U_net ?? Number(data.thuc_nhan || 0);
 
+  // ✅ NEW: đọc thêm metrics theo PHÚT CÔNG (nếu BE trả về)
+  const metrics = (data.metrics || {}) as any;
+  const stdMinutes: number | null = metrics.std_minutes ?? null;
+  const actualMinutes: number | null = metrics.actual_minutes ?? null;
+  const otMinutes: number | null = metrics.ot_minutes ?? null;
+  const unitBaseMin: number | null = metrics.unit_base_min ?? null;
+  const otRatePerMin: number | null = metrics.ot_rate_per_min ?? null;
+  const otAmount: number | null = metrics.ot_amount ?? null;
+
+  // Nếu BE chưa có metrics thì fallback actualMinutes = so_gio_cong (phút raw)
+  const actualMinutesEffective =
+    typeof actualMinutes === "number" ? actualMinutes : Number(data.so_gio_cong || 0);
+
   return (
     <div style={{ padding: 16 }}>
       {header}
@@ -131,15 +152,38 @@ export default function BangLuongCuaToi() {
         {/* Cột trái: Cấu hình & Công */}
         <Col xs={24} md={12}>
           <Card title={<Text strong>Cấu hình & Công</Text>} bordered>
-            <Descriptions column={1} size="small" colon={false} labelStyle={{ width: 150 }}>
+            <Descriptions column={1} size="small" colon={false} labelStyle={{ width: 220 }}>
               <Descriptions.Item label="Tháng">{data.thang}</Descriptions.Item>
               <Descriptions.Item label="Công chuẩn">{data.cong_chuan}</Descriptions.Item>
               <Descriptions.Item label="Ngày công">{data.so_ngay_cong}</Descriptions.Item>
-              <Descriptions.Item label="Giờ công">{data.so_gio_cong}</Descriptions.Item>
-              <Descriptions.Item label="Lương cơ bản">{fmtMoney(data.luong_co_ban)} đ</Descriptions.Item>
-              <Descriptions.Item label="Hệ số">{Number(data.he_so ?? 0).toFixed(2)}</Descriptions.Item>
-              <Descriptions.Item label="Khóa">{data.locked ? "Đã khóa" : "Chưa khóa"}</Descriptions.Item>
-              <Descriptions.Item label="Tính lúc">{data.computed_at || "-"}</Descriptions.Item>
+              {/* ⚠️ so_gio_cong đang là PHÚT → đổi label cho rõ */}
+              <Descriptions.Item label="Số phút công (raw từ bảng công)">
+                {data.so_gio_cong}
+              </Descriptions.Item>
+
+              {/* ✅ MỚI: hiển thị phút công tiêu chuẩn & tăng ca dùng để tính lương */}
+              <Descriptions.Item label="Số phút công tiêu chuẩn (28 ngày x 8h x 60p)">
+                {stdMinutes !== null ? stdMinutes : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Số phút công thực tế (tính lương)">
+                {actualMinutesEffective}
+              </Descriptions.Item>
+              <Descriptions.Item label="Số phút tăng ca (tính lương)">
+                {otMinutes !== null ? otMinutes : Math.max(0, actualMinutesEffective - (stdMinutes || 0))}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Lương cơ bản">
+                {fmtMoney(data.luong_co_ban)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Hệ số">
+                {Number(data.he_so ?? 0).toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Khóa">
+                {data.locked ? "Đã khóa" : "Chưa khóa"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tính lúc">
+                {data.computed_at || "-"}
+              </Descriptions.Item>
             </Descriptions>
           </Card>
         </Col>
@@ -147,19 +191,55 @@ export default function BangLuongCuaToi() {
         {/* Cột phải: Cộng/Trừ */}
         <Col xs={24} md={12}>
           <Card title={<Text strong>Cộng/Trừ</Text>} bordered>
-            <Descriptions column={1} size="small" colon={false} labelStyle={{ width: 150 }}>
-              <Descriptions.Item label="Phụ cấp">{fmtMoney(data.phu_cap)} đ</Descriptions.Item>
-              <Descriptions.Item label="Thưởng">{fmtMoney(data.thuong)} đ</Descriptions.Item>
-              <Descriptions.Item label="Phạt">{fmtMoney(data.phat)} đ</Descriptions.Item>
-              <Descriptions.Item label="BHXH">{fmtMoney(data.bhxh)} đ</Descriptions.Item>
-              <Descriptions.Item label="BHYT">{fmtMoney(data.bhyt)} đ</Descriptions.Item>
-              <Descriptions.Item label="BHTN">{fmtMoney(data.bhtn)} đ</Descriptions.Item>
-              <Descriptions.Item label="Khấu trừ khác">{fmtMoney(data.khau_tru_khac)} đ</Descriptions.Item>
-              <Descriptions.Item label="Tạm ứng">{fmtMoney(data.tam_ung)} đ</Descriptions.Item>
+            <Descriptions column={1} size="small" colon={false} labelStyle={{ width: 180 }}>
+              <Descriptions.Item label="Phụ cấp">
+                {fmtMoney(data.phu_cap)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Thưởng">
+                {fmtMoney(data.thuong)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Phạt">
+                {fmtMoney(data.phat)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="BHXH">
+                {fmtMoney(data.bhxh)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="BHYT">
+                {fmtMoney(data.bhyt)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="BHTN">
+                {fmtMoney(data.bhtn)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Khấu trừ khác">
+                {fmtMoney(data.khau_tru_khac)} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Tạm ứng">
+                {fmtMoney(data.tam_ung)} đ
+              </Descriptions.Item>
             </Descriptions>
           </Card>
         </Col>
       </Row>
+
+      {/* Nếu muốn, có thể thêm 1 Card nhỏ giải thích đơn giá phút */}
+      {unitBaseMin !== null || otRatePerMin !== null || otAmount !== null ? (
+        <>
+          <Divider style={{ margin: "12px 0" }} />
+          <Card title={<Text strong>Chi tiết theo phút công</Text>} bordered>
+            <Descriptions column={1} size="small" colon={false} labelStyle={{ width: 220 }}>
+              <Descriptions.Item label="Đơn giá lương cơ bản / phút">
+                {unitBaseMin !== null ? `${fmtMoney(unitBaseMin)} đ/phút` : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Đơn giá tăng ca / phút">
+                {otRatePerMin !== null ? `${fmtMoney(otRatePerMin)} đ/phút` : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Lương tăng ca (từ phút tăng ca)">
+                {otAmount !== null ? `${fmtMoney(otAmount)} đ` : "-"}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </>
+      ) : null}
 
       <Divider style={{ margin: "12px 0" }} />
 
@@ -168,7 +248,11 @@ export default function BangLuongCuaToi() {
         <Row gutter={[12, 12]}>
           <Col xs={24} md={12} lg={8}>
             <Card size="small" bordered>
-              <Statistic title="Lương theo công/khoán" value={fmtMoney(data.luong_theo_cong)} suffix="đ" />
+              <Statistic
+                title="Lương theo công/khoán"
+                value={fmtMoney(data.luong_theo_cong)}
+                suffix="đ"
+              />
             </Card>
           </Col>
           <Col xs={24} md={12} lg={8}>
@@ -183,7 +267,11 @@ export default function BangLuongCuaToi() {
           </Col>
           <Col xs={24} md={12} lg={8}>
             <Card size="small" bordered>
-              <Statistic title="R (Khấu trừ khác)" value={fmtMoney(R_deduct_other)} suffix="đ" />
+              <Statistic
+                title="R (Khấu trừ khác)"
+                value={fmtMoney(R_deduct_other)}
+                suffix="đ"
+              />
             </Card>
           </Col>
           <Col xs={24} md={12} lg={8}>

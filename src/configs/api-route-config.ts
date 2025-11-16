@@ -141,6 +141,8 @@ FINANCE_REPORT_ORDERS: "/bao-cao-quan-tri/tai-chinh/orders",
 FINANCE_REPORT_RECEIPTS: "/bao-cao-quan-tri/tai-chinh/receipts",
 FINANCE_REPORT_PAYMENTS: "/bao-cao-quan-tri/tai-chinh/payments",
 FINANCE_REPORT_LEDGER: "/bao-cao-quan-tri/tai-chinh/ledger",
+// Báo cáo Khách hàng (API)
+  CUSTOMER_REPORT_SUMMARY: "/bao-cao-quan-tri/khach-hang/summary",
 
 
   // ==========================================
@@ -304,7 +306,7 @@ CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
   BAO_CAO_QUAN_TRI: "/admin/bao-cao-quan-tri",
   BAO_CAO_KQKD: "/admin/bao-cao-quan-tri/kqkd",
   BAO_CAO_TAI_CHINH: "/admin/bao-cao-quan-tri/tai-chinh",
-
+  BAO_CAO_KHACH_HANG: "/admin/bao-cao-quan-tri/khach-hang",
 
   // ==========================================
   // ✅✅ MỚI: URL CSKH → Điểm thành viên (FE)

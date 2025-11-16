@@ -4,7 +4,7 @@ import "./theme.css";               // 🌸 Pastel Pink tokens chỉ áp dụng 
 import viLocale from "./viLocale";  // JSON locale vi-VN (đã tạo ở src/mobile/viLocale.ts)
 
 /**
- * PHG ERP — Mobile Shell (tone pastel hồng)
+ * PHG Event — Mobile Shell (tone pastel hồng)
  * - Dùng cho /admin/m/*
  * - Không ảnh hưởng UI desktop
  */

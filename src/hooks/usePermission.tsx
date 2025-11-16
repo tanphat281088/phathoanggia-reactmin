@@ -80,6 +80,8 @@ const PATH_ALIAS: Record<string, string> = {
 
   "bao-cao-quan-tri/tai-chinh": "bao-cao-tai-chinh",
 "tai-chinh": "bao-cao-tai-chinh",
+  // Báo cáo khách hàng
+  "bao-cao-quan-tri/khach-hang": "bao-cao-khach-hang",
 
     // HR → Bảng lương
   "nhan-su/bang-luong/my": "payrollMe", // lương của tôi

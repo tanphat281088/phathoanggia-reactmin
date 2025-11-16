@@ -1,14 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import {
-  Button, Card, Descriptions, Flex, Select, Space, Typography, DatePicker, Tag, Modal, message
+  Button,
+  Card,
+  Descriptions,
+  Flex,
+  Select,
+  Space,
+  Typography,
+  DatePicker,
+  Tag,
+  Modal,
+  message,
 } from "antd";
 //            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ dùng static message
 
 import dayjs from "dayjs";
 import axios from "../../configs/axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
-import { timesheetAdmin, timesheetRecompute, type BangCongItem } from "../../services/bangCong.api";
+import {
+  timesheetAdmin,
+  timesheetRecompute,
+  type BangCongItem,
+  computeTimesheetMinuteStats, // ✅ NEW: helper phút chuẩn / tăng ca
+} from "../../services/bangCong.api";
 
 /* ====== MỚI: dùng service chung để tải dropdown Users qua axios instance ====== */
 import { userOptions, type UserOption as UserOptionSvc } from "../../services/user.api";
@@ -18,7 +33,6 @@ const { Title, Text } = Typography;
 type UserOption = { label: string; value: number };
 
 export default function BangCongQuanLy() {
-
   const [thang, setThang] = useState<string>(dayjs().format("YYYY-MM")); // nhãn kỳ = tháng bắt đầu kỳ 6→5
   const [userId, setUserId] = useState<number | undefined>(undefined);
 
@@ -117,10 +131,15 @@ export default function BangCongQuanLy() {
     }
   };
 
+  // ✅ Tính thêm stats phút công để show trên UI
+  const minuteStats = item ? computeTimesheetMinuteStats(item) : null;
+
   // ===== Render =====
   return (
     <Flex vertical gap={16}>
-      <Title level={3} style={{ margin: 0 }}>Bảng công (Quản lý)</Title>
+      <Title level={3} style={{ margin: 0 }}>
+        Bảng công (Quản lý)
+      </Title>
 
       <Card>
         <Space wrap>
@@ -197,7 +216,16 @@ export default function BangCongQuanLy() {
             title={`Kỳ công: ${item.thang} — ${item.user_name ?? `#${item.user_id}`}`}
           >
             <Descriptions.Item label="Số ngày công">{item.so_ngay_cong}</Descriptions.Item>
-     <Descriptions.Item label="Số phút công">{item.so_gio_cong}</Descriptions.Item>
+            <Descriptions.Item label="Số phút công (thực tế)">{item.so_gio_cong}</Descriptions.Item>
+
+            {/* ✅ MỚI: phút công tiêu chuẩn & phút tăng ca dùng cho tính lương */}
+            <Descriptions.Item label="Số phút công tiêu chuẩn (28 ngày x 8h x 60p)">
+              {minuteStats?.standard_minutes}
+            </Descriptions.Item>
+            <Descriptions.Item label="Số phút tăng ca (tính lương)">
+              {minuteStats?.ot_minutes ?? 0}
+            </Descriptions.Item>
+
             <Descriptions.Item label="Đi trễ (phút)">{item.di_tre_phut}</Descriptions.Item>
             <Descriptions.Item label="Về sớm (phút)">{item.ve_som_phut}</Descriptions.Item>
             <Descriptions.Item label="Nghỉ phép (ngày / giờ)">
@@ -206,7 +234,7 @@ export default function BangCongQuanLy() {
             <Descriptions.Item label="Nghỉ không lương (ngày / giờ)">
               {item.nghi_khong_luong_ngay} ngày / {item.nghi_khong_luong_gio} giờ
             </Descriptions.Item>
-<Descriptions.Item label="Làm thêm (phút)">{item.lam_them_gio}</Descriptions.Item>
+            <Descriptions.Item label="Làm thêm (phút)">{item.lam_them_gio}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
               {item.locked ? <Tag color="red">Đã khóa</Tag> : <Tag color="green">Chưa khóa</Tag>}
             </Descriptions.Item>
@@ -215,7 +243,9 @@ export default function BangCongQuanLy() {
             </Descriptions.Item>
           </Descriptions>
         ) : (
-          <Text type="secondary">{userId ? "Chưa có dữ liệu kỳ này." : "Chọn nhân viên để xem bảng công."}</Text>
+          <Text type="secondary">
+            {userId ? "Chưa có dữ liệu kỳ này." : "Chọn nhân viên để xem bảng công."}
+          </Text>
         )}
       </Card>
 

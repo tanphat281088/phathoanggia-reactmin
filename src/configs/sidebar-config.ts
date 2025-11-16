@@ -457,7 +457,13 @@ export const sidebarConfig = (
       icon: React.createElement(BarChart3, { style: iconStyle }),
       onClick: () => navigate(URL_CONSTANTS.BAO_CAO_TAI_CHINH), // "/admin/bao-cao-quan-tri/tai-chinh"
     },
-
+// ✅ MỚI: Báo cáo khách hàng
+        {
+          key: "bao-cao-khach-hang",
+          label: "Báo cáo khách hàng",
+          icon: React.createElement(BarChart3, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.BAO_CAO_KHACH_HANG), // "/admin/bao-cao-quan-tri/khach-hang"
+        },
       ],
     },
 

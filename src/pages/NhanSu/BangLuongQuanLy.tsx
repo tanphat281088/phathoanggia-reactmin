@@ -5,8 +5,6 @@ import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import { DatePicker, Select } from "antd";
 import dayjs from "dayjs";
 
-
-
 type RowItem = {
   id: number;
   user_id: number;
@@ -30,6 +28,7 @@ type RowItem = {
   locked: boolean;
   computed_at?: string | null;
   ghi_chu?: string | null;
+  metrics?: any; // NEW: std_minutes, actual_minutes, ot_minutes, unit_base_min, ot_rate_per_min, ot_amount, ...
 };
 
 function fmtMoney(v?: number | null) {
@@ -42,7 +41,7 @@ function fmtMoney(v?: number | null) {
 }
 
 export default function BangLuongQuanLy() {
-  // YYYY-MM mặc định theo ngày hiện tại, không dùng dayjs để tránh minify issues
+  // YYYY-MM mặc định theo ngày hiện tại
   const [thang, setThang] = useState<string>(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState<boolean>(false);
   const [items, setItems] = useState<RowItem[]>([]);
@@ -56,8 +55,7 @@ export default function BangLuongQuanLy() {
 
   // Modal chọn nhân viên
   const [pickOpen, setPickOpen] = useState<boolean>(false);
-  const [usersFallback, setUsersFallback] = useState<{value:number,label:string}[]>([]);
-
+  const [usersFallback, setUsersFallback] = useState<{ value: number; label: string }[]>([]);
 
   const userOptions = useMemo(
     () =>
@@ -76,43 +74,39 @@ export default function BangLuongQuanLy() {
           <div className="flex items-center gap-3">
             <div className="text-base font-semibold">Bảng lương (Quản lý)</div>
 
-            {/* Native month picker: ổn định, không phụ thuộc rc-picker */}
-<DatePicker
-  picker="month"
-  format="MM/YYYY"
-  value={dayjs(thang + "-01")}
-  onChange={(d) => {
-    const v = d ? d.format("YYYY-MM") : dayjs().format("YYYY-MM");
-    setThang(v);
-  }}
-  allowClear={false}
-  size="small"
-/>
+            {/* Chọn tháng */}
+            <DatePicker
+              picker="month"
+              format="MM/YYYY"
+              value={dayjs(thang + "-01")}
+              onChange={(d) => {
+                const v = d ? d.format("YYYY-MM") : dayjs().format("YYYY-MM");
+                setThang(v);
+              }}
+              allowClear={false}
+              size="small"
+            />
 
-
-{/* Chọn nhanh nhân viên (AntD Select + fallback khi tháng chưa có snapshot) */}
-<Select
-  key={`sel-${thang}-${items.length}-${usersFallback.length}`}  // ÉP re-render khi dữ liệu đổi
-  style={{ minWidth: 220 }}
-  placeholder="Chọn nhân viên"
-  size="small"
-  showSearch
-  optionFilterProp="label"
-  options={
-    items.length
-      ? items.map((i) => ({ label: i.user_name || `#${i.user_id}`, value: i.user_id }))
-      : usersFallback
-  }
-  onChange={(val) => {
-    if (val) onShowDetail(Number(val));
-  }}
-/>
-
-
-
+            {/* Chọn nhanh nhân viên (Select + fallback) */}
+            <Select
+              key={`sel-${thang}-${items.length}-${usersFallback.length}`}
+              style={{ minWidth: 220 }}
+              placeholder="Chọn nhân viên"
+              size="small"
+              showSearch
+              optionFilterProp="label"
+              options={
+                items.length
+                  ? items.map((i) => ({ label: i.user_name || `#${i.user_id}`, value: i.user_id }))
+                  : usersFallback
+              }
+              onChange={(val) => {
+                if (val) onShowDetail(Number(val));
+              }}
+            />
           </div>
 
-          {/* Cụm phải: action buttons (tự wrap khi hẹp) */}
+          {/* Cụm phải: action buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <Button size="small" color="primary" onClick={() => onRecompute()}>
               Tính lại tháng
@@ -124,156 +118,145 @@ export default function BangLuongQuanLy() {
               Mở khóa tháng
             </Button>
             <Button
-  size="small"
-  onClick={() => {
-    const hasSnapshot = items.length > 0;
-    const hasFallback = usersFallback.length > 0;
-    if (!hasSnapshot && !hasFallback) {
-      Toast.show({
-        content: `Chưa có danh sách nhân viên cho kỳ ${thang}. Bấm "Tính lại tháng" hoặc kiểm tra quyền truy cập.`,
-        position: "bottom",
-      });
-      return;
-    }
-    setPickOpen(true);
-  }}
->
-  Chọn nhân viên…
-</Button>
-
+              size="small"
+              onClick={() => {
+                const hasSnapshot = items.length > 0;
+                const hasFallback = usersFallback.length > 0;
+                if (!hasSnapshot && !hasFallback) {
+                  Toast.show({
+                    content: `Chưa có danh sách nhân viên cho kỳ ${thang}. Bấm "Tính lại tháng" hoặc kiểm tra quyền truy cập.`,
+                    position: "bottom",
+                  });
+                  return;
+                }
+                setPickOpen(true);
+              }}
+            >
+              Chọn nhân viên…
+            </Button>
           </div>
         </div>
       </div>
     ),
-   [thang, items, userOptions, usersFallback]   // ⬅️ THÊM usersFallback VÀO ĐÂY
+    [thang, items, userOptions, usersFallback]
   );
 
-const fetchList = async () => {
-  setLoading(true);
-  try {
-const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
-  params: { thang, page: 1, per_page: 200 },
-});
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
+        params: { thang, page: 1, per_page: 200 },
+      });
 
-const ok = res?.success === true;
-const list = ok ? (res?.data?.items ?? []) : [];
-setItems(Array.isArray(list) ? list : []);
-const ttl = ok ? (res?.data?.pagination?.total ?? list.length) : 0;
-setTotal(ttl);
+      const ok = res?.success === true;
+      const list = ok ? (res?.data?.items ?? []) : [];
+      setItems(Array.isArray(list) ? list : []);
+      const ttl = ok ? (res?.data?.pagination?.total ?? list.length) : 0;
+      setTotal(ttl);
 
-if (!list || list.length === 0) {
-  await fetchUsersFallback();
-} else {
-  setUsersFallback([]);
-}
+      if (!list || list.length === 0) {
+        await fetchUsersFallback();
+      } else {
+        setUsersFallback([]);
+      }
 
-if (!ok) {
-  Toast.show({ content: res?.message || "Không lấy được dữ liệu", position: "bottom" });
-}
-
-  } catch (e: any) {
-    Toast.show({ content: e?.message || "Lỗi tải dữ liệu", position: "bottom" });
-  } finally {
-    setLoading(false);
-  }
-};
-
-  
-
-// 1) Mỗi khi đổi tháng -> chỉ gọi fetchList (bên trong đã tự nạp fallback khi rỗng)
-useEffect(() => {
-  fetchList();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [thang]);
-
-// 2) (tùy chọn) pre-warm fallback users 1 lần lúc mount để Select có tên ngay
-useEffect(() => {
-  fetchUsersFallback();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
-
-
-// Fallback lấy DS nhân viên: ưu tiên /nguoi-dung; nếu bị 403/không có quyền thì rơi xuống /nhan-su/bang-luong/list theo tháng
-const fetchUsersFallback = async () => {
-  try {
-    const res1: any = await axios.get(API_ROUTE_CONFIG.NGUOI_DUNG, { params: { page: 1, per_page: 200 } });
-    const list1 =
-      (Array.isArray(res1?.data?.collection) && res1.data.collection) ||
-      (Array.isArray(res1?.data?.items)      && res1.data.items)      ||
-      (Array.isArray(res1?.data?.data)       && res1.data.data)       ||
-      (Array.isArray(res1?.collection)       && res1.collection)      ||
-      (Array.isArray(res1?.items)            && res1.items)           ||
-      (Array.isArray(res1?.data)             && res1.data)            || [];
-    if (list1.length) {
-      setUsersFallback(list1.map((u:any)=>({ value:u.id, label: u.name||u.email||`#${u.id}` })));
-      return;
+      if (!ok) {
+        Toast.show({ content: res?.message || "Không lấy được dữ liệu", position: "bottom" });
+      }
+    } catch (e: any) {
+      Toast.show({ content: e?.message || "Lỗi tải dữ liệu", position: "bottom" });
+    } finally {
+      setLoading(false);
     }
-  } catch(e) {
-    console.warn('[fallback] /nguoi-dung fail -> thử payroll list', e);
-  }
-  try {
-    const res2: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
-      params: { thang, page: 1, per_page: 200 },
-    });
-    const list2 = (res2?.data?.items ?? []) as any[];
-    setUsersFallback(list2.map((it:any)=>({ value: it.user_id, label: it.user_name || `#${it.user_id}` })));
-  } catch(e) {
-    console.error('[fallback] payroll list fail', e);
-    setUsersFallback([]);
-  }
-};
+  };
 
+  useEffect(() => {
+    fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thang]);
 
+  useEffect(() => {
+    fetchUsersFallback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const fetchUsersFallback = async () => {
+    try {
+      const res1: any = await axios.get(API_ROUTE_CONFIG.NGUOI_DUNG, { params: { page: 1, per_page: 200 } });
+      const list1 =
+        (Array.isArray(res1?.data?.collection) && res1.data.collection) ||
+        (Array.isArray(res1?.data?.items) && res1.data.items) ||
+        (Array.isArray(res1?.data?.data) && res1.data.data) ||
+        (Array.isArray(res1?.collection) && res1.collection) ||
+        (Array.isArray(res1?.items) && res1.items) ||
+        (Array.isArray(res1?.data) && res1.data) ||
+        [];
+      if (list1.length) {
+        setUsersFallback(
+          list1.map((u: any) => ({
+            value: u.id,
+            label: u.name || u.email || `#${u.id}`,
+          }))
+        );
+        return;
+      }
+    } catch (e) {
+      console.warn("[fallback] /nguoi-dung fail -> thử payroll list", e);
+    }
+    try {
+      const res2: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_LIST, {
+        params: { thang, page: 1, per_page: 200 },
+      });
+      const list2 = (res2?.data?.items ?? []) as any[];
+      setUsersFallback(
+        list2.map((it: any) => ({
+          value: it.user_id,
+          label: it.user_name || `#${it.user_id}`,
+        }))
+      );
+    } catch (e) {
+      console.error("[fallback] payroll list fail", e);
+      setUsersFallback([]);
+    }
+  };
 
   const onShowDetail = async (user_id: number) => {
     try {
-const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG, {
-  params: { thang, user_id },
-});
-if (res?.success) {
-  setDetail(res.data?.item || null);
-  setDetailOpen(true);
-} else {
-  Toast.show({ content: res?.message || "Không lấy được chi tiết", position: "bottom" });
-}
-
+      const res: any = await axios.get(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG, {
+        params: { thang, user_id },
+      });
+      if (res?.success) {
+        setDetail(res.data?.item || null);
+        setDetailOpen(true);
+      } else {
+        Toast.show({ content: res?.message || "Không lấy được chi tiết", position: "bottom" });
+      }
     } catch (e: any) {
       Toast.show({ content: e?.message || "Lỗi chi tiết", position: "bottom" });
     }
   };
 
+  // ===== Tính lại bảng lương (KHÔNG dùng Dialog.confirm) =====
   const onRecompute = async (user_id?: number) => {
-    const ok = await Dialog.confirm({
-      title: "Tính lại bảng lương",
-      content: user_id
-        ? `Chạy lại cho user #${user_id} ${thang}?`
-        : `Chạy lại toàn bộ tháng ${thang}? (bỏ qua các dòng đã khóa)`,
-    });
-    if (!ok) return;
-
+    console.log("[BangLuongQuanLy] onRecompute CLICK", { thang, user_id });
     try {
       await axios.post(API_ROUTE_CONFIG.NHAN_SU_BANG_LUONG_RECOMPUTE, null, {
         params: { thang, user_id },
       });
       Toast.show({ content: "Đã chạy tính lại", position: "bottom" });
       fetchList();
-      if (user_id && detail?.user_id === user_id) onShowDetail(user_id);
+      if (user_id && detail?.user_id === user_id) {
+        onShowDetail(user_id);
+      }
     } catch (e: any) {
+      console.error("[BangLuongQuanLy] onRecompute ERROR", e);
       Toast.show({ content: e?.message || "Lỗi tính lại", position: "bottom" });
     }
   };
 
+  // ===== Khóa / Mở khóa bảng lương (KHÔNG dùng Dialog.confirm) =====
   const onLockToggle = async (lockState: boolean, user_id?: number) => {
-    const ok = await Dialog.confirm({
-      title: lockState ? "Khóa bảng lương" : "Mở khóa bảng lương",
-      content: user_id
-        ? `${lockState ? "Khóa" : "Mở khóa"} user #${user_id} tháng ${thang}?`
-        : `${lockState ? "Khóa" : "Mở khóa"} toàn bộ tháng ${thang}?`,
-    });
-    if (!ok) return;
-
+    console.log("[BangLuongQuanLy] onLockToggle CLICK", { thang, user_id, lockState });
     try {
       await axios.patch(
         lockState
@@ -282,13 +265,31 @@ if (res?.success) {
         null,
         { params: { thang, user_id } }
       );
-      Toast.show({ content: lockState ? "Đã khóa" : "Đã mở khóa", position: "bottom" });
+      Toast.show({
+        content: lockState ? "Đã khóa bảng lương" : "Đã mở khóa bảng lương",
+        position: "bottom",
+      });
       fetchList();
-      if (user_id && detail?.user_id === user_id) onShowDetail(user_id);
+      if (user_id && detail?.user_id === user_id) {
+        onShowDetail(user_id);
+      }
     } catch (e: any) {
+      console.error("[BangLuongQuanLy] onLockToggle ERROR", e);
       Toast.show({ content: e?.message || "Lỗi khóa/mở khóa", position: "bottom" });
     }
   };
+
+// ===== Export Excel / PDF =====
+const exportPayroll = (format: "csv" | "html" | "pdf", userId: number) => {
+  // Lấy baseURL đang dùng cho axios (vd: https://api.phgfloral.com/api)
+  const base = (axios.defaults.baseURL || "").replace(/\/$/, ""); // bỏ dấu / cuối nếu có
+
+  // Gọi đúng vào API backend: {base}/reports/payroll/export
+  const url = `${base}/reports/payroll/export?user_id=${userId}&thang=${thang}&format=${format}`;
+
+  window.open(url, "_blank");
+};
+
 
   const openUpdate = (r: RowItem) => {
     setDetail(r);
@@ -397,36 +398,35 @@ if (res?.success) {
           <div>
             <div className="text-[14px] font-semibold mb-2">Chọn nhân viên</div>
             {(() => {
-  const pickOptions = (items.length
-    ? items.map((u) => ({ value: u.user_id, label: u.user_name || `#${u.user_id}` }))
-    : usersFallback
-  );
+              const pickOptions =
+                items.length
+                  ? items.map((u) => ({ value: u.user_id, label: u.user_name || `#${u.user_id}` }))
+                  : usersFallback;
 
-  if (!pickOptions.length) {
-    return (
-      <div className="text-sm text-gray-500">
-        Không có dữ liệu người dùng cho kỳ {thang}. Bấm <b>Tính lại tháng</b> hoặc kiểm tra quyền.
-      </div>
-    );
-  }
+              if (!pickOptions.length) {
+                return (
+                  <div className="text-sm text-gray-500">
+                    Không có dữ liệu người dùng cho kỳ {thang}. Bấm <b>Tính lại tháng</b> hoặc kiểm tra quyền.
+                  </div>
+                );
+              }
 
-  return (
-    <List>
-      {pickOptions.map((opt) => (
-        <List.Item
-          key={opt.value}
-          onClick={() => {
-            setPickOpen(false);
-            onShowDetail(Number(opt.value));
-          }}
-        >
-          {opt.label}
-        </List.Item>
-      ))}
-    </List>
-  );
-})()}
-
+              return (
+                <List>
+                  {pickOptions.map((opt) => (
+                    <List.Item
+                      key={opt.value}
+                      onClick={() => {
+                        setPickOpen(false);
+                        onShowDetail(Number(opt.value));
+                      }}
+                    >
+                      {opt.label}
+                    </List.Item>
+                  ))}
+                </List>
+              );
+            })()}
           </div>
         }
       />
@@ -442,6 +442,8 @@ if (res?.success) {
                 {detail.user_name || `#${detail.user_id}`} — {detail.thang}{" "}
                 {detail.locked ? "(Đã khóa)" : ""}
               </div>
+
+              {/* Tổng hợp */}
               <List header="Tổng hợp">
                 <List.Item extra={fmtMoney(detail.luong_co_ban)}>Lương cơ bản</List.Item>
                 <List.Item extra={detail.cong_chuan}>Công chuẩn</List.Item>
@@ -457,11 +459,83 @@ if (res?.success) {
                   <b>Thực nhận</b>
                 </List.Item>
               </List>
+
+              {/* Chi tiết theo phút công */}
+              {(() => {
+                const m = detail.metrics || {};
+                const stdMinutes: number | null = m.std_minutes ?? null;
+                const actualMinutes: number | null = m.actual_minutes ?? null;
+                const baseMinutes: number | null = m.base_minutes ?? null;
+                const otMinutes: number | null = m.ot_minutes ?? null;
+                const unitBaseMin: number | null = m.unit_base_min ?? null;
+                const otRatePerMin: number | null = m.ot_rate_per_min ?? null;
+                const otAmount: number | null = m.ot_amount ?? null;
+
+                const actualEff =
+                  typeof actualMinutes === "number" ? actualMinutes : detail.so_gio_cong || 0;
+
+                if (
+                  stdMinutes === null &&
+                  actualMinutes === null &&
+                  baseMinutes === null &&
+                  otMinutes === null &&
+                  unitBaseMin === null &&
+                  otRatePerMin === null &&
+                  otAmount === null
+                ) {
+                  return null;
+                }
+
+                return (
+                  <List header="Chi tiết theo phút công" style={{ marginTop: 8 }}>
+                    <List.Item extra={stdMinutes !== null ? stdMinutes : "-"}>
+                      Số phút công tiêu chuẩn (28 ngày x 8h x 60p)
+                    </List.Item>
+                    <List.Item extra={actualEff}>Số phút công thực tế</List.Item>
+                    <List.Item
+                      extra={
+                        otMinutes !== null
+                          ? otMinutes
+                          : Math.max(0, actualEff - (stdMinutes || 0))
+                      }
+                    >
+                      Số phút tăng ca (tính lương)
+                    </List.Item>
+                    <List.Item
+                      extra={
+                        unitBaseMin !== null ? `${fmtMoney(unitBaseMin)} đ/phút` : "-"
+                      }
+                    >
+                      Đơn giá lương cơ bản / phút
+                    </List.Item>
+                    <List.Item
+                      extra={
+                        otRatePerMin !== null
+                          ? `${fmtMoney(otRatePerMin)} đ/phút`
+                          : "-"
+                      }
+                    >
+                      Đơn giá tăng ca / phút
+                    </List.Item>
+                    <List.Item
+                      extra={
+                        otAmount !== null ? `${fmtMoney(otAmount)} đ` : "-"
+                      }
+                    >
+                      Lương tăng ca (từ phút tăng ca)
+                    </List.Item>
+                  </List>
+                );
+              })()}
+
               <Space style={{ marginTop: 12 }} wrap>
                 <Button size="small" onClick={() => onRecompute(detail.user_id)}>
                   Tính lại
                 </Button>
-                <Button size="small" onClick={() => onLockToggle(!detail.locked, detail.user_id)}>
+                <Button
+                  size="small"
+                  onClick={() => onLockToggle(!detail.locked, detail.user_id)}
+                >
                   {detail.locked ? "Mở khóa" : "Khóa"}
                 </Button>
                 <Button
@@ -474,6 +548,22 @@ if (res?.success) {
                 >
                   Update thủ công
                 </Button>
+
+                {/* NEW: xuất Excel & PDF */}
+                <Button
+  size="small"
+  onClick={() => exportPayroll("csv", detail.user_id)}
+>
+  Xuất Excel
+</Button>
+<Button
+  size="small"
+  onClick={() => exportPayroll("pdf", detail.user_id)}
+>
+  Xuất PDF
+</Button>
+
+
                 <Button size="small" onClick={() => setDetailOpen(false)}>
                   Đóng
                 </Button>
@@ -502,19 +592,40 @@ if (res?.success) {
                 </Space>
               }
             >
-              <Form.Item name="phu_cap" label="Phụ cấp" rules={[{ required: true }]}>
+              {/* SỬA RULE: message tiếng Việt, tránh mặc định tiếng Trung */}
+              <Form.Item
+                name="phu_cap"
+                label="Phụ cấp"
+                rules={[{ required: true, message: "Vui lòng nhập Phụ cấp" }]}
+              >
                 <Input type="number" inputMode="numeric" placeholder="0" />
               </Form.Item>
-              <Form.Item name="thuong" label="Thưởng" rules={[{ required: true }]}>
+              <Form.Item
+                name="thuong"
+                label="Thưởng"
+                rules={[{ required: true, message: "Vui lòng nhập Thưởng" }]}
+              >
                 <Input type="number" inputMode="numeric" placeholder="0" />
               </Form.Item>
-              <Form.Item name="phat" label="Phạt" rules={[{ required: true }]}>
+              <Form.Item
+                name="phat"
+                label="Phạt"
+                rules={[{ required: true, message: "Vui lòng nhập Phạt" }]}
+              >
                 <Input type="number" inputMode="numeric" placeholder="0" />
               </Form.Item>
-              <Form.Item name="tam_ung" label="Tạm ứng" rules={[{ required: true }]}>
+              <Form.Item
+                name="tam_ung"
+                label="Tạm ứng"
+                rules={[{ required: true, message: "Vui lòng nhập Tạm ứng" }]}
+              >
                 <Input type="number" inputMode="numeric" placeholder="0" />
               </Form.Item>
-              <Form.Item name="khau_tru_khac" label="Khấu trừ khác" rules={[{ required: true }]}>
+              <Form.Item
+                name="khau_tru_khac"
+                label="Khấu trừ khác"
+                rules={[{ required: true, message: "Vui lòng nhập Khấu trừ khác" }]}
+              >
                 <Input type="number" inputMode="numeric" placeholder="0" />
               </Form.Item>
               <Form.Item name="ghi_chu" label="Ghi chú">

@@ -57,6 +57,8 @@ import ThietLapLuong from "../pages/NhanSu/ThietLapLuong";         // MỚI: Thi
 import BaoCaoQuanTri from "../pages/bao-cao-quan-tri";
 
 import BaoCaoTaiChinh from "../pages/bao-cao-quan-tri/BaoCaoTaiChinh";
+import BaoCaoKhachHang from "../pages/bao-cao-quan-tri/BaoCaoKhachHang";
+
 
 
 /** ✅✅✅ Import mới: CSKH → Điểm thành viên */
@@ -376,6 +378,7 @@ export const router = createBrowserRouter([
           { index: true, element: <BaoCaoQuanTri /> },   // /admin/bao-cao-quan-tri
           { path: "kqkd", element: <BaoCaoQuanTri /> },  // /admin/bao-cao-quan-tri/kqkd
           { path: "tai-chinh", element: <BaoCaoTaiChinh /> }, // /admin/bao-cao-quan-tri/tai-chinh
+           { path: "khach-hang", element: <BaoCaoKhachHang /> }, // /admin/bao-cao-quan-tri/khach-hang
 
         ],
       },
