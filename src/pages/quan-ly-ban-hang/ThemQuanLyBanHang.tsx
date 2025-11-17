@@ -6,11 +6,10 @@ import FormQuanLyBanHang from "./FormQuanLyBanHang";
 import { useDispatch } from "react-redux";
 import { clearImageSingle, setReload } from "../../redux/slices/main.slice";
 import dayjs from "dayjs";
-import { ConfigProvider } from "antd";
 
-/* ✅ Responsive hook để biết khi nào là mobile */
+/* Responsive hook để biết khi nào là mobile */
 import { useResponsive } from "../../hooks/useReponsive";
-/* ✅ Thanh hành động cố định đáy cho mobile */
+/* Thanh hành động cố định đáy cho mobile (hiện đang không dùng ở màn Thêm) */
 import MobileActionBar from "../../components/responsive/MobileActionBar";
 
 const ThemQuanLyBanHang = ({
@@ -26,7 +25,6 @@ const ThemQuanLyBanHang = ({
   const [isLoading, setIsLoading] = useState(false);
   const [form] = Form.useForm();
 
-  /* ✅ Lấy cờ isMobile để ẩn footer Modal trên mobile (tránh trùng nút) */
   const { isMobile } = useResponsive();
 
   const showModal = async () => {
@@ -49,29 +47,25 @@ const ThemQuanLyBanHang = ({
       } = values || {};
 
       // ===== Chuẩn hoá loai_khach_hang cho BE =====
-      // UI: 0 = Hệ thống, 1 = Vãng lai, 2 = Pass/CTV
-      // BE: 0 = có khach_hang_id (hệ thống + Pass/CTV), 1 = vãng lai
-      let loaiKhRaw = rest?.loai_khach_hang;
+      // UI: 0 = Hệ thống, 1 = Vãng lai, 2 = Agency
+      // BE: 0 = có khach_hang_id (hệ thống + agency), 1 = vãng lai
+      const loaiKhRaw = rest?.loai_khach_hang;
       let loaiKhForPayload: number | undefined;
 
       if (loaiKhRaw === 1) {
         // Khách vãng lai
         loaiKhForPayload = 1;
-      } else if (loaiKhRaw === 2) {
-        // Khách Pass đơn & CTV → BE vẫn nhận 0
-        loaiKhForPayload = 0;
       } else {
-        // Mặc định: khách hệ thống
+        // 0 hoặc 2 (Agency) → đều map về 0 = khách hệ thống (có khach_hang_id)
         loaiKhForPayload = 0;
       }
 
-      // ===== NEW (an toàn): chỉ gửi thuế khi chọn "Có thuế" =====
+      // ===== Thuế: chỉ gửi khi chọn "Có thuế" =====
       const taxModeNum = Number(values?.tax_mode ?? 0);
       const taxPatch =
         taxModeNum === 1
           ? {
               tax_mode: 1,
-              // Nếu chưa điền, mặc định 8 cho tính nhất quán UI
               vat_rate:
                 values?.vat_rate !== undefined && values?.vat_rate !== null
                   ? Number(values.vat_rate)
@@ -81,9 +75,9 @@ const ThemQuanLyBanHang = ({
 
       const payload = {
         ...rest,
-        loai_khach_hang: loaiKhForPayload, // ⬅️ dùng giá trị đã chuẩn hoá
-        ...taxPatch, // chỉ có khi tax_mode = 1
-        // Chuẩn hoá ngày theo LOCAL, KHÔNG dùng toISOString (tránh lệch UTC)
+        loai_khach_hang: loaiKhForPayload,
+        ...taxPatch,
+        // Chuẩn hoá ngày, tránh dùng toISOString (không lệch UTC)
         ngay_tao_don_hang: values?.ngay_tao_don_hang
           ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
           : null,
@@ -95,7 +89,6 @@ const ThemQuanLyBanHang = ({
           : 0,
       };
 
-      // postData thường trả { success, data, message }
       const closeModel = () => {
         handleCancel();
         dispatch(setReload());
@@ -103,21 +96,19 @@ const ThemQuanLyBanHang = ({
 
       const resp: any = await postData(path, payload, closeModel);
 
-      // Hiển thị mã đơn hàng do BE tự sinh (nếu có)
-      // (Giữ tương thích: thử cả resp?.data?.ma_don_hang và resp?.ma_don_hang)
+      // Hiển thị mã báo giá do BE tự sinh (nếu có)
       const code = resp?.data?.ma_don_hang ?? resp?.ma_don_hang;
       if (code) {
-        message.success(`Tạo đơn thành công: ${code}`);
+        message.success(`Tạo báo giá thành công: ${code}`);
       } else {
-        message.success(`Tạo đơn thành công`);
+        message.success(`Tạo báo giá thành công`);
       }
     } catch (_e) {
-      // postData đã có handleAxiosError; ở đây chỉ đảm bảo loading được tắt
+      // postData đã xử lý lỗi; ở đây chỉ đảm bảo tắt loading
     } finally {
       setIsLoading(false);
     }
   };
-
 
   return (
     <>
@@ -129,13 +120,10 @@ const ThemQuanLyBanHang = ({
       >
         Thêm {title}
       </Button>
-
       <Modal
         title={`Thêm ${title}`}
         open={isModalOpen}
-        /* ✅ Responsive: mobile full-width, desktop giữ 1200 như cũ */
         width={isMobile ? "100%" : 1200}
-        /* ✅ Body cuộn mượt & padding gọn trên mobile (không ảnh hưởng desktop) */
         styles={{
           body: {
             maxHeight: isMobile ? "calc(100vh - 140px)" : undefined,
@@ -146,7 +134,6 @@ const ThemQuanLyBanHang = ({
         onCancel={handleCancel}
         maskClosable={false}
         centered
-        /* ✅ Desktop/Tablet: giữ footer cũ; Mobile: ẩn footer để dùng MobileActionBar */
         footer={
           isMobile
             ? null
@@ -166,9 +153,6 @@ const ThemQuanLyBanHang = ({
               ]
         }
       >
-        {/* ✅ GÓI BẰNG ConfigProvider để Select/DatePicker vẽ dropdown TRONG modal */}
-        {/* ✅ (Rollback) Render dropdown ra body như trước để không bị ăn click */}
-        {/* ====== FORM ====== */}
         <Form
           id="formQuanLyBanHang"
           form={form}
@@ -178,7 +162,7 @@ const ThemQuanLyBanHang = ({
           <FormQuanLyBanHang form={form} />
         </Form>
 
-        {/* ✅ MobileActionBar chỉ cần cho modal SỬA; modal THÊM ban đầu bạn không dùng */}
+        {/* Nếu sau này muốn có thanh action cố định cho mobile thì bật lại block này */}
         {false && isMobile && (
           <MobileActionBar
             primaryLabel="Lưu"

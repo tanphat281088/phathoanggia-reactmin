@@ -1,4 +1,4 @@
-import { Col, Flex, Row } from "antd";
+import { Col, Flex, Row, Tabs } from "antd";
 import Heading from "../../components/heading";
 import DanhSachDanhMucSanPham from "./DanhSachDanhMucSanPham";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
@@ -7,11 +7,11 @@ import { useResponsive } from "../../hooks/useReponsive";
 import usePermission from "../../hooks/usePermission";
 
 const path = API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM;
-const title = "Danh mục sản phẩm";
+// 🔹 ĐỔI TIÊU ĐỀ: Danh mục dịch vụ
+const title = "Danh mục dịch vụ";
 
 const DanhMucSanPham = () => {
     const { isMobile } = useResponsive();
-
     const permission = usePermission(path);
 
     return (
@@ -33,25 +33,55 @@ const DanhMucSanPham = () => {
                             gap: 10,
                         }}
                     >
-                        {/* {permission.export && (
-                          <ExportTable
-                              columns={columns}
-                              path={path}
-                              params={query}
-                          />
-                      )} */}
                         {permission.create && (
                             <ThemDanhMucSanPham path={path} title={title} />
                         )}
                     </Col>
                 </Flex>
+
                 <Row>
                     <Col span={24}>
                         {permission.index && (
-                            <DanhSachDanhMucSanPham
-                                path={path}
-                                permission={permission}
-                                title={title}
+                            <Tabs
+                                defaultActiveKey="all"
+                                items={[
+                                    {
+                                        key: "all",
+                                        label: "Tất cả danh mục",
+                                        children: (
+                                            <DanhSachDanhMucSanPham
+                                                path={path}
+                                                permission={permission}
+                                                title={title}
+                                                mode="all"
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        key: "level1",
+                                        label: "Danh mục tầng 1",
+                                        children: (
+                                            <DanhSachDanhMucSanPham
+                                                path={path}
+                                                permission={permission}
+                                                title={title}
+                                                mode="level1"
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        key: "level2",
+                                        label: "Danh mục tầng 2",
+                                        children: (
+                                            <DanhSachDanhMucSanPham
+                                                path={path}
+                                                permission={permission}
+                                                title={title}
+                                                mode="level2"
+                                            />
+                                        ),
+                                    },
+                                ]}
                             />
                         )}
                     </Col>

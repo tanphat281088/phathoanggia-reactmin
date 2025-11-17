@@ -7,7 +7,8 @@ import { useResponsive } from "../../hooks/useReponsive";
 import usePermission from "../../hooks/usePermission";
 
 const path = API_ROUTE_CONFIG.KHACH_HANG;
-const title = "Khách hàng";
+// 🔹 Đổi title cho đúng ERP sự kiện
+const title = "Khách hàng (Event / Wedding / Agency)";
 
 const KhachHang = () => {
     const { isMobile } = useResponsive();
@@ -23,7 +24,8 @@ const KhachHang = () => {
                     align={isMobile ? "" : "center"}
                     style={{ marginBottom: isMobile ? 20 : 0 }}
                 >
-                    <Heading title={title} />
+                    {/* 🔹 Heading rõ ràng: CRM Khách hàng sự kiện */}
+                    <Heading title="Quản lý khách hàng sự kiện" />
                     <Col
                         span={isMobile ? 24 : 12}
                         style={{
@@ -33,13 +35,6 @@ const KhachHang = () => {
                             gap: 10,
                         }}
                     >
-                        {/* {permission.export && (
-                          <ExportTable
-                              columns={columns}
-                              path={path}
-                              params={query}
-                          />
-                      )} */}
                         {permission.create && (
                             <ThemKhachHang path={path} title={title} />
                         )}

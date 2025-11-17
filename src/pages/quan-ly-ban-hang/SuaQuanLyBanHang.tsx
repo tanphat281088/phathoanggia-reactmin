@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { getDataById } from "../../services/getData.api";
 import { setReload } from "../../redux/slices/main.slice";
 import { putData } from "../../services/updateData";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 
 const SuaQuanLyBanHang = ({
   path,
@@ -22,10 +22,12 @@ const SuaQuanLyBanHang = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form] = Form.useForm();
   const dispatch = useDispatch();
-  // ===== policy cho phép sửa field nào (FE) =====
-const [allowedFields, setAllowedFields] = useState<string[] | undefined>(undefined);
-const [lockAll, setLockAll] = useState(false);
 
+  // policy cho phép sửa field nào (FE)
+  const [allowedFields, setAllowedFields] = useState<string[] | undefined>(
+    undefined
+  );
+  const [lockAll, setLockAll] = useState(false);
 
   const showModal = async () => {
     setIsModalOpen(true);
@@ -38,7 +40,6 @@ const [lockAll, setLockAll] = useState(false);
       const val = data[key];
       if (!val) return;
 
-      // giữ đủ giờ cho các field có thể là datetime
       const looksLikeDateTime =
         /(thoi_gian|_thoi|_at|datetime)/i.test(key) ||
         key === "nguoi_nhan_thoi_gian";
@@ -48,146 +49,146 @@ const [lockAll, setLockAll] = useState(false);
         key !== "nguoi_nhan_thoi_gian";
 
       if (looksLikeDateTime) {
-        data[key] = dayjs(val); // để nguyên giờ
+        data[key] = dayjs(val); // giữ nguyên giờ
       } else if (looksLikeDateOnly) {
         data[key] = dayjs(val, "YYYY-MM-DD");
       }
     });
 
-    // Transform chi_tiet_don_hangs thành format cho FormList
+    // Transform chi_tiet_don_hangs thành format cho Form.List
     let danhSachSanPham: any[] = [];
     if (data?.chi_tiet_don_hangs && Array.isArray(data.chi_tiet_don_hangs)) {
-danhSachSanPham = data?.chi_tiet_don_hangs.map((item: any) => {
-  const sp = item.san_pham || item.sanPham || {};
-  const code = sp.ma_san_pham || sp.ma_vt || sp.ma_sp || sp.code || "";
-  const name = sp.ten_san_pham || sp.ten_vat_tu || sp.ten || sp.name || "";
-  return {
-    san_pham_id: +item.san_pham_id,
-    don_vi_tinh_id: +item.don_vi_tinh_id,
-    so_luong: item.so_luong,
-    don_gia: item.don_gia,
-    tong_tien: item.tong_tien,
-    loai_gia: item?.loai_gia ?? 1,
-    san_pham_label: [code, name].filter(Boolean).join(" - ") || String(item.san_pham_id),
-  };
-});
-
+      danhSachSanPham = data.chi_tiet_don_hangs.map((item: any) => {
+        const sp = item.san_pham || item.sanPham || {};
+        const code =
+          sp.ma_san_pham || sp.ma_vt || sp.ma_sp || sp.code || "";
+        const name =
+          sp.ten_san_pham ||
+          sp.ten_vat_tu ||
+          sp.ten ||
+          sp.name ||
+          "";
+        return {
+          san_pham_id: +item.san_pham_id,
+          don_vi_tinh_id: +item.don_vi_tinh_id,
+          so_luong: item.so_luong,
+          don_gia: item.don_gia,
+          // BE dùng thanh_tien, FE dùng tong_tien → ưu tiên field nào có
+          tong_tien:
+            item.tong_tien !== undefined
+              ? item.tong_tien
+              : item.thanh_tien,
+          // ❌ EVENT: không còn loai_gia
+          // loai_gia: item?.loai_gia ?? 1,
+          san_pham_label:
+            [code, name].filter(Boolean).join(" - ") ||
+            String(item.san_pham_id),
+        };
+      });
     }
 
-    // ===== NEW: Thuế (tương thích ngược) =====
-    // Đơn cũ chưa có trường thuế -> mặc định Không thuế.
+    // Thuế (tương thích ngược)
     const tax_mode =
       data?.tax_mode === 0 || data?.tax_mode === 1
         ? Number(data.tax_mode)
         : 0;
     const vat_rate =
       tax_mode === 1
-        ? (data?.vat_rate !== undefined && data?.vat_rate !== null
-            ? Number(data.vat_rate)
-            : 8)
+        ? data?.vat_rate !== undefined && data?.vat_rate !== null
+          ? Number(data.vat_rate)
+          : 8
         : undefined;
 
-            // % giảm giá thành viên lấy từ DB (nếu có)
+    // % giảm giá thành viên lấy từ DB (nếu có)
     const memberPercent = Number(data?.member_discount_percent ?? 0);
 
-    // ===== Map loại khách hàng DB → form (0: hệ thống, 1: vãng lai, 2: Pass/CTV) =====
-    let formLoaiKhachHang = 0; // mặc định: hệ thống
+    // Map loại khách hàng DB → form (0: Hệ thống, 1: Vãng lai, 2: Agency)
+    let formLoaiKhachHang = 0;
 
     if (data?.loai_khach_hang === 1) {
       // Đơn vãng lai
       formLoaiKhachHang = 1;
     } else {
-      // Đơn gắn khách hàng hệ thống → xem customer_mode
-      const customerMode = Number(data?.khach_hang?.customer_mode ?? 0);
-      if (customerMode === 1) {
-        // Khách Pass đơn & CTV
+      // Đơn gắn KH hệ thống → xem customer_type để biết có phải Agency không
+      const customerType = Number(data?.khach_hang?.customer_type ?? 0);
+      if (customerType === 2) {
+        // 2 = Agency (theo BE)
         formLoaiKhachHang = 2;
       } else {
-        // Khách hệ thống thường
-        formLoaiKhachHang = 0;
+        formLoaiKhachHang = 0; // KH hệ thống thường
       }
     }
-    // ===== NEW: Chuẩn bị text hiển thị "Mã KH - Tên KH - SĐT" cho SỬA đơn =====
-let khachHangDisplay: string | undefined =
-  (data as any)?.khach_hang_display ?? undefined;
 
-const kh = (data as any)?.khach_hang;
-if (!khachHangDisplay && kh) {
-  const code  = kh.ma_kh ?? "";
-  const name  = kh.ten_khach_hang ?? "";
-  const phone = kh.so_dien_thoai ?? "";
-  khachHangDisplay = [code, name, phone].filter(Boolean).join(" - ");
-}
+    // Chuẩn bị text "Mã KH - Tên KH - SĐT"
+    let khachHangDisplay: string | undefined =
+      (data as any)?.khach_hang_display ?? undefined;
 
-
+    const kh = (data as any)?.khach_hang;
+    if (!khachHangDisplay && kh) {
+      const code = kh.ma_kh ?? "";
+      const name = kh.ten_khach_hang ?? "";
+      const phone = kh.so_dien_thoai ?? "";
+      khachHangDisplay = [code, name, phone]
+        .filter((x) => x && String(x).trim() !== "")
+        .join(" - ");
+    }
 
     form.setFieldsValue({
       ...data,
       loai_khach_hang: formLoaiKhachHang,
-      khach_hang_display: khachHangDisplay,   // 🔹 NEW
+      khach_hang_display: khachHangDisplay,
       tax_mode,
       vat_rate,
+      giam_gia_thanh_vien: memberPercent,
       danh_sach_san_pham: danhSachSanPham,
     });
 
+    // BUILD POLICY (allowedFields)
+    const isDelivered =
+      Number(data?.trang_thai_don_hang ?? 0) === 2;
+    const totalGrand = Number(data?.tong_tien_can_thanh_toan ?? 0);
+    const paidGrand = Number(data?.so_tien_da_thanh_toan ?? 0);
+    const stPaid = Number(data?.trang_thai_thanh_toan ?? 0);
+    const isPaidFull =
+      stPaid === 2 || (totalGrand > 0 && paidGrand >= totalGrand);
+    const isOlderThan10Days =
+      dayjs().diff(dayjs(data?.ngay_tao_don_hang), "day") > 10;
 
-console.log("[SUA] danhSachSanPham:", danhSachSanPham);
-console.log("[SUA] label mẫu:", danhSachSanPham?.[0]?.san_pham_label);
-console.log("[SUA] item[0]:", danhSachSanPham?.[0]);
+    let _allowed: string[] | undefined = undefined;
+    let _lockAll = false;
 
-    // ===== BUILD POLICY (allowedFields) =====
-const isDelivered = Number(data?.trang_thai_don_hang ?? 0) === 2;
-const totalGrand  = Number(data?.tong_tien_can_thanh_toan ?? 0);
-const paidGrand   = Number(data?.so_tien_da_thanh_toan ?? 0);
-const stPaid      = Number(data?.trang_thai_thanh_toan ?? 0);
-const isPaidFull  = stPaid === 2 || (totalGrand > 0 && paidGrand >= totalGrand);
-const isOlderThan10Days = dayjs().diff(dayjs(data?.ngay_tao_don_hang), "day") > 10;
+    if (isDelivered && isPaidFull) {
+      _allowed = [];
+      _lockAll = true;
+    } else if (isDelivered) {
+      _allowed = ["loai_thanh_toan", "so_tien_da_thanh_toan", "ghi_chu"];
+    } else if (isOlderThan10Days) {
+      _allowed = [
+        "trang_thai_don_hang",
+        "nguoi_nhan_thoi_gian",
+        "loai_thanh_toan",
+        "so_tien_da_thanh_toan",
+        "ghi_chu",
+        "dia_chi_giao_hang",
+      ];
+    } else {
+      _allowed = undefined; // không giới hạn
+    }
 
-let _allowed: string[] | undefined = undefined;
-let _lockAll = false;
+    setAllowedFields(_allowed);
+    setLockAll(_lockAll);
 
-// Ưu tiên: (1) đã giao + đã thanh toán đủ → khoá toàn bộ
-//          (2) đã giao → chỉ thanh toán + ghi chú
-//          (3) >10 ngày → trạng thái/giờ nhận/thanh toán/ghi chú + ĐỊA CHỈ (chỉ khi CHƯA giao)
-//          (4) còn lại → không giới hạn (undefined)
-if (isDelivered && isPaidFull) {
-  _allowed = [];
-  _lockAll = true;
-} else if (isDelivered) {
-  _allowed = ["loai_thanh_toan","so_tien_da_thanh_toan","ghi_chu"];
-} else if (isOlderThan10Days) {
-  _allowed = [
-    "trang_thai_don_hang",
-    "nguoi_nhan_thoi_gian",
-    "loai_thanh_toan",
-    "so_tien_da_thanh_toan",
-    "ghi_chu",
-    "dia_chi_giao_hang",   // chỉ hợp lệ vì CHƯA giao; nếu đã giao thì đã vào nhánh trên rồi
-  ];
-} else {
-  _allowed = undefined; // không giới hạn
-}
+    // Sync loại thanh toán + số tiền đã thanh toán
+    const total = Number(data?.tong_tien_can_thanh_toan ?? 0);
+    const paid = Number(data?.so_tien_da_thanh_toan ?? 0);
 
-setAllowedFields(_allowed);
-setLockAll(_lockAll);
+    const loaiTT =
+      total <= 0 || paid <= 0 ? 0 : paid >= total ? 2 : 1;
 
-// ===== Sync thanh toán từ DB (đúng quy ước) =====
-// total = tổng cần thanh toán (grand total)
-// paid  = đã thanh toán (thực tế)
-// remain = còn lại
-const total  = Number(data?.tong_tien_can_thanh_toan ?? 0);
-const paid   = Number(data?.so_tien_da_thanh_toan ?? 0);
-const remain = Math.max(0, total - paid);
-
-// 0 = chưa thanh toán; 1 = một phần; 2 = toàn bộ
-const loaiTT = (total <= 0 || paid <= 0) ? 0 : (paid >= total ? 2 : 1);
-
-form.setFieldsValue({
-  loai_thanh_toan: loaiTT,
-  so_tien_da_thanh_toan: paid, // giữ đúng số đã thu trong DB
-});
-
-
+    form.setFieldsValue({
+      loai_thanh_toan: loaiTT,
+      so_tien_da_thanh_toan: paid,
+    });
 
     setIsLoading(false);
   };
@@ -205,40 +206,33 @@ form.setFieldsValue({
         dispatch(setReload());
       };
 
-      // Không gửi mã đơn
+      // Không gửi mã báo giá
       const { ma_don_hang, ...rest } = values || {};
 
-      // ===== Chuẩn hoá loai_khach_hang cho BE =====
-      // UI: 0 = Hệ thống, 1 = Vãng lai, 2 = Pass/CTV
-      // BE: 0 = có khach_hang_id, 1 = vãng lai
+      // Chuẩn hoá loai_khach_hang cho BE
+      // FE: 0 = Hệ thống, 1 = Vãng lai, 2 = Agency
+      // BE (don_hangs.loai_khach_hang): 0 = hệ thống (có khach_hang_id), 1 = vãng lai
       let loaiKhRaw = rest?.loai_khach_hang;
       let loaiKhForPayload: number | undefined;
 
       if (loaiKhRaw === 1) {
-        // Khách vãng lai
-        loaiKhForPayload = 1;
-      } else if (loaiKhRaw === 2) {
-        // Khách Pass đơn & CTV → BE vẫn nhận 0
-        loaiKhForPayload = 0;
+        loaiKhForPayload = 1; // vãng lai
       } else {
-        // Mặc định: khách hệ thống
+        // 0 hoặc 2 (Agency) đều là "hệ thống" ở cấp DonHang
         loaiKhForPayload = 0;
       }
 
-      // Format ngày: ngày tạo chỉ cần date; ngày nhận cần cả giờ
+      // Chuẩn hoá ngày
       const ngayTao: string | null = values?.ngay_tao_don_hang
         ? dayjs(values.ngay_tao_don_hang).format("YYYY-MM-DD")
         : null;
 
-      const tgNhanRaw: string | Dayjs | null = values?.nguoi_nhan_thoi_gian ?? null;
+      const tgNhanRaw: any = values?.nguoi_nhan_thoi_gian ?? null;
       const tgNhan: string | null =
-        tgNhanRaw
-          ? dayjs(tgNhanRaw as any).isValid()
-            ? dayjs(tgNhanRaw as any).format("YYYY-MM-DD HH:mm:ss")
-            : null
+        tgNhanRaw && dayjs(tgNhanRaw).isValid()
+          ? dayjs(tgNhanRaw).format("YYYY-MM-DD HH:mm:ss")
           : null;
 
-      // ===== NEW: chỉ gửi thuế khi Có thuế =====
       const taxModeNum = Number(values?.tax_mode ?? 0);
       const taxPatch =
         taxModeNum === 1
@@ -251,11 +245,10 @@ form.setFieldsValue({
             }
           : {};
 
-      // Không bắt buộc phải đính kèm danh_sach_san_pham khi chỉ sửa thông tin người nhận
       const payload: any = {
         ...rest,
         loai_khach_hang: loaiKhForPayload,
-        ...taxPatch, // ⬅️ chỉ có khi tax_mode=1
+        ...taxPatch,
         ngay_tao_don_hang: ngayTao,
         nguoi_nhan_thoi_gian: tgNhan,
         so_tien_da_thanh_toan: values?.so_tien_da_thanh_toan
@@ -270,7 +263,6 @@ form.setFieldsValue({
       setIsSubmitting(false);
     }
   };
-
 
   return (
     <>
@@ -296,7 +288,7 @@ form.setFieldsValue({
             htmlType="submit"
             size="large"
             loading={isSubmitting}
-             disabled={lockAll}   // ⬅️ thêm
+            disabled={lockAll}
           >
             Lưu
           </Button>,
@@ -311,8 +303,7 @@ form.setFieldsValue({
             console.error("Form validation failed:", errorInfo);
           }}
         >
-     <FormQuanLyBanHang form={form} allowedFields={allowedFields} />
-
+          <FormQuanLyBanHang form={form} allowedFields={allowedFields} />
         </Form>
       </Modal>
     </>

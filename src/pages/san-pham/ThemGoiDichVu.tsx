@@ -1,13 +1,16 @@
 import { PlusOutlined } from "@ant-design/icons";
-import { postData } from "../../services/postData.api";
 import { useState } from "react";
 import { Button, Form, Modal, Row } from "antd";
-import FormDanhMucSanPham from "./FormDanhMucSanPham";
 import { useDispatch, useSelector } from "react-redux";
-import { clearImageSingle, setReload } from "../../redux/slices/main.slice";
+import { postData } from "../../services/postData.api";
+import FormGoiDichVu from "./FormGoiDichVu";
+import {
+    clearImageSingle,
+    setReload,
+} from "../../redux/slices/main.slice";
 import type { RootState } from "../../redux/store";
 
-const ThemDanhMucSanPham = ({
+const ThemGoiDichVu = ({
     path,
     title,
 }: {
@@ -22,10 +25,12 @@ const ThemDanhMucSanPham = ({
 
     const { imageSingle } = useSelector((state: RootState) => state.main);
 
-    const showModal = async () => {
-        // ✅ Mỗi lần mở modal thêm mới: reset form + xoá ảnh đang chọn
+    const showModal = () => {
+        // Mỗi lần mở form gói mới: reset tất cả + xoá ảnh cũ
         form.resetFields();
         dispatch(clearImageSingle());
+        // set mặc định is_package = 1 (gói dịch vụ)
+        form.setFieldsValue({ is_package: 1 });
         setIsModalOpen(true);
     };
 
@@ -37,6 +42,7 @@ const ThemDanhMucSanPham = ({
 
     const onCreate = async (values: any) => {
         setIsLoading(true);
+
         const closeModel = () => {
             handleCancel();
             dispatch(setReload());
@@ -46,7 +52,9 @@ const ThemDanhMucSanPham = ({
             path,
             {
                 ...values,
-                // ✅ Nếu không chọn ảnh thì gửi undefined cho BE tự xử lý
+                // đảm bảo is_package = 1
+                is_package: 1,
+                // ảnh nếu có
                 image: imageSingle || undefined,
             },
             closeModel
@@ -59,14 +67,14 @@ const ThemDanhMucSanPham = ({
         <>
             <Button
                 onClick={showModal}
-                type="primary"
-                title={`Thêm ${title}`}
+                type="default"
+                title={`Thêm gói dịch vụ`}
                 icon={<PlusOutlined />}
             >
-                Thêm {title}
+                Thêm gói dịch vụ
             </Button>
             <Modal
-                title={`Thêm ${title}`}
+                title={`Thêm gói dịch vụ`}
                 open={isModalOpen}
                 width={1000}
                 onCancel={handleCancel}
@@ -76,7 +84,7 @@ const ThemDanhMucSanPham = ({
                     <Row justify="end" key="footer">
                         <Button
                             key="submit"
-                            form="formDanhMucSanPham"
+                            form="formGoiDichVu"
                             type="primary"
                             htmlType="submit"
                             size="large"
@@ -88,16 +96,16 @@ const ThemDanhMucSanPham = ({
                 ]}
             >
                 <Form
-                    id="formDanhMucSanPham"
+                    id="formGoiDichVu"
                     form={form}
                     layout="vertical"
                     onFinish={onCreate}
                 >
-                    <FormDanhMucSanPham form={form} />
+                    <FormGoiDichVu form={form} />
                 </Form>
             </Modal>
         </>
     );
 };
 
-export default ThemDanhMucSanPham;
+export default ThemGoiDichVu;

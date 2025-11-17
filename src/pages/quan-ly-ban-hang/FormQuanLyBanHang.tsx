@@ -12,15 +12,11 @@ import {
   Button,
   Tooltip,
   message,
-
 } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { formatter, parser } from "../../utils/utils";
 import SelectFormApi from "../../components/select/SelectFormApi";
 import { donHangTrangThaiSelect } from "../../configs/select-config";
-
-// ❌ Bỏ generateMaPhieu vì mã được BE tự sinh
-// import { generateMaPhieu } from "../../helpers/funcHelper";
 import dayjs from "dayjs";
 import {
   OPTIONS_LOAI_KHACH_HANG,
@@ -29,20 +25,17 @@ import {
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import { getDataById } from "../../services/getData.api";
 
-
-/* ✅ FIX import: dùng default import đúng chuẩn */
+/* ✅ Component danh sách dịch vụ (chi tiết báo giá) */
 import DanhSachSanPham from "./components/DanhSachSanPham";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { phoneNumberVNPattern } from "../../utils/patterns";
 
-
-/** ====== BỔ SUNG: Định dạng ngày–giờ chuẩn ====== */
+/** ====== Định dạng ngày–giờ ====== */
 const CLIENT_DATETIME_FORMAT = "DD/MM/YYYY HH:mm";
 const SERVER_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
-/** =============================================== */
 
-/** ====== THUẾ: 0=Không thuế (mặc định), 1=Có VAT ====== */
+/** ====== THUẾ: 0=Không thuế, 1=Có VAT ====== */
 const TAX_MODE_OPTIONS = [
   { label: "Không thuế", value: 0 },
   { label: "Có thuế", value: 1 },
@@ -51,47 +44,44 @@ const TAX_MODE_OPTIONS = [
 const FormQuanLyBanHang = ({
   form,
   isDetail = false,
-  allowedFields,            // ⬅️ thêm
+  allowedFields,
 }: {
   form: FormInstance;
   isDetail?: boolean;
-  allowedFields?: string[]; // ⬅️ thêm
+  allowedFields?: string[];
 }) => {
-  // ===== helper: cho phép field nào ====
-  const can = (name: string) => !Array.isArray(allowedFields) || allowedFields.includes(name);
+  // Helper: field nào được phép sửa
+  const can = (name: string) =>
+    !Array.isArray(allowedFields) || allowedFields.includes(name);
   const d = (name: string) => isDetail || !can(name); // disabled?
 
   const loaiKhachHang = Form.useWatch("loai_khach_hang", form);
   const loaiThanhToan = Form.useWatch("loai_thanh_toan", form);
-    const khachHangId = Form.useWatch("khach_hang_id", form);
+  const khachHangId = Form.useWatch("khach_hang_id", form);
 
-     // 🔹 Đọc chuỗi hiển thị "Mã KH - Tên KH - SĐT" từ form (đã set ở ChiTiet/Sửa)
+  // Chuỗi hiển thị "Mã KH - Tên KH - SĐT" (đã set ở ChiTiet/Sửa)
   const khachHangDisplay =
     (form.getFieldValue("khach_hang_display") as string | undefined) || "";
 
-
   const [tongTienHang, setTongTienHang] = useState<number>(0);
 
-  // Theo dõi thay đổi trong danh sách sản phẩm
+  // Theo dõi danh sách dịch vụ trong Form.List
   const danhSachSanPham = Form.useWatch("danh_sach_san_pham", form) || [];
 
-  // Nếu không có danh sách SP, nạp tổng tiền từ DB vào state để công thức hiển thị
-// Nếu không có danh sách SP thì nạp tổng tiền từ DB để công thức hiển thị số
-useEffect(() => {
-  const dbTotal = Number(form.getFieldValue("tong_tien_hang") || 0);
-  if ((!danhSachSanPham || danhSachSanPham.length === 0) && dbTotal > 0) {
-    setTongTienHang(dbTotal);
-  }
-}, [form, danhSachSanPham]);
-
-
+  // Nếu chưa có danh sách dịch vụ thì dùng tổng tiền từ DB để hiển thị ban đầu
+  useEffect(() => {
+    const dbTotal = Number(form.getFieldValue("tong_tien_hang") || 0);
+    if ((!danhSachSanPham || danhSachSanPham.length === 0) && dbTotal > 0) {
+      setTongTienHang(dbTotal);
+    }
+  }, [form, danhSachSanPham]);
 
   /** ---------------- GIỮ BIẾN CŨ (tương thích ngược) ---------------- */
-  // ĐƠN GIÁ ĐÃ GỒM VAT → KHÔNG dùng VAT (logic cũ)
+
   const chiPhi = Form.useWatch("chi_phi", form) || 0;
   const giamGia = Form.useWatch("giam_gia", form) || 0;
 
-    // Giảm giá thành viên (%)
+  // Giảm giá thành viên (%)
   const memberPercent = Form.useWatch("giam_gia_thanh_vien", form) || 0;
 
   // Tiền giảm giá thành viên = % × tổng tiền hàng
@@ -99,27 +89,10 @@ useEffect(() => {
     const tong = Number(tongTienHang || 0);
     const rate = Number(memberPercent || 0);
     if (tong <= 0 || rate <= 0) return 0;
-    return Math.round(tong * rate / 100);
+    return Math.round((tong * rate) / 100);
   }, [tongTienHang, memberPercent]);
 
-
-  // Tổng tiền thanh toán (CŨ) = Tổng hàng - Giảm giá (thành viên + thủ công) + Chi phí
-  // (giữ biến này cho tương thích ngược, nếu có chỗ khác đang dùng)
-  const tongTienThanhToan = useMemo(() => {
-    const tong =
-      (tongTienHang || 0) -
-      (memberDiscountAmount || 0) -
-      (giamGia || 0) +
-      (chiPhi || 0);
-    return Math.max(0, tong);
-  }, [tongTienHang, chiPhi, giamGia, memberDiscountAmount]);
-
-  /** ---------------- THUẾ (MỚI) ---------------- */
-  // Thuế (mặc định KHÔNG THUẾ để giữ y như cũ)
-  const taxMode = Form.useWatch("tax_mode", form) ?? 0; // 0|1
-  const vatRate = Form.useWatch("vat_rate", form);      // %
-
-  // Subtotal = Tổng hàng - Giảm giá (thành viên + thủ công) + Chi phí (kẹp ≥ 0)
+  // Subtotal theo logic cũ: Tổng hàng - Giảm giá (member+thủ công) + Chi phí
   const subtotal = useMemo(() => {
     const tong =
       (tongTienHang || 0) -
@@ -129,26 +102,26 @@ useEffect(() => {
     return Math.max(0, tong);
   }, [tongTienHang, chiPhi, giamGia, memberDiscountAmount]);
 
+  /** ---------------- THUẾ (MỚI) ---------------- */
 
-  // VAT chỉ áp dụng khi tax_mode=1 và vat_rate hợp lệ
+  const taxMode = Form.useWatch("tax_mode", form) ?? 0; // 0|1
+  const vatRate = Form.useWatch("vat_rate", form); // %
+
   const vatAmount = useMemo(() => {
     if (Number(taxMode) !== 1) return 0;
     const rate = Number(vatRate ?? 0);
     if (!(rate > 0)) return 0;
-    return Math.round(subtotal * rate / 100);
+    return Math.round((subtotal * rate) / 100);
   }, [taxMode, vatRate, subtotal]);
 
-  // Tổng tiền thanh toán cuối cùng
   const grandTotal = useMemo(() => {
     if (Number(taxMode) === 1) return subtotal + vatAmount;
-    // giữ hành vi cũ khi Không thuế
     return subtotal;
   }, [taxMode, subtotal, vatAmount]);
 
-  // Theo dõi số tiền đã thanh toán để tính "còn lại"
   const soTienDaThanhToan = Form.useWatch("so_tien_da_thanh_toan", form) || 0;
 
-  // Đồng bộ giá trị "đã thanh toán" theo loại thanh toán
+  // Đồng bộ so_tien_da_thanh_toan theo loại thanh toán
   useEffect(() => {
     if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[0].value) {
       // 0 = Chưa thanh toán
@@ -159,22 +132,19 @@ useEffect(() => {
     }
   }, [loaiThanhToan, grandTotal, form]);
 
-  // Tính số tiền còn lại (kẹp ≥ 0) — phụ thuộc trực tiếp vào loại thanh toán
+  // Số tiền còn lại theo loại thanh toán
   const tongConLai = useMemo(() => {
     if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[0].value) {
-      // 0 = Chưa thanh toán
       return Math.max(0, grandTotal || 0);
     }
     if (loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[2].value) {
-      // 2 = Thanh toán toàn bộ
       return 0;
     }
-    // 1 = Thanh toán một phần
     const remain = (grandTotal || 0) - (soTienDaThanhToan || 0);
     return Math.max(0, remain);
   }, [loaiThanhToan, grandTotal, soTienDaThanhToan]);
 
-  // Tính toán tổng tiền cho từng sản phẩm
+  // Tính tổng tiền từng dòng dịch vụ nếu có chiet_khau (giữ cho tương thích)
   const calculatedProducts = useMemo(() => {
     if (!danhSachSanPham || !Array.isArray(danhSachSanPham)) {
       return [];
@@ -191,14 +161,12 @@ useEffect(() => {
     });
   }, [danhSachSanPham]);
 
-  // Tính tổng tiền hàng từ calculated products
   const calculatedTongTienHang = useMemo(() => {
     return calculatedProducts.reduce((tong, item) => {
       return tong + (item.tongTien || 0);
     }, 0);
   }, [calculatedProducts]);
 
-  // Update form values khi có thay đổi trong calculations
   const updateFormValues = useCallback(() => {
     calculatedProducts.forEach((item) => {
       const currentTongTien = form.getFieldValue([
@@ -215,24 +183,20 @@ useEffect(() => {
     });
   }, [calculatedProducts, form]);
 
-  // Effect để update form values với debounce nhẹ
-// Effect để update form values với debounce nhẹ
-useEffect(() => {
-  const timer = setTimeout(() => {
-    updateFormValues();
-    // ❗ Không ghi đè tổng từ DB khi danh_sach_san_pham đang rỗng
-    if (Array.isArray(danhSachSanPham) && danhSachSanPham.length > 0) {
-      setTongTienHang(calculatedTongTienHang);
-    }
-  }, 50);
-  return () => clearTimeout(timer);
-}, [updateFormValues, calculatedTongTienHang, danhSachSanPham]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateFormValues();
+      if (Array.isArray(danhSachSanPham) && danhSachSanPham.length > 0) {
+        setTongTienHang(calculatedTongTienHang);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [updateFormValues, calculatedTongTienHang, danhSachSanPham]);
 
-
-  // ===== Load Loại khách hàng + Giảm giá thành viên (%) khi chọn KH hệ thống =====
+  // ===== Load hạng khách hàng (loai_khach_hang_ten) + % giảm giá thành viên =====
   useEffect(() => {
     const fetchTier = async () => {
-      // Nếu KH vãng lai hoặc chưa chọn loại KH → reset & thoát
+      // Chỉ áp dụng cho KH hệ thống
       if (loaiKhachHang !== OPTIONS_LOAI_KHACH_HANG[0].value) {
         form.setFieldsValue({
           loai_khach_hang_ten: undefined,
@@ -250,19 +214,18 @@ useEffect(() => {
         return;
       }
 
-         try {
-        const detail: any = await getDataById(id, API_ROUTE_CONFIG.KHACH_HANG);
+      try {
+        const detail: any = await getDataById(
+          id,
+          API_ROUTE_CONFIG.KHACH_HANG
+        );
 
-        // Eloquent relation loaiKhachHang → JSON: loai_khach_hang
         const tier = detail?.loai_khach_hang ?? detail?.loaiKhachHang ?? null;
 
         const tierName =
-          tier?.ten_loai_khach_hang ??
-          "Khách hàng hệ thống";
-
+          tier?.ten_loai_khach_hang ?? "Khách hàng hệ thống";
         const tierPercent = Number(tier?.gia_tri_uu_dai ?? 0);
 
-        // 👉 MỖI LẦN chọn / đổi khách hệ thống → luôn cập nhật % theo hạng hiện tại
         form.setFieldsValue({
           loai_khach_hang_ten: tierName,
           giam_gia_thanh_vien: tierPercent,
@@ -273,43 +236,45 @@ useEffect(() => {
           giam_gia_thanh_vien: 0,
         });
       }
-
     };
 
     void fetchTier();
   }, [loaiKhachHang, khachHangId, form]);
 
-
-  // ====== Re-sync phiếu thu theo mã đơn ngay trong form ======
+  // ====== Re-sync phiếu thu theo mã báo giá ======
   const webBaseUrl = useMemo(() => {
-    // nếu có ENV VITE_WEB_BASE_URL thì dùng; mặc định 8000 là Laravel
     return (import.meta as any).env?.VITE_WEB_BASE_URL ?? "https://api.phgfloral.com";
   }, []);
 
   const handleResync = async () => {
     const code: string = form.getFieldValue("ma_don_hang");
     if (!code) {
-      message.warning("Chưa có mã đơn hàng để đồng bộ.");
+      message.warning("Chưa có mã báo giá để đồng bộ.");
       return;
     }
     const url = `${webBaseUrl}/admin/thu-chi/re-sync-by-code/${encodeURIComponent(
       code
     )}`;
     try {
-      const resp = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
       if (!resp.ok) {
         window.open(url, "_blank");
         message.info("Đã mở tab đồng bộ, vui lòng kiểm tra.");
         return;
       }
-      const data = (await resp.json()) as { success?: boolean; message?: string };
+      const data = (await resp.json()) as {
+        success?: boolean;
+        message?: string;
+      };
       if (data?.success) {
         message.success(data.message || "Đồng bộ phiếu thu thành công.");
       } else {
-        message.error(data?.message || "Đồng bộ phiếu thu thất bại.");
+        message.error(data?.message || "Đồng bộ phiếu thu thất bại");
       }
     } catch (_e) {
-      // Nếu fetch lỗi (CORS, v.v.) → fallback mở tab
       window.open(url, "_blank");
       message.info("Đã mở tab đồng bộ, vui lòng kiểm tra.");
     }
@@ -317,18 +282,16 @@ useEffect(() => {
 
   return (
     <Row gutter={[10, 10]}>
+      {/* ==== MÃ & NGÀY TẠO BÁO GIÁ ==== */}
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
         <Form.Item
           name="ma_don_hang"
-          label="Mã đơn hàng"
-          // ❗Không required và không initialValue (BE tự sinh sau khi lưu)
+          label="Mã báo giá"
           rules={[]}
         >
           <Input
             placeholder="Tự sinh sau khi lưu"
-            // Cho phép xem (read-only) — nếu đang ở màn tạo mới sẽ để trống
-    disabled   // luôn readonly
-
+            disabled
           />
         </Form.Item>
       </Col>
@@ -336,81 +299,77 @@ useEffect(() => {
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
         <Form.Item
           name="ngay_tao_don_hang"
-          label="Ngày tạo đơn hàng"
-          rules={[{ required: true, message: "Ngày tạo đơn hàng không được bỏ trống!" }]}
+          label="Ngày tạo báo giá"
+          rules={[
+            { required: true, message: "Ngày tạo báo giá không được bỏ trống!" },
+          ]}
           initialValue={dayjs()}
         >
           <DatePicker
-            placeholder="Nhập ngày tạo đơn hàng"
+            placeholder="Nhập ngày tạo báo giá"
             style={{ width: "100%" }}
             format="DD/MM/YYYY"
-       disabled={d("ngay_tao_don_hang")}
-
-            /* ✅ Neo popup trong modal để dễ bấm */
-            getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
+            disabled={d("ngay_tao_don_hang")}
+            getPopupContainer={(node) =>
+              (node && node.closest(".ant-modal")) || document.body
+            }
           />
         </Form.Item>
       </Col>
 
+      {/* Loại khách hàng */}
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
         <Form.Item
           name="loai_khach_hang"
           label="Loại khách hàng"
-          rules={[{ required: true, message: "Loại khách hàng không được bỏ trống!" }]}
+          rules={[
+            { required: true, message: "Loại khách hàng không được bỏ trống!" },
+          ]}
           initialValue={0}
         >
           <Select
             options={OPTIONS_LOAI_KHACH_HANG}
             placeholder="Chọn loại khách hàng"
-  disabled={d("loai_khach_hang")}
-
-            /* ⬇️ render dropdown TRONG modal để không bị lớp khác ăn click */
+            disabled={d("loai_khach_hang")}
             getPopupContainer={(trigger) =>
               (trigger && trigger.closest(".ant-modal")) || document.body
             }
             dropdownMatchSelectWidth={false}
-            popupClassName="phg-dd"   /* để CSS nâng z-index */
+            popupClassName="phg-dd"
           />
         </Form.Item>
       </Col>
 
-      {/* ===== TRẠNG THÁI ĐƠN HÀNG (0=Chưa giao,1=Đang giao,2=Đã giao,3=Đã hủy) ===== */}
+      {/* TRẠNG THÁI GIAO HÀNG (vẫn giữ) */}
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
         <Form.Item
           name="trang_thai_don_hang"
-          label="Trạng thái đơn hàng"
+          label="Trạng thái giao hàng"
           rules={[]}
           initialValue={0}
         >
           <Select
             options={donHangTrangThaiSelect}
             placeholder="Chọn trạng thái"
-   disabled={d("trang_thai_don_hang")}
-
-            /* ✅ Neo popup trong modal để dễ bấm */
-            getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
+            disabled={d("trang_thai_don_hang")}
+            getPopupContainer={(node) =>
+              (node && node.closest(".ant-modal")) || document.body
+            }
             dropdownMatchSelectWidth={false}
-            popupClassName="phg-dd"   // ⬅️ THÊM DÒNG NÀY
+            popupClassName="phg-dd"
           />
         </Form.Item>
       </Col>
 
+      {/* KH hệ thống */}
       {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[0].value && (
         <>
           <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
             {khachHangDisplay ? (
-              // Đơn đã có khách (Sửa / Chi tiết): hiển thị text "Mã KH - Tên KH - SĐT"
-              <Form.Item
-                name="khach_hang_display"
-                label="Khách hàng"
-              >
-                <Input
-                  placeholder="Khách hàng"
-                  disabled
-                />
+              <Form.Item name="khach_hang_display" label="Khách hàng">
+                <Input placeholder="Khách hàng" disabled />
               </Form.Item>
             ) : (
-              // Thêm mới: vẫn dùng dropdown chọn khách hệ thống
               <SelectFormApi
                 name="khach_hang_id"
                 label="Khách hàng"
@@ -433,7 +392,7 @@ useEffect(() => {
             )}
           </Col>
 
-          {/* Loại khách hàng (hạng) – chỉ đọc */}
+          {/* Hạng khách hàng */}
           <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
             <Form.Item
               name="loai_khach_hang_ten"
@@ -448,54 +407,60 @@ useEffect(() => {
         </>
       )}
 
-
-
-
+      {/* KH vãng lai */}
       {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value && (
-        <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-          <Form.Item
-            name="ten_khach_hang"
-            label="Tên khách hàng"
-            rules={[
-              {
-                required: loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value,
-                message: "Tên khách hàng không được bỏ trống!",
-              },
-            ]}
-          >
-    <Input placeholder="Nhập tên khách hàng" disabled={d("ten_khach_hang")} />
-
-          </Form.Item>
-        </Col>
+        <>
+          <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
+            <Form.Item
+              name="ten_khach_hang"
+              label="Tên khách hàng"
+              rules={[
+                {
+                  required:
+                    loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value,
+                  message: "Tên khách hàng không được bỏ trống!",
+                },
+              ]}
+            >
+              <Input
+                placeholder="Nhập tên khách hàng"
+                disabled={d("ten_khach_hang")}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
+            <Form.Item
+              name="so_dien_thoai"
+              label="Số điện thoại"
+              rules={[
+                {
+                  required:
+                    loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value,
+                  message: "Số điện thoại không được bỏ trống!",
+                },
+                {
+                  pattern: phoneNumberVNPattern,
+                  message: "Số điện thoại không hợp lệ!",
+                },
+              ]}
+            >
+              <Input
+                placeholder="Nhập số điện thoại"
+                disabled={d("so_dien_thoai")}
+              />
+            </Form.Item>
+          </Col>
+        </>
       )}
 
-      {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value && (
-        <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
-          <Form.Item
-            name="so_dien_thoai"
-            label="Số điện thoại"
-            rules={[
-              {
-                required: loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[1].value,
-                message: "Số điện thoại không được bỏ trống!",
-              },
-              { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ!" },
-            ]}
-          >
- <Input placeholder="Nhập số điện thoại" disabled={d("so_dien_thoai")} />
-
-          </Form.Item>
-        </Col>
-      )}
-
-
-            {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[2].value && (
+      {/* KH Agency (sử dụng module KhachHangPassCtv đã chuyển nghĩa) */}
+      {loaiKhachHang === OPTIONS_LOAI_KHACH_HANG[2].value && (
         <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
           <SelectFormApi
             name="khach_hang_id"
-            label="Khách hàng Pass đơn & CTV"
-           path={API_ROUTE_CONFIG.KHACH_HANG_PASS_CTV + "/options"}
-            placeholder="Chọn khách hàng Pass/CTV"
+            label="Khách hàng Agency"
+            path={API_ROUTE_CONFIG.KHACH_HANG_PASS_CTV + "/options"}
+            placeholder="Chọn khách hàng Agency"
             rules={[
               {
                 required:
@@ -513,26 +478,36 @@ useEffect(() => {
         </Col>
       )}
 
-
+      {/* Địa chỉ (tạm giữ label "Địa chỉ giao hàng" nhưng là địa chỉ liên hệ/billing cho event) */}
       <Col span={16} xs={24} sm={24} md={24} lg={16} xl={16}>
         <Form.Item
           name="dia_chi_giao_hang"
-          label="Địa chỉ giao hàng"
-          rules={[{ required: true, message: "Địa chỉ giao hàng không được bỏ trống!" }]}
+          label="Địa chỉ liên hệ / xuất hóa đơn"
+          rules={[
+            {
+              required: true,
+              message: "Địa chỉ không được bỏ trống!",
+            },
+          ]}
         >
-<Input placeholder="Nhập địa chỉ giao hàng" disabled={d("dia_chi_giao_hang")} />
-
+          <Input
+            placeholder="Nhập địa chỉ liên hệ / xuất hóa đơn"
+            disabled={d("dia_chi_giao_hang")}
+          />
         </Form.Item>
       </Col>
 
-      {/* ===== THÔNG TIN NGƯỜI NHẬN ===== */}
+      {/* THÔNG TIN NGƯỜI NHẬN (giữ, nếu mày dùng cho giao hoa/biên nhận) */}
       <Col span={8} xs={24} sm={24} md={24} lg={8} xl={8}>
         <Form.Item
           name="nguoi_nhan_ten"
           label="Tên người nhận"
           rules={[{ max: 191, message: "Tối đa 191 ký tự" }]}
         >
-    <Input placeholder="Nhập tên người nhận" disabled={d("nguoi_nhan_ten")} />
+          <Input
+            placeholder="Nhập tên người nhận"
+            disabled={d("nguoi_nhan_ten")}
+          />
         </Form.Item>
       </Col>
 
@@ -542,10 +517,16 @@ useEffect(() => {
           label="SĐT người nhận"
           rules={[
             { max: 20, message: "Tối đa 20 ký tự" },
-            { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ!" },
+            {
+              pattern: phoneNumberVNPattern,
+              message: "Số điện thoại không hợp lệ!",
+            },
           ]}
         >
- <Input placeholder="Nhập số điện thoại người nhận (0… hoặc +84…)" disabled={d("nguoi_nhan_sdt")} />
+          <Input
+            placeholder="Nhập số điện thoại người nhận (0… hoặc +84…)"
+            disabled={d("nguoi_nhan_sdt")}
+          />
         </Form.Item>
       </Col>
 
@@ -553,29 +534,28 @@ useEffect(() => {
         <Form.Item
           name="nguoi_nhan_thoi_gian"
           label="Ngày giờ nhận"
-        rules={[{ required: true, message: "Ngày giờ nhận không được bỏ trống!" }]}
-
-          /** ===== BỔ SUNG: luôn chuyển giá trị vào thành dayjs (giữ cả giờ) ===== */
+          rules={[
+            { required: true, message: "Ngày giờ nhận không được bỏ trống!" },
+          ]}
           getValueProps={(value) => {
             if (!value) return { value };
-            const d =
+            const djs =
               typeof value === "string" || typeof value === "number"
                 ? dayjs(value)
                 : value;
-            return { value: d?.isValid?.() ? d : undefined };
+            return { value: djs?.isValid?.() ? djs : undefined };
           }}
-          getValueFromEvent={(value) => value} // giữ nguyên đối tượng dayjs, không tự stringify
+          getValueFromEvent={(value) => value}
         >
           <DatePicker
             placeholder="Chọn ngày giờ nhận"
             style={{ width: "100%" }}
             showTime
             format={CLIENT_DATETIME_FORMAT}
-       
-disabled={d("nguoi_nhan_thoi_gian")}
-
-            /* ✅ Neo popup trong modal để dễ bấm */
-            getPopupContainer={(node) => (node && node.closest(".ant-modal")) || document.body}
+            disabled={d("nguoi_nhan_thoi_gian")}
+            getPopupContainer={(node) =>
+              (node && node.closest(".ant-modal")) || document.body
+            }
           />
         </Form.Item>
       </Col>
@@ -586,32 +566,201 @@ disabled={d("nguoi_nhan_thoi_gian")}
             name="kenh_lien_he_display"
             label="Kênh liên hệ"
           >
-            <Input
-              placeholder="Kênh liên hệ"
-              disabled
-            />
+            <Input placeholder="Kênh liên hệ" disabled />
           </Form.Item>
         </Col>
       )}
 
-
-
-      {/* ===== END – THÔNG TIN NGƯỜI NHẬN ===== */}
-
-      <Col span={24} style={{ marginBottom: 20 }}>
-<DanhSachSanPham form={form} isDetail={isDetail || !can("danh_sach_san_pham")} />
-
+      {/* ===== THÔNG TIN SỰ KIỆN (MỚI) ===== */}
+      <Col span={24}>
+        <Typography.Title level={5} style={{ marginTop: 16 }}>
+          Thông tin sự kiện
+        </Typography.Title>
       </Col>
 
-      {/* ===== HÀNG 1: GIẢM GIÁ / GIẢM GIÁ THÀNH VIÊN / CHI PHÍ / THUẾ / VAT (5 CỘT) ===== */}
+      <Col span={12}>
+        <Form.Item
+          name="project_name"
+          label="Tên dự án / sự kiện"
+        >
+          <Input
+            placeholder="Nhập tên dự án / sự kiện"
+            disabled={d("project_name")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={12}>
+        <Form.Item
+          name="event_type"
+          label="Loại sự kiện"
+        >
+          <Input
+            placeholder="VD: Khai trương, Hội nghị, Tiệc cưới..."
+            disabled={d("event_type")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={12}>
+        <Form.Item
+          name="event_start"
+          label="Thời gian bắt đầu sự kiện"
+        >
+          <DatePicker
+            placeholder="Chọn thời gian bắt đầu"
+            showTime
+            format={CLIENT_DATETIME_FORMAT}
+            style={{ width: "100%" }}
+            disabled={d("event_start")}
+            getPopupContainer={(node) =>
+              (node && node.closest(".ant-modal")) || document.body
+            }
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={12}>
+        <Form.Item
+          name="event_end"
+          label="Thời gian kết thúc sự kiện"
+        >
+          <DatePicker
+            placeholder="Chọn thời gian kết thúc"
+            showTime
+            format={CLIENT_DATETIME_FORMAT}
+            style={{ width: "100%" }}
+            disabled={d("event_end")}
+            getPopupContainer={(node) =>
+              (node && node.closest(".ant-modal")) || document.body
+            }
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="guest_count"
+          label="Số lượng khách dự kiến"
+        >
+          <InputNumber
+            min={0}
+            style={{ width: "100%" }}
+            placeholder="Nhập số khách"
+            disabled={d("guest_count")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="venue_name"
+          label="Địa điểm / Nhà hàng"
+        >
+          <Input
+            placeholder="Tên địa điểm, nhà hàng, khách sạn..."
+            disabled={d("venue_name")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="venue_address"
+          label="Địa chỉ tổ chức"
+        >
+          <Input
+            placeholder="Địa chỉ chi tiết nơi tổ chức sự kiện"
+            disabled={d("venue_address")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="contact_name"
+          label="Người liên hệ chính"
+        >
+          <Input
+            placeholder="VD: Chị Lan - Marketing"
+            disabled={d("contact_name")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="contact_phone"
+          label="SĐT người liên hệ"
+          rules={[
+            { max: 50, message: "Tối đa 50 ký tự" },
+            { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ!" },
+          ]}
+        >
+          <Input
+            placeholder="Nhập số điện thoại liên hệ"
+            disabled={d("contact_phone")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="contact_email"
+          label="Email người liên hệ"
+          rules={[
+            { type: "email", message: "Email không hợp lệ" },
+          ]}
+        >
+          <Input
+            placeholder="Nhập email liên hệ"
+            disabled={d("contact_email")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="contact_department"
+          label="Phòng ban"
+        >
+          <Input
+            placeholder="VD: Phòng Marketing, HR..."
+            disabled={d("contact_department")}
+          />
+        </Form.Item>
+      </Col>
+
+      <Col span={8}>
+        <Form.Item
+          name="contact_position"
+          label="Chức vụ"
+        >
+          <Input
+            placeholder="VD: Trưởng phòng, Manager..."
+            disabled={d("contact_position")}
+          />
+        </Form.Item>
+      </Col>
+
+      {/* ===== DANH SÁCH DỊCH VỤ ===== */}
+      <Col span={24} style={{ marginBottom: 20 }}>
+        <DanhSachSanPham
+          form={form}
+          isDetail={isDetail || !can("danh_sach_san_pham")}
+        />
+      </Col>
+
+      {/* ===== HÀNG 1: GIẢM GIÁ / GIẢM GIÁ THÀNH VIÊN / CHI PHÍ / THUẾ / VAT ===== */}
       <Col span={24}>
         <Row gutter={[16, 8]} align="middle" wrap={false}>
-          {/* Giảm giá thủ công (VNĐ) */}
           <Col flex="0 0 20%">
             <Form.Item
               name="giam_gia"
               label="Giảm giá"
-              rules={[{ required: true, message: "Giảm giá không được bỏ trống!" }]}
+              rules={[
+                { required: true, message: "Giảm giá không được bỏ trống!" },
+              ]}
               initialValue={0}
               style={{ marginBottom: 0 }}
             >
@@ -628,7 +777,6 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </Form.Item>
           </Col>
 
-          {/* Giảm giá thành viên (%) – auto theo hạng khách hàng */}
           <Col flex="0 0 20%">
             <Form.Item
               name="giam_gia_thanh_vien"
@@ -646,12 +794,13 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </Form.Item>
           </Col>
 
-          {/* Chi phí vận chuyển */}
           <Col flex="0 0 20%">
             <Form.Item
               name="chi_phi"
               label="Chi phí vận chuyển"
-              rules={[{ required: true, message: "Chi phí không được bỏ trống!" }]}
+              rules={[
+                { required: true, message: "Chi phí không được bỏ trống!" },
+              ]}
               initialValue={0}
               style={{ marginBottom: 0 }}
             >
@@ -668,7 +817,6 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </Form.Item>
           </Col>
 
-          {/* Thuế */}
           <Col flex="0 0 20%">
             <Form.Item
               name="tax_mode"
@@ -689,14 +837,13 @@ disabled={d("nguoi_nhan_thoi_gian")}
                   if (v !== 1) {
                     form.setFieldsValue({ vat_rate: undefined });
                   } else {
-                    form.setFieldsValue({ vat_rate: 8 }); // mặc định 8%
+                    form.setFieldsValue({ vat_rate: 8 });
                   }
                 }}
               />
             </Form.Item>
           </Col>
 
-          {/* VAT (%) — chỉ render khi Có thuế */}
           {Number(taxMode) === 1 ? (
             <Col flex="0 0 20%">
               <Form.Item
@@ -722,21 +869,23 @@ disabled={d("nguoi_nhan_thoi_gian")}
         </Row>
       </Col>
 
-
-      {/* ===== HÀNG 2: LOẠI THANH TOÁN / SỐ TIỀN ĐÃ THANH TOÁN (2 CỘT) ===== */}
+      {/* ===== HÀNG 2: LOẠI THANH TOÁN / ĐÃ THANH TOÁN ===== */}
       <Col span={24}>
         <Row gutter={[16, 8]} align="middle" wrap={false} style={{ marginTop: 8 }}>
-          {/* Filler trái để giữ layout ổn định */}
           <Col flex="0 0 33.33%">
             <div style={{ height: 56 }} />
           </Col>
 
-          {/* Loại thanh toán — giữa */}
           <Col flex="0 0 320px">
             <Form.Item
               name="loai_thanh_toan"
               label={<span style={{ whiteSpace: "nowrap" }}>Loại thanh toán</span>}
-              rules={[{ required: true, message: "Loại thanh toán không được bỏ trống!" }]}
+              rules={[
+                {
+                  required: true,
+                  message: "Loại thanh toán không được bỏ trống!",
+                },
+              ]}
               initialValue={0}
               style={{ marginBottom: 0 }}
             >
@@ -753,7 +902,6 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </Form.Item>
           </Col>
 
-          {/* Số tiền đã thanh toán — phải; nếu KHÔNG “một phần” vẫn giữ chỗ để không rớt */}
           <Col flex="1 1 33.33%">
             {loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[1].value ? (
               <Form.Item
@@ -761,14 +909,20 @@ disabled={d("nguoi_nhan_thoi_gian")}
                 label="Số tiền đã thanh toán"
                 style={{ marginBottom: 0 }}
                 rules={[
-                  { required: true, message: "Số tiền đã thanh toán không được bỏ trống!" },
+                  {
+                    required: true,
+                    message:
+                      "Số tiền đã thanh toán không được bỏ trống!",
+                  },
                   () => ({
                     validator(_, val) {
                       const max = Number(grandTotal || 0);
                       const num = Number(val || 0);
                       return num >= 0 && num <= max
                         ? Promise.resolve()
-                        : Promise.reject(new Error(`Tối đa ${formatter(max)} đ`));
+                        : Promise.reject(
+                            new Error(`Tối đa ${formatter(max)} đ`)
+                          );
                     },
                   }),
                 ]}
@@ -791,13 +945,18 @@ disabled={d("nguoi_nhan_thoi_gian")}
         </Row>
       </Col>
 
-      {/* ===== HÀNG 3: TỔNG TIỀN THANH TOÁN & CÒN LẠI (2 CỘT, CÙNG HÀNG) ===== */}
+      {/* ===== HÀNG 3: Tổng & Còn lại ===== */}
       <Col span={24}>
         <Row gutter={[16, 8]} align="middle" wrap={false} style={{ marginTop: 8 }}>
-          {/* Tổng tiền thanh toán — trái */}
           <Col flex="0 0 50%">
             <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 600, whiteSpace: "nowrap", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  marginBottom: 6,
+                }}
+              >
                 Tổng tiền thanh toán
               </div>
               <div style={{ fontSize: 20 }}>
@@ -806,10 +965,15 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </div>
           </Col>
 
-          {/* Tổng tiền thanh toán còn lại — phải */}
           <Col flex="0 0 50%">
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 600, whiteSpace: "nowrap", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  marginBottom: 6,
+                }}
+              >
                 Tổng tiền thanh toán còn lại
               </div>
               <div style={{ fontSize: 20 }}>
@@ -820,9 +984,7 @@ disabled={d("nguoi_nhan_thoi_gian")}
         </Row>
       </Col>
 
-
-
-      {/* Hàng thông tin thanh toán thực tế + nút đồng bộ */}
+      {/* Hàng thông tin thu thực tế + nút đồng bộ phiếu thu */}
       <Col span={24}>
         <Row align="middle" gutter={[10, 10]}>
           <Col flex="auto">
@@ -831,7 +993,7 @@ disabled={d("nguoi_nhan_thoi_gian")}
             </Typography.Text>
           </Col>
           <Col>
-            <Tooltip title="Đồng bộ lại phiếu thu theo mã đơn (server sẽ tự cân)">
+            <Tooltip title="Đồng bộ lại phiếu thu theo mã báo giá (server sẽ tự cân)">
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleResync}
@@ -846,8 +1008,7 @@ disabled={d("nguoi_nhan_thoi_gian")}
 
       <Col span={24}>
         <Form.Item name="ghi_chu" label="Ghi chú">
-<Input.TextArea placeholder="Ghi chú" disabled={d("ghi_chu")} />
-
+          <Input.TextArea placeholder="Ghi chú" disabled={d("ghi_chu")} />
         </Form.Item>
       </Col>
     </Row>

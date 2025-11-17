@@ -33,11 +33,25 @@ const SuaDanhMucSanPham = ({
     const showModal = async () => {
         setIsModalOpen(true);
         setIsLoading(true);
+
         const data = await getDataById(id, path);
-        dispatch(setImageSingle(data.images[0].path));
+
+        // ✅ AN TOÀN HƠN: chỉ set imageSingle nếu có ảnh
+        const firstImage =
+            data?.images && Array.isArray(data.images) && data.images.length > 0
+                ? data.images[0].path
+                : null;
+
+        if (firstImage) {
+            dispatch(setImageSingle(firstImage));
+        } else {
+            dispatch(clearImageSingle());
+        }
+
         form.setFieldsValue({
             ...data,
         });
+
         setIsLoading(false);
     };
 
@@ -53,15 +67,18 @@ const SuaDanhMucSanPham = ({
             handleCancel();
             dispatch(setReload());
         };
+
         await putData(
             path,
             id,
             {
                 ...values,
-                image: imageSingle,
+                // ✅ Nếu không có ảnh mới, gửi undefined để BE tự xử lý
+                image: imageSingle || undefined,
             },
             closeModel
         );
+
         setIsSubmitting(false);
     };
 

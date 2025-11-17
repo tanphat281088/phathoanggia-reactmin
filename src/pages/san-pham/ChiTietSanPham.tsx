@@ -28,18 +28,49 @@ const ChiTietSanPham = ({
     const showModal = async () => {
         setIsModalOpen(true);
         setIsLoading(true);
+
         const data = await getDataById(id, path);
-        dispatch(setImageSingle(data.images[0].path));
+
+        // ✅ Ảnh: chỉ set nếu có ảnh
+        const firstImage =
+            data?.images && Array.isArray(data.images) && data.images.length > 0
+                ? data.images[0].path
+                : null;
+
+        if (firstImage) {
+            dispatch(setImageSingle(firstImage));
+        }
+
+        // ✅ Đơn vị tính (an toàn nếu không có)
+        const dvtIds = Array.isArray(data.don_vi_tinhs)
+            ? data.don_vi_tinhs.map((item: { value: number }) => item.value)
+            : [];
+
+        // ✅ Nhà cung cấp (an toàn nếu không có)
+        const nccIds = Array.isArray(data.nha_cung_caps)
+            ? data.nha_cung_caps.map((item: { value: number }) => item.value)
+            : [];
+
+        // ✅ Chi tiết gói (package_items) nếu là gói dịch vụ
+        const pkgItems = Array.isArray(data.package_items)
+            ? data.package_items.map((p: any) => ({
+                  // FormSanPham cần item_id + so_luong + ghi_chu
+                  item_id: p.item_id ?? p.item?.id ?? null,
+                  so_luong: p.so_luong ?? 0,
+                  ghi_chu: p.ghi_chu ?? "",
+              }))
+            : [];
+
         form.setFieldsValue({
             ...data,
-            don_vi_tinh_id: data.don_vi_tinhs.map(
-                (item: { value: number }) => item.value
-            ),
-            nha_cung_cap_id: data.nha_cung_caps.map(
-                (item: { value: number }) => item.value
-            ),
-            image: data.images[0].path,
+            don_vi_tinh_id: dvtIds,
+            nha_cung_cap_id: nccIds,
+            image: firstImage || undefined,
+            // is_package: BE trả bool → form dùng 0/1
+            is_package: data.is_package ? 1 : 0,
+            package_items: pkgItems,
         });
+
         setIsLoading(false);
     };
 

@@ -6,22 +6,15 @@ import axios from "axios";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import { phoneNumberVNPattern } from "../../utils/patterns";
 
-/** Danh sách cố định cho dropdown kênh liên hệ */
+/** Danh sách cố định cho dropdown kênh liên hệ (ERP sự kiện) */
 const KENH_LIEN_HE_OPTIONS = [
-  "Zalo Nana",
   "Facebook",
   "Zalo",
   "Hotline",
   "Website",
-  "Tiktok",
-  "Khách vãng lai",
+  "Khách cũ",
+  "Khách quen giới thiệu",
   "Khác",
-  "Fanpage PHG",
-  "CTV Ái Tân",
-  "Sự kiện Phát Hoàng Gia",
-  "Zalo Hoatyuet",
-  "Fanpage Hoatyuet",
-  "Facebook Tuyết Võ",
 ].map((v) => ({ label: v, value: v }));
 
 type Props = {
@@ -66,25 +59,29 @@ const makePlainAxios = () => {
 
 /** Hỗ trợ cả trường hợp resp là AxiosResponse lẫn resp là response.data */
 const isSuccess = (resp: any) => {
-  // Trường hợp interceptor trả thẳng response.data
   if (resp && typeof resp === "object" && "success" in resp) {
     return !!resp.success;
   }
   if (resp && typeof resp === "object" && typeof resp.status === "string") {
     return resp.status.toLowerCase() === "success";
   }
-  // Trường hợp là AxiosResponse đầy đủ
-  const statusOk = typeof resp?.status === "number" && resp.status >= 200 && resp.status < 300;
+  const statusOk =
+    typeof resp?.status === "number" &&
+    resp.status >= 200 &&
+    resp.status < 300;
   const d = resp?.data;
   if (typeof d === "object" && d) {
     if (typeof d.success !== "undefined") return !!d.success;
-    if (typeof d.status === "string") return d.status.toLowerCase() === "success";
+    if (typeof d.status === "string")
+      return d.status.toLowerCase() === "success";
   }
   return statusOk;
 };
 
-const successMessage = (resp: any, fallback = "Đã chuyển thành khách hàng hệ thống") => {
-  // resp có thể là data hoặc AxiosResponse
+const successMessage = (
+  resp: any,
+  fallback = "Đã chuyển thành khách hàng hệ thống"
+) => {
   if (resp?.message) return resp.message;
   if (resp?.msg) return resp.msg;
   if (resp?.data?.message) return resp.data.message;
@@ -93,33 +90,41 @@ const successMessage = (resp: any, fallback = "Đã chuyển thành khách hàng
 };
 
 const errorMessage = (resp: any, fallback = "Chuyển đổi thất bại") => {
-  // resp có thể là data hoặc AxiosResponse hoặc string
   const d = resp?.data ?? resp;
   if (typeof d === "object" && d) return d?.message || d?.error || fallback;
-  if (typeof d === "string" && d.trim()) return d.length > 200 ? fallback : d;
-  if (resp?.status && resp.status >= 400) return `${fallback} (HTTP ${resp.status})`;
+  if (typeof d === "string" && d.trim())
+    return d.length > 200 ? fallback : d;
+  if (resp?.status && resp.status >= 400)
+    return `${fallback} (HTTP ${resp.status})`;
   return fallback;
 };
 
-const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
+const ConvertVangLaiModal = ({
+  open,
+  onClose,
+  record,
+  onConverted,
+}: Props) => {
   const [form] = Form.useForm();
-  const { message } = App.useApp(); // GIỮ NGUYÊN theo code gốc
+  const { message } = App.useApp();
   const [submitting, setSubmitting] = useState(false);
 
-  // Lớp an toàn cho message: ưu tiên context, fallback static để không crash UI
   const notify = {
     success: (msg: string) => {
-      if (message && typeof (message as any).success === "function") return message.success(msg);
+      if (message && typeof (message as any).success === "function")
+        return message.success(msg);
       return antdMessage.success(msg);
     },
     error: (msg: string) => {
-      if (message && typeof (message as any).error === "function") return message.error(msg);
+      if (message && typeof (message as any).error === "function")
+        return message.error(msg);
       return antdMessage.error(msg);
     },
   };
 
   const KH_VL_CONVERT =
-    (API_ROUTE_CONFIG as any)?.KHACH_HANG_VANG_LAI_CONVERT ?? "/khach-hang-vang-lai/convert";
+    (API_ROUTE_CONFIG as any)?.KHACH_HANG_VANG_LAI_CONVERT ??
+    "/khach-hang-vang-lai/convert";
 
   const handleOk = async () => {
     try {
@@ -139,13 +144,11 @@ const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
         kenh_lien_he: values?.kenh_lien_he || null,
       };
 
-      // ✅ Dùng baseAxios để có Authorization + refresh token (KHÔNG dùng plainAxios)
-      // Lưu ý: interceptor của bạn trả thẳng response.data vào resp
+      // Dùng baseAxios để có Authorization + refresh token
       const resp: any = await baseAxios.post(KH_VL_CONVERT, payload);
 
       if (isSuccess(resp)) {
         notify.success(successMessage(resp));
-        // Đóng trước, rồi reload list – bọc try/catch để không kẹt UI
         try {
           onClose?.();
         } catch (err) {
@@ -160,16 +163,10 @@ const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
         notify.error(errorMessage(resp));
       }
     } catch (e: any) {
-      // Lỗi validate FE của antd
       if (e?.errorFields) return;
-
-      // Lỗi HTTP/axios (có thể là AxiosError hoặc custom)
       const data = e?.response?.data ?? e;
       const msg =
-        data?.message ||
-        data?.error ||
-        e?.message ||
-        "Lỗi chuyển đổi";
+        data?.message || data?.error || e?.message || "Lỗi chuyển đổi";
       notify.error(msg);
     } finally {
       setSubmitting(false);
@@ -185,7 +182,12 @@ const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
         <Button key="cancel" onClick={onClose} disabled={submitting}>
           Hủy
         </Button>,
-        <Button key="ok" type="primary" onClick={handleOk} loading={submitting}>
+        <Button
+          key="ok"
+          type="primary"
+          onClick={handleOk}
+          loading={submitting}
+        >
           Chuyển
         </Button>,
       ]}
@@ -220,7 +222,10 @@ const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
               label="Số điện thoại"
               rules={[
                 { required: true, message: "Vui lòng nhập số điện thoại" },
-                { pattern: phoneNumberVNPattern, message: "Số điện thoại không hợp lệ" },
+                {
+                  pattern: phoneNumberVNPattern,
+                  message: "Số điện thoại không hợp lệ",
+                },
               ]}
             >
               <Input placeholder="0… hoặc +84…" />
@@ -239,8 +244,16 @@ const ConvertVangLaiModal = ({ open, onClose, record, onConverted }: Props) => {
           </Col>
 
           <Col span={12}>
-            <Form.Item name="kenh_lien_he" label="Kênh liên hệ" tooltip="Danh sách cố định">
-              <Select allowClear placeholder="Chọn kênh liên hệ" options={KENH_LIEN_HE_OPTIONS} />
+            <Form.Item
+              name="kenh_lien_he"
+              label="Kênh liên hệ"
+              tooltip="Danh sách cố định"
+            >
+              <Select
+                allowClear
+                placeholder="Chọn kênh liên hệ"
+                options={KENH_LIEN_HE_OPTIONS}
+              />
             </Form.Item>
           </Col>
 

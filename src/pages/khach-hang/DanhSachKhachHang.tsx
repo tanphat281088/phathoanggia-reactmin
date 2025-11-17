@@ -25,23 +25,28 @@ import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 
 import axios from "../../configs/axios";
 
-
-/** Danh sách cố định cho dropdown Kênh liên hệ */
+/** Danh sách cố định cho dropdown Kênh liên hệ (ERP Sự kiện) */
 const KENH_LIEN_HE_OPTIONS = [
-  { label: "Zalo Nana", value: "Zalo Nana" },
   { label: "Facebook", value: "Facebook" },
   { label: "Zalo", value: "Zalo" },
   { label: "Hotline", value: "Hotline" },
   { label: "Website", value: "Website" },
-  { label: "Tiktok", value: "Tiktok" },
-  { label: "Khách vãng lai", value: "Khách vãng lai" },
+  { label: "Khách cũ", value: "Khách cũ" },
+  { label: "Khách quen giới thiệu", value: "Khách quen giới thiệu" },
   { label: "Khác", value: "Khác" },
-  { label: "Fanpage PHG", value: "Fanpage PHG" },
-  { label: "CTV Ái Tân", value: "CTV Ái Tân" },
-  { label: "Sự kiện Phát Hoàng Gia", value: "Sự kiện Phát Hoàng Gia" },
-  { label: "Zalo Hoatyuet", value: "Zalo Hoatyuet" },
-  { label: "Fanpage Hoatyuet", value: "Fanpage Hoatyuet" },
-  { label: "Facebook Tuyết Võ", value: "Facebook Tuyết Võ" },
+];
+
+/** Mapping nhóm khách hàng từ customer_type (BE) */
+const CUSTOMER_TYPE_LABEL: Record<number, string> = {
+  0: "Khách Event",
+  1: "Khách Wedding",
+  2: "Khách Agency",
+};
+
+const CUSTOMER_TYPE_OPTIONS = [
+  { label: "Khách Event", value: 0 },
+  { label: "Khách Wedding", value: 1 },
+  { label: "Khách Agency", value: 2 },
 ];
 
 const DanhSachKhachHang = ({
@@ -83,35 +88,32 @@ const DanhSachKhachHang = ({
     setDanhSach(danhSach);
   };
 
-  const handleConvertToPassCtv = async (id: number) => {
+  // Convert khách thường → Agency (gọi API KhachHangPassCtvController::convertToPass)
+  const handleConvertToAgency = async (id: number) => {
     try {
       const url = API_ROUTE_CONFIG.KHACH_HANG_PASS_CTV_CONVERT_TO_PASS(id);
       const resp: any = await axios.post(url);
 
-      // Interceptor có thể trả resp hoặc resp.data, gom lại cho chắc
       const data = resp?.data ?? resp ?? {};
 
       const msg =
         data?.message ||
         data?.msg ||
-        "Đã chuyển sang Khách hàng Pass đơn & CTV";
+        "Đã chuyển sang Khách hàng Agency";
 
       message.success(msg);
-      // Reload lại danh sách sau khi chuyển
       getDanhSach();
     } catch (e: any) {
-      console.error("[KH] convert to Pass/CTV error", e);
+      console.error("[KH] convert to Agency error", e);
       const data = e?.response?.data ?? e;
       const msg =
         data?.message ||
         data?.error ||
         e?.message ||
-        "Chuyển sang Khách hàng Pass đơn & CTV thất bại";
+        "Chuyển sang Khách hàng Agency thất bại";
       message.error(String(msg));
     }
   };
-
-
 
   const defaultColumns: any = [
     {
@@ -123,7 +125,6 @@ const DanhSachKhachHang = ({
         return filter.limit && (filter.page - 1) * filter.limit + index + 1;
       },
     },
-    // MỚI: Mã KH
     {
       title: "Mã KH",
       dataIndex: "ma_kh",
@@ -134,12 +135,13 @@ const DanhSachKhachHang = ({
         nameColumn: "Mã KH",
       }),
     },
-        {
+    {
       title: "Thao tác",
       dataIndex: "id",
       align: "center",
       render: (id: number, record: any) => {
-        const isPassCtv = Number(record?.customer_mode ?? 0) === 1;
+        const customerType = Number(record?.customer_type ?? 0);
+        const isAgency = customerType === 2;
 
         return (
           <Space size={4}>
@@ -147,13 +149,13 @@ const DanhSachKhachHang = ({
               <SuaKhachHang path={path} id={id} title={title} />
             )}
 
-            {/* Nút chuyển sang KH Pass đơn & CTV – chỉ hiện nếu KH hiện không phải Pass/CTV */}
-            {permission.edit && !isPassCtv && (
+            {/* Nút chuyển sang KH Agency – chỉ hiện nếu chưa là Agency */}
+            {permission.edit && !isAgency && (
               <Button
                 size="small"
-                onClick={() => handleConvertToPassCtv(id)}
+                onClick={() => handleConvertToAgency(id)}
               >
-                Pass/CTV
+                Agency
               </Button>
             )}
 
@@ -194,7 +196,7 @@ const DanhSachKhachHang = ({
       }),
     },
 
-    /** MỚI: Kênh liên hệ (dropdown cố định, filter = equal) */
+    /** Kênh liên hệ (dropdown cố định, filter = equal) */
     {
       title: "Kênh liên hệ",
       dataIndex: "kenh_lien_he",
@@ -208,6 +210,27 @@ const DanhSachKhachHang = ({
       exportData: (text: string) => text || "",
     },
 
+    /** Nhóm khách hàng (Event / Wedding / Agency) từ customer_type */
+    {
+      title: "Nhóm khách hàng",
+      dataIndex: "customer_type",
+      render: (val: number) => {
+        const label = CUSTOMER_TYPE_LABEL[val] ?? "Không rõ";
+        let color: string = "default";
+        if (val === 0) color = "blue";
+        else if (val === 1) color = "magenta";
+        else if (val === 2) color = "purple";
+        return <Tag color={color}>{label}</Tag>;
+      },
+      ...selectSearchWithOutApi({
+        dataIndex: "customer_type",
+        operator: "equal",
+        nameColumn: "Nhóm khách hàng",
+        options: CUSTOMER_TYPE_OPTIONS,
+      }),
+      exportData: (val: number) => CUSTOMER_TYPE_LABEL[val] ?? "",
+    },
+
     {
       title: "Địa chỉ",
       dataIndex: "dia_chi",
@@ -217,14 +240,16 @@ const DanhSachKhachHang = ({
         nameColumn: "Địa chỉ",
       }),
     },
+
+    // Loại khách hàng (hạng thành viên) từ loai_khach_hang_id
     {
-      title: "Loại khách hàng",
+      title: "Loại khách hàng (hạng)",
       dataIndex: "loai_khach_hang",
       ...selectSearch({
         dataIndex: "loai_khach_hang_id",
         path: API_ROUTE_CONFIG.LOAI_KHACH_HANG + "/options",
         operator: "equal",
-        nameColumn: "Loại khách hàng",
+        nameColumn: "Loại khách hàng (hạng)",
       }),
       render: (record: any) => {
         return record?.ten_loai_khach_hang || "Chưa có";
@@ -233,6 +258,7 @@ const DanhSachKhachHang = ({
         return record?.loai_khach_hang?.ten_loai_khach_hang || "Chưa có";
       },
     },
+
     {
       title: "Công nợ",
       dataIndex: "cong_no",
@@ -257,29 +283,29 @@ const DanhSachKhachHang = ({
         return formatVietnameseCurrency(record);
       },
     },
-{
-  title: "Ghi chú",
-  dataIndex: "ghi_chu",
-  ...inputSearch({
-    dataIndex: "ghi_chu",
-    operator: "contain",
-    nameColumn: "Ghi chú",
-  }),
-  render: (_text: any, record: any) => {
-    // 1 điểm = 1.000 VNĐ (giống MemberPointService)
-    const rate = 1000;
-    const revenue = record?.doanh_thu_tich_luy ?? 0;
-    const point = Math.floor(revenue / rate);
+    {
+      title: "Ghi chú / Điểm tích luỹ",
+      dataIndex: "ghi_chu",
+      ...inputSearch({
+        dataIndex: "ghi_chu",
+        operator: "contain",
+        nameColumn: "Ghi chú",
+      }),
+      render: (_text: any, record: any) => {
+        // 1 điểm = 1.000 VNĐ (giống MemberPointService)
+        const rate = 1000;
+        const revenue = record?.doanh_thu_tich_luy ?? 0;
+        const point = Math.floor(revenue / rate);
 
-    const note = record?.ghi_chu ?? "";
+        const note = record?.ghi_chu ?? "";
 
-    if (note && note.trim() !== "") {
-      return `${point} điểm - ${note}`;
-    }
+        if (note && String(note).trim() !== "") {
+          return `${point} điểm - ${note}`;
+        }
 
-    return `${point} điểm`;
-  },
-},
+        return `${point} điểm`;
+      },
+    },
 
     {
       title: "Trạng thái",
@@ -340,9 +366,17 @@ const DanhSachKhachHang = ({
     <Row>
       <Col span={24}>
         <Flex vertical gap={10}>
-          <Row justify="end" align="middle" style={{ marginBottom: 5, gap: 10 }}>
+          <Row
+            justify="end"
+            align="middle"
+            style={{ marginBottom: 5, gap: 10 }}
+          >
             {permission.export && (
-              <ExportTableToExcel columns={defaultColumns} path={path} params={{}} />
+              <ExportTableToExcel
+                columns={defaultColumns}
+                path={path}
+                params={{}}
+              />
             )}
             {permission.create && <ImportExcel path={path} />}
           </Row>
@@ -351,7 +385,7 @@ const DanhSachKhachHang = ({
             dataTable={danhSach?.data}
             defaultColumns={defaultColumns}
             filter={filter}
-            scroll={{ x: 3000 }}
+            scroll={{ x: 3200 }}
             handlePageChange={handlePageChange}
             handleLimitChange={handleLimitChange}
             total={danhSach?.total}

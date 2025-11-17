@@ -7,9 +7,10 @@ import {
     InputNumber,
     type FormInstance,
     Select,
+    Tooltip,
 } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
 import { formatter, parser } from "../../utils/utils";
-import SelectFormApi from "../../components/select/SelectFormApi";
 import { trangThaiSelect } from "../../configs/select-config";
 
 const FormLoaiKhachHang = ({ form }: { form: FormInstance }) => {
@@ -28,7 +29,7 @@ const FormLoaiKhachHang = ({ form }: { form: FormInstance }) => {
                         },
                     ]}
                 >
-                    <Input placeholder="Nhập tên loại khách hàng" />
+                    <Input placeholder="VD: Thành viên Đồng, Bạc, Vàng, VIP..." />
                 </Form.Item>
             </Col>
 
@@ -36,7 +37,14 @@ const FormLoaiKhachHang = ({ form }: { form: FormInstance }) => {
             <Col span={12}>
                 <Form.Item
                     name="nguong_doanh_thu"
-                    label="Ngưỡng doanh thu (VNĐ)"
+                    label={
+                        <span>
+                            Ngưỡng doanh thu (VNĐ){" "}
+                            <Tooltip title="Tổng doanh thu tích lũy để đạt hạng này.">
+                                <QuestionCircleOutlined style={{ color: "#1890ff" }} />
+                            </Tooltip>
+                        </span>
+                    }
                     rules={[
                         {
                             required: true,
@@ -46,19 +54,27 @@ const FormLoaiKhachHang = ({ form }: { form: FormInstance }) => {
                     ]}
                 >
                     <InputNumber
-                        placeholder="Nhập ngưỡng doanh thu"
+                        placeholder="VD: 10.000.000"
                         style={{ width: "100%" }}
                         formatter={formatter}
                         parser={parser}
+                        min={0}
                     />
                 </Form.Item>
             </Col>
 
-            {/* Giá trị ưu đãi (%) – anh nhập phần trăm */}
+            {/* Giá trị ưu đãi (%) – nhập phần trăm giảm giá/ưu đãi */}
             <Col span={12}>
                 <Form.Item
                     name="gia_tri_uu_dai"
-                    label="Giá trị ưu đãi (%)"
+                    label={
+                        <span>
+                            Giá trị ưu đãi (%){" "}
+                            <Tooltip title="Phần trăm ưu đãi cho hạng này (giảm giá trên báo giá / thanh toán).">
+                                <QuestionCircleOutlined style={{ color: "#1890ff" }} />
+                            </Tooltip>
+                        </span>
+                    }
                     rules={[
                         {
                             required: true,
@@ -72,19 +88,28 @@ const FormLoaiKhachHang = ({ form }: { form: FormInstance }) => {
                         style={{ width: "100%" }}
                         min={0}
                         max={100}
+                        addonAfter="%"
                     />
                 </Form.Item>
             </Col>
 
-            {/* Ngưỡng điểm – chỉ hiển thị, backend tự tính */}
+            {/* Ngưỡng điểm – chỉ hiển thị, backend tự tính floor(nguong_doanh_thu/1000) */}
             <Col span={12}>
                 <Form.Item
                     name="nguong_diem"
-                    label="Ngưỡng điểm"
+                    label={
+                        <span>
+                            Ngưỡng điểm{" "}
+                            <Tooltip title="Tự động tính: 1 điểm = 1.000 VNĐ doanh thu tích lũy. Hệ thống tự sync khi lưu.">
+                                <QuestionCircleOutlined style={{ color: "#1890ff" }} />
+                            </Tooltip>
+                        </span>
+                    }
                 >
                     <InputNumber
                         disabled
                         style={{ width: "100%" }}
+                        placeholder="Hệ thống tự tính từ ngưỡng doanh thu"
                     />
                 </Form.Item>
             </Col>

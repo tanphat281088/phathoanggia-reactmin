@@ -7,7 +7,8 @@ import { useResponsive } from "../../hooks/useReponsive";
 import usePermission from "../../hooks/usePermission";
 
 const path = API_ROUTE_CONFIG.QUAN_LY_BAN_HANG;
-const title = "Đơn hàng";
+// 🔹 ĐỔI: Đơn hàng -> Báo giá
+const title = "Báo giá";
 
 const QuanLyBanHang = () => {
     const { isMobile } = useResponsive();
@@ -23,7 +24,8 @@ const QuanLyBanHang = () => {
                     align={isMobile ? "" : "center"}
                     style={{ marginBottom: isMobile ? 20 : 0 }}
                 >
-                    <Heading title={"Quản lý bán hàng"} />
+                    {/* 🔹 ĐỔI HEADING: Quản lý báo giá sự kiện */}
+                    <Heading title={"Quản lý báo giá sự kiện"} />
                     <Col
                         span={isMobile ? 24 : 12}
                         style={{
@@ -33,13 +35,6 @@ const QuanLyBanHang = () => {
                             gap: 10,
                         }}
                     >
-                        {/* {permission.export && (
-                          <ExportTable
-                              columns={columns}
-                              path={path}
-                              params={query}
-                          />
-                      )} */}
                         {permission.create && (
                             <ThemQuanLyBanHang path={path} title={title} />
                         )}

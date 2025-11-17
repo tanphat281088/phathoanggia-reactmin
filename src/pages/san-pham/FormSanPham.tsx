@@ -7,17 +7,13 @@ import {
     InputNumber,
     type FormInstance,
     Select,
-    Tooltip,
     Image,
 } from "antd";
-import { QuestionCircleOutlined } from "@ant-design/icons";
 import { createFilterQuery, formatter, parser } from "../../utils/utils";
 import SelectFormApi from "../../components/select/SelectFormApi";
 import { trangThaiSelect } from "../../configs/select-config";
 import ImageUploadSingle from "../../components/upload/ImageUploadSingle";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
-// ❌ Bỏ constant cứng để dropdown lấy từ API master
-// import { OPTIONS_LOAI_SAN_PHAM } from "../../utils/constant";
 
 const FormSanPham = ({
     form,
@@ -30,13 +26,14 @@ const FormSanPham = ({
 
     return (
         <Row gutter={[10, 10]}>
+            {/* ẢNH CHI TIẾT DV / THIẾT BỊ */}
             <Col span={24}>
                 {!isDetail ? (
-                    <Form.Item name="image" label="Ảnh sản phẩm">
+                    <Form.Item name="image" label="Ảnh minh hoạ">
                         <ImageUploadSingle />
                     </Form.Item>
                 ) : (
-                    <Form.Item name="image" label="Ảnh sản phẩm">
+                    <Form.Item name="image" label="Ảnh minh hoạ">
                         <Image
                             src={form.getFieldValue("image")}
                             width={100}
@@ -45,71 +42,69 @@ const FormSanPham = ({
                     </Form.Item>
                 )}
             </Col>
+
+            {/* MÃ + TÊN CHI TIẾT DV / THIẾT BỊ */}
             <Col span={12}>
                 <Form.Item
                     name="ma_san_pham"
-                    label="Mã sản phẩm"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Mã sản phẩm không được bỏ trống!",
-                        },
-                    ]}
-                >
-                    <Input placeholder="Nhập mã sản phẩm" disabled={isDetail} />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item
-                    name="ten_san_pham"
-                    label="Tên sản phẩm"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Tên sản phẩm không được bỏ trống!",
-                        },
-                    ]}
+                    label="Mã chi tiết dịch vụ / thiết bị (có thể bỏ trống)"
+                    rules={[]}
                 >
                     <Input
-                        placeholder="Nhập tên sản phẩm"
+                        placeholder="Để trống để hệ thống tự sinh"
                         disabled={isDetail}
                     />
                 </Form.Item>
             </Col>
             <Col span={12}>
-                <SelectFormApi
-                    name="danh_muc_id"
-                    label="Danh mục sản phẩm"
-                    path={API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM + "/options"}
-                    placeholder="Chọn danh mục sản phẩm"
-                    filter={createFilterQuery(1, "trang_thai", "equal", 1)}
+                <Form.Item
+                    name="ten_san_pham"
+                    label="Tên chi tiết dịch vụ / thiết bị"
                     rules={[
                         {
                             required: true,
-                            message: "Danh mục sản phẩm không được bỏ trống!",
+                            message:
+                                "Tên chi tiết dịch vụ / thiết bị không được bỏ trống!",
                         },
                     ]}
-                    disabled={isDetail}
-                />
+                >
+                    <Input
+                        placeholder="VD: Loa EV 50, Mixer MG16XU..."
+                        disabled={isDetail}
+                    />
+                </Form.Item>
             </Col>
 
-            {/* Loại sản phẩm lấy từ API master */}
+            {/* LOẠI DỊCH VỤ: Thuê ngoài / Tự cung cấp */}
             <Col span={12}>
-                <SelectFormApi
+                <Form.Item
                     name="loai_san_pham"
-                    label="Loại sản phẩm"
-                    path={"/loai-san-pham/options"}
-                    placeholder="Chọn loại sản phẩm"
+                    label="Loại dịch vụ"
                     rules={[
                         {
                             required: true,
-                            message: "Loại sản phẩm không được bỏ trống!",
+                            message: "Loại dịch vụ không được bỏ trống!",
                         },
                     ]}
-                    disabled={isDetail}
-                />
+                >
+                    <Select
+                        placeholder="Chọn loại dịch vụ"
+                        disabled={isDetail}
+                        options={[
+                            {
+                                label: "Thuê ngoài",
+                                value: "SP_NHA_CUNG_CAP", // map về code cũ
+                            },
+                            {
+                                label: "Tự cung cấp",
+                                value: "SP_SAN_XUAT", // map về code cũ
+                            },
+                        ]}
+                    />
+                </Form.Item>
             </Col>
 
+            {/* ĐƠN VỊ TÍNH */}
             <Col span={12}>
                 <SelectFormApi
                     mode="multiple"
@@ -128,8 +123,8 @@ const FormSanPham = ({
                 />
             </Col>
 
-            {(loaiSanPham === "SP_NHA_CUNG_CAP" ||
-                loaiSanPham === "NGUYEN_LIEU") && (
+            {/* NHÀ CUNG CẤP – chỉ hiện với loại Thuê ngoài */}
+            {loaiSanPham === "SP_NHA_CUNG_CAP" && (
                 <Col span={24}>
                     <SelectFormApi
                         mode="multiple"
@@ -137,34 +132,33 @@ const FormSanPham = ({
                         label="Nhà cung cấp"
                         path={API_ROUTE_CONFIG.NHA_CUNG_CAP + "/options"}
                         placeholder="Chọn nhà cung cấp"
-                        filter={createFilterQuery(1, "trang_thai", "equal", 1)}
-                        rules={[
-                            {
-                                required:
-                                    loaiSanPham === "SP_NHA_CUNG_CAP" ||
-                                    loaiSanPham === "NGUYEN_LIEU",
-                                message: "Nhà cung cấp không được bỏ trống!",
-                            },
-                        ]}
+                        filter={createFilterQuery(
+                            1,
+                            "trang_thai",
+                            "equal",
+                            1
+                        )}
+                        rules={[]}
                         disabled={isDetail}
                     />
                 </Col>
             )}
 
-            {/* === GIÁ BÁN === */}
+            {/* GIÁ CHI TIẾT DV / THIẾT BỊ */}
             <Col span={12}>
                 <Form.Item
                     name="gia_nhap_mac_dinh"
-                    label="Giá đặt ngay" // ĐỔI NHÃN, giữ nguyên name/dataIndex
+                    label="Giá chi tiết dịch vụ / thiết bị"
                     rules={[
                         {
                             required: true,
-                            message: "Giá đặt ngay không được bỏ trống!",
+                            message:
+                                "Giá chi tiết dịch vụ / thiết bị không được bỏ trống!",
                         },
                     ]}
                 >
                     <InputNumber
-                        placeholder="Nhập giá đặt ngay"
+                        placeholder="Nhập giá chi tiết"
                         addonAfter="VNĐ"
                         style={{ width: "100%" }}
                         formatter={formatter}
@@ -174,130 +168,7 @@ const FormSanPham = ({
                 </Form.Item>
             </Col>
 
-            {/* CỘT MỚI: Giá đặt trước 3 ngày */}
-            <Col span={12}>
-                <Form.Item
-                    name="gia_dat_truoc_3n"
-                    label="Giá đặt trước 3 ngày"
-                    // không required để tương thích ngược, DB đã default 0
-                    rules={[
-                        {
-                            type: "number",
-                            min: 0,
-                            message: "Giá phải ≥ 0",
-                        },
-                    ]}
-                >
-                    <InputNumber
-                        placeholder="Nhập giá đặt trước 3 ngày"
-                        addonAfter="VNĐ"
-                        style={{ width: "100%" }}
-                        formatter={formatter}
-                        parser={parser}
-                        disabled={isDetail}
-                    />
-                </Form.Item>
-            </Col>
-
-            {(loaiSanPham === "SP_SAN_XUAT" ||
-                loaiSanPham === "SP_NHA_CUNG_CAP") && (
-                <Col span={12}>
-                    <Form.Item
-                        name="ty_le_chiet_khau"
-                        label={
-                            <span>
-                                Tỷ lệ chiết khấu{" "}
-                                <Tooltip title="Tỷ lệ chiết khấu từ nhà cung cấp cho sản phẩm này.">
-                                    <QuestionCircleOutlined
-                                        style={{ color: "#1890ff" }}
-                                    />
-                                </Tooltip>
-                            </span>
-                        }
-                        rules={[
-                            {
-                                required: true,
-                                message:
-                                    "Tỷ lệ chiết khấu không được bỏ trống!",
-                            },
-                        ]}
-                    >
-                        <InputNumber
-                            placeholder="Nhập tỷ lệ chiết khấu"
-                            addonAfter="%"
-                            style={{ width: "100%" }}
-                            min={0}
-                            max={100}
-                            disabled={isDetail}
-                        />
-                    </Form.Item>
-                </Col>
-            )}
-
-            {(loaiSanPham === "SP_SAN_XUAT" ||
-                loaiSanPham === "SP_NHA_CUNG_CAP") && (
-                <Col span={12}>
-                    <Form.Item
-                        name="muc_loi_nhuan"
-                        label={
-                            <span>
-                                Mức lợi nhuận{" "}
-                                <Tooltip title="Mức lợi nhuận khi bán lẻ sản phẩm này.">
-                                    <QuestionCircleOutlined
-                                        style={{ color: "#1890ff" }}
-                                    />
-                                </Tooltip>
-                            </span>
-                        }
-                        rules={[
-                            {
-                                required: true,
-                                message: "Mức lợi nhuận không được bỏ trống!",
-                            },
-                        ]}
-                    >
-                        <InputNumber
-                            placeholder="Nhập mức lợi nhuận"
-                            addonAfter="%"
-                            style={{ width: "100%" }}
-                            min={0}
-                            max={100}
-                            disabled={isDetail}
-                        />
-                    </Form.Item>
-                </Col>
-            )}
-
-            <Col span={12}>
-                <Form.Item
-                    name="so_luong_canh_bao"
-                    label={
-                        <span>
-                            Số lượng cảnh báo{" "}
-                            <Tooltip title="Số lượng cảnh báo khi sản phẩm này còn lại ít hơn số lượng này.">
-                                <QuestionCircleOutlined
-                                    style={{ color: "#1890ff" }}
-                                />
-                            </Tooltip>
-                        </span>
-                    }
-                    rules={[
-                        {
-                            required: true,
-                            message: "Số lượng cảnh báo không được bỏ trống!",
-                        },
-                    ]}
-                >
-                    <InputNumber
-                        placeholder="Nhập số lượng cảnh báo"
-                        addonAfter="sản phẩm"
-                        style={{ width: "100%" }}
-                        min={0}
-                        disabled={isDetail}
-                    />
-                </Form.Item>
-            </Col>
-
+            {/* GHI CHÚ */}
             <Col span={24}>
                 <Form.Item name="ghi_chu" label="Ghi chú">
                     <Input.TextArea
@@ -307,6 +178,7 @@ const FormSanPham = ({
                 </Form.Item>
             </Col>
 
+            {/* Trạng thái (ẩn, default = 1) */}
             <Col xs={24} md={12} lg={24} hidden>
                 <Form.Item
                     name="trang_thai"

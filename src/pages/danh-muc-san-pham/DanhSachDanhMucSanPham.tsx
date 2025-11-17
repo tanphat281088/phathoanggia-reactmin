@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "../../types/user.type";
 import useColumnSearch from "../../hooks/useColumnSearch";
 import { getListData } from "../../services/getData.api";
@@ -18,26 +18,50 @@ import { OPTIONS_STATUS } from "../../utils/constant";
 import dayjs from "dayjs";
 import ImportExcel from "../../components/ImportExcel";
 
+// ✅ Mapping code -> label cho NHÓM DỊCH VỤ cao nhất
+const SERVICE_GROUP_LABEL: Record<string, string> = {
+    NHAN_SU: "Nhân sự",
+    CO_SO_VAT_CHAT: "Cơ sở vật chất",
+    TIEC: "Tiệc",
+    THUE_DIA_DIEM: "Thuê địa điểm",
+    CHI_PHI_KHAC: "Chi phí khác",
+};
+
+// ✅ Options cho filter NHÓM DỊCH VỤ
+const OPTIONS_SERVICE_GROUP = [
+    { label: "Nhân sự", value: "NHAN_SU" },
+    { label: "Cơ sở vật chất", value: "CO_SO_VAT_CHAT" },
+    { label: "Tiệc", value: "TIEC" },
+    { label: "Thuê địa điểm", value: "THUE_DIA_DIEM" },
+    { label: "Chi phí khác", value: "CHI_PHI_KHAC" },
+];
+
+type Mode = "all" | "level1" | "level2";
+
 const DanhSachDanhMucSanPham = ({
     path,
     permission,
     title,
+    mode = "all",
 }: {
     path: string;
     permission: Actions;
     title: string;
+    mode?: Mode;
 }) => {
     const dispatch = useDispatch();
 
     const isReload = useSelector((state: RootState) => state.main.isReload);
 
     const [danhSach, setDanhSach] = useState<
-        { data: User[]; total: number } | undefined
+        { data: any[]; total: number } | undefined
     >({ data: [], total: 0 });
+
     const { filter, handlePageChange, handleLimitChange } = usePagination({
         page: 1,
         limit: 20,
     });
+
     const {
         inputSearch,
         query,
@@ -45,6 +69,7 @@ const DanhSachDanhMucSanPham = ({
         selectSearch,
         selectSearchWithOutApi,
     } = useColumnSearch();
+
     const [isLoading, setIsLoading] = useState(false);
 
     const getDanhSach = async () => {
@@ -56,6 +81,20 @@ const DanhSachDanhMucSanPham = ({
         }
         setDanhSach(danhSach);
     };
+
+    // ✅ Filter theo mode: all / level1 / level2
+    const dataFiltered = useMemo(() => {
+        const raw = danhSach?.data || [];
+        if (mode === "level1") {
+            // Tầng 1: không có parent_id (cha)
+            return raw.filter((r: any) => !r.parent_id);
+        }
+        if (mode === "level2") {
+            // Tầng 2: có parent_id (con)
+            return raw.filter((r: any) => !!r.parent_id);
+        }
+        return raw;
+    }, [danhSach, mode]);
 
     const defaultColumns: any = [
         {
@@ -129,6 +168,30 @@ const DanhSachDanhMucSanPham = ({
                 operator: "contain",
                 nameColumn: "Tên danh mục",
             }),
+        },
+        // ✅ Cột NHÓM DỊCH VỤ
+        {
+            title: "Nhóm dịch vụ",
+            dataIndex: "group_code",
+            render: (val: string | null | undefined) => {
+                if (!val) return "-";
+                return SERVICE_GROUP_LABEL[val] || val;
+            },
+            ...selectSearchWithOutApi({
+                dataIndex: "group_code",
+                operator: "equal",
+                nameColumn: "Nhóm dịch vụ",
+                options: OPTIONS_SERVICE_GROUP,
+            }),
+        },
+        // ✅ Cột Cấp (Tầng 1 / Tầng 2)
+        {
+            title: "Cấp",
+            dataIndex: "parent_id",
+            render: (parent_id: number | null | undefined) => {
+                if (!parent_id) return "Tầng 1";
+                return "Tầng 2";
+            },
         },
         {
             title: "Ghi chú",
@@ -215,13 +278,13 @@ const DanhSachDanhMucSanPham = ({
                     </Row>
                     <CustomTable
                         rowKey="id"
-                        dataTable={danhSach?.data}
+                        dataTable={dataFiltered}
                         defaultColumns={defaultColumns}
                         filter={filter}
                         scroll={{ x: 1800 }}
                         handlePageChange={handlePageChange}
                         handleLimitChange={handleLimitChange}
-                        total={danhSach?.total}
+                        total={dataFiltered.length}
                         loading={isLoading}
                     />
                 </Flex>

@@ -1,4 +1,4 @@
- /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import type { User } from "../../types/user.type";
@@ -8,7 +8,7 @@ import {
   createFilterQueryFromArray,
   formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex, Button } from "antd";
+import { Col, Row, Space, Tag, Flex } from "antd";
 import SuaQuanLyBanHang from "./SuaQuanLyBanHang";
 import Delete from "../../components/Delete";
 import { useDispatch, useSelector } from "react-redux";
@@ -25,18 +25,39 @@ import dayjs from "dayjs";
 import ChiTietQuanLyBanHang from "./ChiTietQuanLyBanHang";
 import InHoaDon from "../../components/InHoaDon";
 
-/** ✅ Dùng chung options với Form để đảm bảo đồng nhất */
+/** Trạng thái GIAO HÀNG (cũ, vẫn giữ để không gãy logic) */
 import { donHangTrangThaiSelect } from "../../configs/select-config";
 
-/** ✅ Card view cho mobile */
+/** Card view cho mobile */
 import CardList from "../../components/responsive/CardList";
 
-/** Helper: map trạng thái → màu Tag */
+/** Helper: map trạng thái giao hàng → màu Tag */
 const DON_HANG_STATUS_COLOR: Record<number, string> = {
   0: "default", // Chưa giao
   1: "blue", // Đang giao
   2: "green", // Đã giao
   3: "red", // Đã hủy
+};
+
+/** Trạng thái BÁO GIÁ (ERP Sự kiện) */
+const QUOTE_STATUS_OPTIONS = [
+  { value: 0, label: "Nháp" },
+  { value: 1, label: "Đã gửi" },
+  { value: 2, label: "Thương lượng" },
+  { value: 3, label: "Khách duyệt" },
+  { value: 4, label: "Đã thực hiện" },
+  { value: 5, label: "Đã tất toán" },
+  { value: 6, label: "Đã hủy" },
+];
+
+const QUOTE_STATUS_COLOR: Record<number, string> = {
+  0: "default",
+  1: "blue",
+  2: "gold",
+  3: "green",
+  4: "purple",
+  5: "cyan",
+  6: "red",
 };
 
 const DanhSachQuanLyBanHang = ({
@@ -108,12 +129,13 @@ const DanhSachQuanLyBanHang = ({
       },
     },
     {
-      title: "Mã đơn hàng",
+      // 🔹 Mã báo giá (trước đây là Mã đơn hàng)
+      title: "Mã báo giá",
       dataIndex: "ma_don_hang",
       ...inputSearch({
         dataIndex: "ma_don_hang",
         operator: "contain",
-        nameColumn: "Mã đơn hàng",
+        nameColumn: "Mã báo giá",
       }),
     },
     {
@@ -125,9 +147,27 @@ const DanhSachQuanLyBanHang = ({
       }),
     },
 
-    /** ✅ CỘT “Trạng thái đơn hàng” */
+    /** 🔹 Trạng thái BÁO GIÁ (quote_status) */
     {
-      title: "Trạng thái đơn hàng",
+      title: "Trạng thái báo giá",
+      dataIndex: "quote_status",
+      render: (val: number) => {
+        const color = QUOTE_STATUS_COLOR[val] ?? "default";
+        const label =
+          QUOTE_STATUS_OPTIONS.find((o) => o.value === val)?.label ?? "Không rõ";
+        return <Tag color={color}>{label}</Tag>;
+      },
+      ...selectSearchWithOutApi({
+        dataIndex: "quote_status",
+        operator: "equal",
+        nameColumn: "Trạng thái báo giá",
+        options: QUOTE_STATUS_OPTIONS,
+      }),
+    },
+
+    /** 🔹 Trạng thái GIAO HÀNG (giữ lại cho tương thích) */
+    {
+      title: "Trạng thái giao hàng",
       dataIndex: "trang_thai_don_hang",
       render: (val: number) => {
         const color = DON_HANG_STATUS_COLOR[val as 0 | 1 | 2 | 3] ?? "default";
@@ -138,7 +178,7 @@ const DanhSachQuanLyBanHang = ({
       ...selectSearchWithOutApi({
         dataIndex: "trang_thai_don_hang",
         operator: "equal",
-        nameColumn: "Trạng thái đơn hàng",
+        nameColumn: "Trạng thái giao hàng",
         options: donHangTrangThaiSelect,
       }),
     },
@@ -185,26 +225,23 @@ const DanhSachQuanLyBanHang = ({
         return formatVietnameseCurrency(so_tien_da_thanh_toan);
       },
     },
-{
-  title: "Trạng thái thanh toán",
-  dataIndex: "trang_thai_thanh_toan",
-  key: "trang_thai_thanh_toan",
-  render: (v: any, row: any) => {
-    const st = Number(row?.trang_thai_thanh_toan ?? v ?? 0);
-    if (st === 2) return <Tag color="green">Đã hoàn thành</Tag>;
-    if (st === 1) return <Tag color="gold">Thanh toán một phần</Tag>;
-    return <Tag color="red">Chưa hoàn thành</Tag>;
-  },
-  ...selectSearchWithOutApi({
-    dataIndex: "trang_thai_thanh_toan",
-    operator: "equal",
-    nameColumn: "Trạng thái thanh toán",
-    options: OPTIONS_TRANG_THAI_THANH_TOAN,
-  }),
-}, // ← cần dấu phẩy này để ngăn cách phần tử trong mảng columns
-
-
-
+    {
+      title: "Trạng thái thanh toán",
+      dataIndex: "trang_thai_thanh_toan",
+      key: "trang_thai_thanh_toan",
+      render: (v: any, row: any) => {
+        const st = Number(row?.trang_thai_thanh_toan ?? v ?? 0);
+        if (st === 2) return <Tag color="green">Đã hoàn thành</Tag>;
+        if (st === 1) return <Tag color="gold">Thanh toán một phần</Tag>;
+        return <Tag color="red">Chưa hoàn thành</Tag>;
+      },
+      ...selectSearchWithOutApi({
+        dataIndex: "trang_thai_thanh_toan",
+        operator: "equal",
+        nameColumn: "Trạng thái thanh toán",
+        options: OPTIONS_TRANG_THAI_THANH_TOAN,
+      }),
+    },
     {
       title: "Trạng thái xuất kho",
       dataIndex: "trang_thai_xuat_kho",
@@ -244,6 +281,11 @@ const DanhSachQuanLyBanHang = ({
       }),
     },
     {
+      title: "Ngày tạo",
+      dataIndex: "created_at",
+      ...dateSearch({ dataIndex: "created_at", nameColumn: "Ngày tạo" }),
+    },
+    {
       title: "Người cập nhật",
       dataIndex: "ten_nguoi_cap_nhat",
       ...inputSearch({
@@ -267,14 +309,14 @@ const DanhSachQuanLyBanHang = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReload, filter, query]);
 
-  /** ✅ Bảng cũ giữ nguyên để hiển thị cho tablet/desktop */
+  // Bảng full cho desktop/tablet
   const table = (
     <CustomTable
       rowKey="id"
       dataTable={danhSach?.data}
       defaultColumns={defaultColumns}
       filter={filter}
-      scroll={{ x: 2200 }}
+      scroll={{ x: 2400 }}
       handlePageChange={handlePageChange}
       handleLimitChange={handleLimitChange}
       total={danhSach?.total}
@@ -282,7 +324,7 @@ const DanhSachQuanLyBanHang = ({
     />
   );
 
-  /** ✅ Card view mapping (4–6 field quan trọng) cho mobile */
+  // Card view cho mobile
   const cardData = (danhSach?.data as any[]) || [];
   const cardActions = (r: any) => (
     <>
@@ -299,18 +341,25 @@ const DanhSachQuanLyBanHang = ({
     <Row>
       <Col span={24}>
         <Flex vertical gap={10}>
-          <Row justify="end" align="middle" style={{ marginBottom: 5, gap: 10 }}>
+          <Row
+            justify="end"
+            align="middle"
+            style={{ marginBottom: 5, gap: 10 }}
+          >
             {permission.export && (
-              <ExportTableToExcel columns={defaultColumns} path={path} params={{}} />
+              <ExportTableToExcel
+                columns={defaultColumns}
+                path={path}
+                params={{}}
+              />
             )}
           </Row>
 
-          {/* ✅ CardList: Mobile = Card view; Tablet/Desktop = bảng cũ */}
           <CardList
             data={cardData}
             loading={isLoading}
             keyField="id"
-            title={(r) => r.ma_don_hang || "Đơn hàng"}
+            title={(r) => r.ma_don_hang || "Báo giá"}
             subtitle={(r) =>
               `${r.ten_khach_hang || "KH vãng lai"} • ${
                 r.ngay_tao_don_hang
@@ -319,27 +368,32 @@ const DanhSachQuanLyBanHang = ({
               }`
             }
             extra={(r) => (
-              <span>{formatVietnameseCurrency(r.tong_tien_can_thanh_toan || 0)}</span>
+              <span>
+                {formatVietnameseCurrency(
+                  r.tong_tien_can_thanh_toan || 0
+                )}
+              </span>
             )}
             fields={[
               { label: "Khách hàng", path: "ten_khach_hang" },
               { label: "SĐT", path: "so_dien_thoai" },
               {
-                label: "Trạng thái",
+                label: "Trạng thái báo giá",
                 tag: (r) => {
-                  const st = donHangTrangThaiSelect.find(
-                    (o) => o.value === r.trang_thai_don_hang
+                  const st = QUOTE_STATUS_OPTIONS.find(
+                    (o) => o.value === r.quote_status
                   );
                   const color =
-                    DON_HANG_STATUS_COLOR[(r.trang_thai_don_hang ?? 0) as 0 | 1 | 2 | 3] ||
-                    "default";
+                    QUOTE_STATUS_COLOR[r.quote_status ?? 0] || "default";
                   return st ? { text: st.label, color } : null;
                 },
               },
               {
                 label: "Đã thu",
                 render: (r) =>
-                  formatVietnameseCurrency(r.so_tien_da_thanh_toan || 0),
+                  formatVietnameseCurrency(
+                    r.so_tien_da_thanh_toan || 0
+                  ),
               },
             ]}
             actions={cardActions}

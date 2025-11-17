@@ -17,7 +17,7 @@ import type { RootState } from "../../redux/store";
 import { usePagination } from "../../hooks/usePagination";
 import type { Actions } from "../../types/main.type";
 import ExportTableToExcel from "../../components/ExportTableToExcel";
-import { OPTIONS_LOAI_SAN_PHAM, OPTIONS_STATUS } from "../../utils/constant";
+import { OPTIONS_STATUS } from "../../utils/constant";
 import dayjs from "dayjs";
 import ImportExcel from "../../components/ImportExcel";
 import ChiTietSanPham from "./ChiTietSanPham";
@@ -39,10 +39,12 @@ const DanhSachSanPham = ({
     const [danhSach, setDanhSach] = useState<
         { data: User[]; total: number } | undefined
     >({ data: [], total: 0 });
+
     const { filter, handlePageChange, handleLimitChange } = usePagination({
         page: 1,
         limit: 20,
     });
+
     const {
         inputSearch,
         query,
@@ -50,6 +52,7 @@ const DanhSachSanPham = ({
         selectSearch,
         selectSearchWithOutApi,
     } = useColumnSearch();
+
     const [isLoading, setIsLoading] = useState(false);
 
     const getDanhSach = async () => {
@@ -62,7 +65,7 @@ const DanhSachSanPham = ({
                 {
                     field: "loai_san_pham",
                     operator: "not_equal",
-                    value: "NGUYEN_LIEU",
+                    value: "NGUYEN_LIEU", // tab này chỉ hiển thị DỊCH VỤ (bao gồm GOI_DICH_VU)
                 },
             ]),
         };
@@ -105,7 +108,7 @@ const DanhSachSanPham = ({
             },
         },
         {
-            title: "Ảnh sản phẩm",
+            title: "Ảnh dịch vụ",
             dataIndex: "images",
             align: "center",
             maxWidth: 120,
@@ -113,8 +116,8 @@ const DanhSachSanPham = ({
                 const image = images && images.length > 0 ? images[0].path : "";
                 return (
                     <Image
-                        src={image}
-                        alt="Ảnh sản phẩm"
+                        src={image || "https://via.placeholder.com/80"}
+                        alt="Ảnh dịch vụ"
                         width={50}
                         height={50}
                     />
@@ -127,25 +130,25 @@ const DanhSachSanPham = ({
             },
         },
         {
-            title: "Mã sản phẩm",
+            title: "Mã dịch vụ",
             dataIndex: "ma_san_pham",
             ...inputSearch({
                 dataIndex: "ma_san_pham",
                 operator: "contain",
-                nameColumn: "Mã sản phẩm",
+                nameColumn: "Mã dịch vụ",
             }),
         },
         {
-            title: "Tên sản phẩm",
+            title: "Tên dịch vụ",
             dataIndex: "ten_san_pham",
             ...inputSearch({
                 dataIndex: "ten_san_pham",
                 operator: "contain",
-                nameColumn: "Tên sản phẩm",
+                nameColumn: "Tên dịch vụ",
             }),
         },
         {
-            title: "Danh mục",
+            title: "Danh mục dịch vụ",
             dataIndex: "danh_muc",
             render: (record: { ten_danh_muc: string }) => {
                 return record?.ten_danh_muc;
@@ -154,79 +157,52 @@ const DanhSachSanPham = ({
                 dataIndex: "danh_muc_id",
                 path: API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM + "/options",
                 operator: "equal",
-                nameColumn: "Danh mục",
+                nameColumn: "Danh mục dịch vụ",
             }),
         },
         {
-        title: "Loại sản phẩm",
-        // dùng tên hiển thị backend map từ bảng master
-        dataIndex: "ten_loai",
-        render: (_: any, record: any) => {
-            const code = record?.loai_san_pham; // SP_NHA_CUNG_CAP | NGUYEN_LIEU | SP_SAN_XUAT
-            const color =
-            code === "SP_NHA_CUNG_CAP" ? "blue" :
-            code === "NGUYEN_LIEU"     ? "gold" :
-            "green";
-            return <Tag color={color}>{record?.ten_loai}</Tag>;
-        },
-        // filter theo CODE, lấy options từ API master
-        ...selectSearch({
-            dataIndex: "loai_san_pham",
-            path: "/loai-san-pham/options",
-            operator: "equal",
-            nameColumn: "Loại sản phẩm",
-        }),
+            // 🔹 Loại dịch vụ
+            title: "Loại dịch vụ",
+            dataIndex: "ten_loai",
+            render: (_: any, record: any) => {
+                const code: string | undefined = record?.loai_san_pham;
+
+                let color = "default";
+                let text = "";
+
+                if (code === "GOI_DICH_VU") {
+                    color = "purple";
+                    text = "Gói dịch vụ";
+                } else if (code === "SP_NHA_CUNG_CAP") {
+                    color = "blue";
+                    text = "Thuê ngoài";
+                } else if (code === "SP_SAN_XUAT") {
+                    color = "green";
+                    text = "Tự cung cấp";
+                } else if (code === "NGUYEN_LIEU") {
+                    color = "gold";
+                    text = "Nguyên liệu";
+                } else if (code) {
+                    text = code;
+                }
+
+                if (!text) return "-";
+
+                return <Tag color={color}>{text}</Tag>;
+            },
+            ...selectSearch({
+                dataIndex: "loai_san_pham",
+                path: "/loai-san-pham/options",
+                operator: "equal",
+                nameColumn: "Loại dịch vụ",
+            }),
         },
 
         {
-            title: "Giá đặt ngay", // đổi nhãn, giữ nguyên dataIndex
+            title: "Giá dịch vụ / Giá gói",
             dataIndex: "gia_nhap_mac_dinh",
             render: (record: number) => {
                 return formatVietnameseCurrency(record);
-            },
-        },
-        {
-            title: "Giá đặt trước 3 ngày",
-            dataIndex: "gia_dat_truoc_3n",
-            render: (record: number) => {
-                return formatVietnameseCurrency(record);
-            },
-            // Nếu bạn có ExportTableToExcel và muốn xuất cột này:
-            // exportData: (record: any) => formatVietnameseCurrency(record.gia_dat_truoc_3n),
-            },
-        {
-            title: "Tỷ lệ chiết khấu",
-            dataIndex: "ty_le_chiet_khau",
-            render: (record: number) => {
-                return record + " %";
-            },
-        },
-        {
-            title: "Mức lợi nhuận",
-            dataIndex: "muc_loi_nhuan",
-            render: (record: number) => {
-                return record + " %";
-            },
-        },
-        {
-            title: "Tổng số lượng nhập",
-            dataIndex: "tong_so_luong_nhap",
-            render: (record: number) => {
-                return record;
-            },
-        },
-        {
-            title: "Tổng số lượng thực tế",
-            dataIndex: "tong_so_luong_thuc_te",
-            render: (record: number) => {
-                return record;
-            },
-        },
-        {
-            title: "Số lượng cảnh báo",
-            dataIndex: "so_luong_canh_bao",
-            render: (record: number) => {
-                return record;
             },
         },
         {
@@ -307,7 +283,7 @@ const DanhSachSanPham = ({
                         dataTable={danhSach?.data}
                         defaultColumns={defaultColumns}
                         filter={filter}
-                        scroll={{ x: 2400 }}
+                        scroll={{ x: 1600 }}
                         handlePageChange={handlePageChange}
                         handleLimitChange={handleLimitChange}
                         total={danhSach?.total}
