@@ -140,6 +140,15 @@ return { items: updatedItems, rawItems: items, openKeys };
         "kiem-toan": "kiem-toan",   // RBAC module “Kiểm toán”
 
 
+            // Quản lý chi phí
+    "qlcp-de-xuat": "quan-ly-chi-phi-de-xuat",
+    "qlcp-thuc-te": "quan-ly-chi-phi-thuc-te",
+    // Gói dịch vụ (3 tầng)
+    "nhom-danh-muc-goi-dich-vu": "goi-dich-vu-groups",
+    "nhom-goi-dich-vu": "goi-dich-vu-categories",
+    "goi-dich-vu": "goi-dich-vu-packages",
+
+
     // Nhân sự: mọi child đều map về 1 module 'nhan-su'
     "nhan-su-cham-cong": "nhan-su",
     "nhan-su-duyet-cham-cong": "nhan-su",
@@ -182,6 +191,7 @@ const MANAGER_HR_KEYS = new Set<string>([
     "quan-ly-tien-ich": "utilities",
     "quan-ly-thu-chi": null,
     "quan-ly-nhan-su": null,
+        "quan-ly-chi-phi": null, 
 
     // Parent 1 cấp map về module khác
     "quan-ly-giao-hang": "giao-hang",

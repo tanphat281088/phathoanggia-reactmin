@@ -64,24 +64,46 @@ const ChiTietQuanLyBanHang = ({
                     sp.ten ||
                     sp.name ||
                     "";
+
+                const isPackage = !!item.is_package;
+
+                let packageItems: any[] = [];
+                if (Array.isArray(item.package_items)) {
+                    packageItems = item.package_items;
+                } else if (typeof item.package_items === "string") {
+                    try {
+                        const parsed = JSON.parse(item.package_items);
+                        if (Array.isArray(parsed)) packageItems = parsed;
+                    } catch {
+                        // ignore
+                    }
+                }
+
+                const fallbackLabel =
+                    [code, name].filter(Boolean).join(" - ") ||
+                    String(item.san_pham_id);
+
+                const label =
+                    item.ten_hien_thi && String(item.ten_hien_thi).trim() !== ""
+                        ? item.ten_hien_thi
+                        : fallbackLabel;
+
                 return {
                     san_pham_id: +item.san_pham_id,
                     don_vi_tinh_id: +item.don_vi_tinh_id,
                     so_luong: item.so_luong,
                     don_gia: item.don_gia,
-                    // UI dùng field "tong_tien", BE dùng "thanh_tien" → ưu tiên thanh_tien nếu có
                     tong_tien:
                         item.tong_tien !== undefined
                             ? item.tong_tien
                             : item.thanh_tien,
-                    // ❌ EVENT: không dùng loai_gia nữa
-                    // loai_gia: item?.loai_gia ?? 1,
-                    san_pham_label:
-                        [code, name].filter(Boolean).join(" - ") ||
-                        String(item.san_pham_id),
+                    san_pham_label: label,
+                    is_package: isPackage,
+                    package_items: packageItems,
                 };
             });
         }
+
 
         // 🔹 Map loại khách hàng DB → form
         // ERP sự kiện: loai_khach_hang = 0 (Hệ thống), 1 (Vãng lai)

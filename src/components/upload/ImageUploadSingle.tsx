@@ -11,11 +11,21 @@ import type { RootState } from "../../redux/store";
 
 type FileType = Parameters<GetProp<UploadProps, "beforeUpload">>[0];
 
-const ImageUploadSingle = () => {
+// 🔹 Cho phép Form control value + onChange
+type ImageUploadSingleProps = {
+    value?: string;
+    onChange?: (value?: string) => void;
+};
+
+const ImageUploadSingle = ({ value, onChange }: ImageUploadSingleProps) => {
     const [loading, setLoading] = useState(false);
     const dispatch = useDispatch();
 
-    const imageUrl = useSelector((state: RootState) => state.main.imageSingle);
+    const reduxImage = useSelector((state: RootState) => state.main.imageSingle);
+
+    // Ưu tiên value từ Form, fallback về Redux (cho màn Sửa cũ)
+    const imageUrl = value ?? reduxImage ?? "";
+
 
     const beforeUpload = (file: FileType) => {
         const isJpgOrPng =
@@ -49,9 +59,19 @@ const ImageUploadSingle = () => {
                 })
                 .then((res) => {
                     setLoading(false);
-                    dispatch(setImageSingle(res.data.url));
+                    const url = res.data.url;
+
+                    // Lưu vào Redux (để màn Sửa đang dùng)
+                    dispatch(setImageSingle(url));
+
+                    // Báo ngược cho Form: set field "image"
+                    if (onChange) {
+                        onChange(url);
+                    }
+
                     info.file.status = "done"; // Đánh dấu đã xử lý xong
                 })
+
                 .catch((error) => {
                     setLoading(false);
                     toast.error("Upload thất bại");

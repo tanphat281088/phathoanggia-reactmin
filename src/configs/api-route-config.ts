@@ -42,6 +42,13 @@ export const API_ROUTE_CONFIG = {
   DON_VI_TINH: "/don-vi-tinh",
   SAN_PHAM: "/san-pham",
 
+  // ===== Gói dịch vụ =====
+  GOI_DICH_VU_GROUP: "/goi-dich-vu/groups",
+  GOI_DICH_VU_CATEGORY: "/goi-dich-vu/categories",
+  GOI_DICH_VU_PACKAGE: "/goi-dich-vu/packages",
+
+
+
   PHIEU_NHAP_KHO: "/phieu-nhap-kho",
   QUAN_LY_TON_KHO: "/quan-ly-ton-kho",
     // ===== API Quản lý vật tư (VT) =====
@@ -59,6 +66,19 @@ export const API_ROUTE_CONFIG = {
 
   PHIEU_CHI: "/phieu-chi",
   QUAN_LY_BAN_HANG: "/quan-ly-ban-hang",
+
+    // ===== Báo giá (xem PDF + Excel) =====
+  BAO_GIA_VIEW: (id: number | string) => `/quan-ly-ban-hang/xem-bao-gia/${id}`,
+  BAO_GIA_EXCEL: (id: number | string) => `/quan-ly-ban-hang/${id}/bao-gia-excel`,
+
+ // ===== Quản lý chi phí (Chi phí đề xuất / Thực tế) =====
+  QLCP_DE_XUAT: "/quan-ly-chi-phi/de-xuat",
+  QLCP_DE_XUAT_FROM_QUOTE: (id: number | string) =>
+    `/quan-ly-chi-phi/de-xuat/from-quote/${id}`,
+  QLCP_THUC_TE: "/quan-ly-chi-phi/thuc-te",
+  QLCP_THUC_TE_FROM_QUOTE: (id: number | string) =>
+    `/quan-ly-chi-phi/thuc-te/from-quote/${id}`,
+
   PHIEU_XUAT_KHO: "/phieu-xuat-kho",
   PHIEU_THU: "/phieu-thu",
 
@@ -233,11 +253,26 @@ export const URL_CONSTANTS = {
   DON_VI_TINH: "/admin/quan-ly-san-pham/don-vi-tinh",
   SAN_PHAM: "/admin/quan-ly-san-pham/san-pham",
 
+   // Gói dịch vụ
+  GOI_DICH_VU_GROUP: "/admin/quan-ly-san-pham/nhom-danh-muc-goi-dich-vu",
+  GOI_DICH_VU_CATEGORY: "/admin/quan-ly-san-pham/nhom-goi-dich-vu",
+  GOI_DICH_VU_PACKAGE: "/admin/quan-ly-san-pham/goi-dich-vu",
+
   PHIEU_NHAP_KHO: "/admin/quan-ly-kho/phieu-nhap-kho",
   QUAN_LY_TON_KHO: "/admin/quan-ly-kho/quan-ly-ton-kho",
   PHIEU_CHI: "/admin/quan-ly-thu-chi/phieu-chi",
   QUAN_LY_BAN_HANG: "/admin/quan-ly-ban-hang",
   PHIEU_XUAT_KHO: "/admin/quan-ly-kho/phieu-xuat-kho",
+
+
+ // ===== Quản lý chi phí (đặt ngay dưới Quản lý báo giá) =====
+  QLCP_DE_XUAT: "/admin/quan-ly-chi-phi/de-xuat",
+  QLCP_THUC_TE: "/admin/quan-ly-chi-phi/thuc-te",
+
+QLCP_DE_XUAT_FROM_QUOTE: (id: number | string) =>
+    `/quan-ly-chi-phi/de-xuat/from-quote/${id}`,
+  QLCP_THUC_TE_FROM_QUOTE: (id: number | string) =>
+    `/quan-ly-chi-phi/thuc-te/from-quote/${id}`,
     // ===== Quản lý vật tư (VT) =====
   VT_ITEMS: "/admin/quan-ly-vat-tu/items",
   VT_RECEIPTS: "/admin/quan-ly-vat-tu/receipts",

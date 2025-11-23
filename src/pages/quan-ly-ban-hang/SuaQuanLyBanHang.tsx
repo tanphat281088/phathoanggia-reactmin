@@ -1,12 +1,18 @@
 import { EditOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import FormQuanLyBanHang from "./FormQuanLyBanHang";
-import { Button, Form, Modal } from "antd";
+import { Button, Form, Modal, Row } from "antd";
+import { useResponsive } from "../../hooks/useReponsive";
+
 import { useDispatch } from "react-redux";
 import { getDataById } from "../../services/getData.api";
 import { setReload } from "../../redux/slices/main.slice";
 import { putData } from "../../services/updateData";
 import dayjs from "dayjs";
+const DEFAULT_QUOTE_FOOTER_NOTE =
+  "- Giá trên đã bao gồm toàn bộ chi phí nhân sự và trang thiết bị theo mô tả trong bảng báo giá.\n" +
+  "- Giá chưa bao gồm thuế VAT (nếu có thỏa thuận khác sẽ ghi rõ trong hợp đồng).\n" +
+  "- Báo giá có hiệu lực đến ngày ...";
 
 const SuaQuanLyBanHang = ({
   path,
@@ -22,6 +28,7 @@ const SuaQuanLyBanHang = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form] = Form.useForm();
   const dispatch = useDispatch();
+  const { isMobile } = useResponsive();
 
   // policy cho phép sửa field nào (FE)
   const [allowedFields, setAllowedFields] = useState<string[] | undefined>(
@@ -29,7 +36,14 @@ const SuaQuanLyBanHang = ({
   );
   const [lockAll, setLockAll] = useState(false);
 
+  // Wizard step: 1..7
+  // 1 = KH & sự kiện
+  // 2 = NS, 3 = CSVC, 4 = TIEC, 5 = TD, 6 = CPK, 7 = Giảm giá/QL/Thuế/Thanh toán
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(1);
+
+
   const showModal = async () => {
+    setStep(1); // luôn về step 1 khi mở
     setIsModalOpen(true);
     setIsLoading(true);
 
@@ -68,24 +82,65 @@ const SuaQuanLyBanHang = ({
           sp.ten ||
           sp.name ||
           "";
+
+        // 🔹 LẤY DANH MỤC & GROUP_CODE (NS/CSVC/TIEC/TD/CPK) TỪ SẢN PHẨM
+        const dm = sp.danh_muc || sp.danhMuc || {};
+        const groupCodeRaw =
+          dm.group_code ||
+          dm.groupCode ||
+          null;
+        const groupCode = groupCodeRaw
+          ? String(groupCodeRaw).toUpperCase()
+          : null; // NS / CSVC / TIEC / TD / CPK / null
+
+        // Gói hay dịch vụ lẻ?
+        const isPackage = !!item.is_package;
+
+        // Parse package_items (có thể là JSON string hoặc array)
+        let packageItems: any[] = [];
+        if (Array.isArray(item.package_items)) {
+          packageItems = item.package_items;
+        } else if (typeof item.package_items === "string") {
+          try {
+            const parsed = JSON.parse(item.package_items);
+            if (Array.isArray(parsed)) packageItems = parsed;
+          } catch {
+            // ignore nếu JSON lỗi
+          }
+        }
+
+        // Label fallback theo code + name
+        const fallbackLabel =
+          [code, name].filter(Boolean).join(" - ") ||
+          String(item.san_pham_id);
+
+        // Ưu tiên tên hiển thị (ten_hien_thi) nếu có
+        const label =
+          item.ten_hien_thi && String(item.ten_hien_thi).trim() !== ""
+            ? item.ten_hien_thi
+            : fallbackLabel;
+
         return {
           san_pham_id: +item.san_pham_id,
           don_vi_tinh_id: +item.don_vi_tinh_id,
           so_luong: item.so_luong,
           don_gia: item.don_gia,
-          // BE dùng thanh_tien, FE dùng tong_tien → ưu tiên field nào có
+          // UI dùng field "tong_tien", BE dùng "thanh_tien" → ưu tiên thanh_tien nếu có
           tong_tien:
             item.tong_tien !== undefined
               ? item.tong_tien
               : item.thanh_tien,
-          // ❌ EVENT: không còn loai_gia
-          // loai_gia: item?.loai_gia ?? 1,
-          san_pham_label:
-            [code, name].filter(Boolean).join(" - ") ||
-            String(item.san_pham_id),
+          san_pham_label: label,
+          is_package: isPackage,
+          package_items: packageItems,
+                hang_muc_goc: item.hang_muc_goc ?? null,
+
+          // 🔹 section_code: dùng để lọc từng modal NS/CSVC/TIEC/TD/CPK
+          section_code: groupCode,
         };
       });
     }
+
 
     // Thuế (tương thích ngược)
     const tax_mode =
@@ -133,6 +188,35 @@ const SuaQuanLyBanHang = ({
         .join(" - ");
     }
 
+    // Tính gợi ý management_fee_percent từ chi_phi & tong_tien_hang (nếu có)
+    const tongTienHang = Number(data?.tong_tien_hang ?? 0);
+    const chiPhi = Number(data?.chi_phi ?? 0);
+    const managementFeePercent =
+      tongTienHang > 0 ? Math.round((chiPhi * 100) / tongTienHang) : 0;
+
+
+    // ======== Build list Hạng mục (Nhóm gói) mặc định cho Step 8 nếu chưa có ========
+    const rawCategoryTitles = (data as any)?.quote_category_titles;
+    // Luôn coi là array: nếu DB chưa có thì = []
+    let categoryTitles: any[] = Array.isArray(rawCategoryTitles)
+      ? rawCategoryTitles
+      : [];
+
+    if (categoryTitles.length === 0) {
+      const usedKeys: string[] = [];
+
+      (data.chi_tiet_don_hangs || []).forEach((ct: any) => {
+        const key = ct.hang_muc_goc || null;
+        if (key && !usedKeys.includes(key)) {
+          usedKeys.push(key);
+        }
+      });
+
+      categoryTitles = usedKeys.map((k) => ({ key: k, label: k }));
+    }
+
+
+
     form.setFieldsValue({
       ...data,
       loai_khach_hang: formLoaiKhachHang,
@@ -141,7 +225,15 @@ const SuaQuanLyBanHang = ({
       vat_rate,
       giam_gia_thanh_vien: memberPercent,
       danh_sach_san_pham: danhSachSanPham,
+      management_fee_percent: managementFeePercent,
+       quote_category_titles: categoryTitles,
     });
+    // 🔹 Nếu đơn chưa có ghi chú tuỳ biến → dùng ghi chú mặc định để anh sửa
+    if (!data?.quote_footer_note) {
+      form.setFieldsValue({
+        quote_footer_note: DEFAULT_QUOTE_FOOTER_NOTE,
+      });
+    }
 
     // BUILD POLICY (allowedFields)
     const isDelivered =
@@ -264,6 +356,123 @@ const SuaQuanLyBanHang = ({
     }
   };
 
+  // ===== Tiêu đề theo step =====
+  const stepTitle = (() => {
+    switch (step) {
+      case 1:
+        return `Sửa ${title} - Thông tin khách hàng & sự kiện`;
+      case 2:
+        return `Sửa ${title} - Báo giá Nhân sự (NS)`;
+      case 3:
+        return `Sửa ${title} - Báo giá Cơ sở vật chất (CSVC)`;
+      case 4:
+        return `Sửa ${title} - Báo giá Tiệc (TIEC)`;
+      case 5:
+        return `Sửa ${title} - Báo giá Địa điểm / Thuê địa điểm (TD)`;
+      case 6:
+        return `Sửa ${title} - Báo giá Chi phí khác (CPK)`;
+      case 7:
+        return `Sửa ${title} - Giảm giá, Chi phí quản lý, Thuế & Thanh toán`;
+      case 8:
+        return `Sửa ${title} - Tuỳ biến Hạng mục & Ghi chú báo giá`;
+      default:
+        return `Sửa ${title}`;
+    }
+  })();
+
+  // ===== Điều khiển wizard =====
+  const handleNextStep = async () => {
+    try {
+      if (step === 1) {
+        const values = form.getFieldsValue();
+        const fieldsToValidate: (string | (string | number)[])[] = [
+          "ngay_tao_don_hang",
+          "loai_khach_hang",
+          "dia_chi_giao_hang",
+          "nguoi_nhan_thoi_gian",
+        ];
+
+        if (values.loai_khach_hang === 0) {
+          // KH hệ thống
+          fieldsToValidate.push("khach_hang_id");
+        } else if (values.loai_khach_hang === 1) {
+          // KH vãng lai
+          fieldsToValidate.push("ten_khach_hang", "so_dien_thoai");
+        } else if (values.loai_khach_hang === 2) {
+          // Agency
+          fieldsToValidate.push("khach_hang_id");
+        }
+
+        await form.validateFields(fieldsToValidate);
+      }
+
+      if (step < 8) {
+        setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
+      }
+
+    } catch (_e) {
+      // AntD tự highlight
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (step > 1) {
+      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7);
+    }
+  };
+
+  // ===== Footer =====
+  const footer =
+    step === 1
+      ? [
+          <Row justify="end" key="footer-step1">
+            <Button onClick={handleCancel} style={{ marginRight: 8 }}>
+              Hủy
+            </Button>
+            <Button
+              type="primary"
+              onClick={handleNextStep}
+              disabled={lockAll}
+            >
+              Tiếp tục
+            </Button>
+          </Row>,
+        ]
+      : step > 1 && step < 8
+      ? [
+          <Row justify="end" key="footer-step-mid" style={{ gap: 8 }}>
+            <Button onClick={handleCancel}>Hủy</Button>
+            <Button onClick={handlePrevStep} disabled={lockAll}>
+              Quay lại
+            </Button>
+            <Button
+              type="primary"
+              onClick={handleNextStep}
+              disabled={lockAll}
+            >
+              Tiếp tục
+            </Button>
+          </Row>,
+        ]
+      : [
+          <Row justify="end" key="footer-step8" style={{ gap: 8 }}>
+            <Button onClick={handlePrevStep} disabled={lockAll}>
+              Quay lại
+            </Button>
+            <Button
+              key="submit"
+              form={`formSuaQuanLyBanHang-${id}`}
+              type="primary"
+              htmlType="submit"
+              size="large"
+              loading={isSubmitting}
+              disabled={lockAll}
+            >
+              Lưu
+            </Button>
+          </Row>,
+        ];
+
   return (
     <>
       <Button
@@ -274,26 +483,28 @@ const SuaQuanLyBanHang = ({
         icon={<EditOutlined />}
       />
       <Modal
-        title={`Sửa ${title}`}
+        title={stepTitle}
         open={isModalOpen}
         onCancel={handleCancel}
         maskClosable={false}
-        centered
-        width={1200}
-        footer={[
-          <Button
-            key="submit"
-            form={`formSuaQuanLyBanHang-${id}`}
-            type="primary"
-            htmlType="submit"
-            size="large"
-            loading={isSubmitting}
-            disabled={lockAll}
-          >
-            Lưu
-          </Button>,
-        ]}
+        // 🔹 Đẩy modal lên trên (cao hơn, ít bị chật)
+        style={{ top: 24 }}
+        // 🔹 Đồng bộ với Modal Thêm: desktop 1300px, mobile full width
+        width={isMobile ? "100%" : 1300}
+        styles={{
+          body: {
+            maxHeight: isMobile
+              ? "calc(100vh - 140px)"
+              : "calc(100vh - 160px)",   // trước là 200px
+            overflow: "auto",
+            padding: isMobile ? 12 : 24,
+          },
+        }}
+        loading={isLoading}
+        footer={footer}
       >
+
+
         <Form
           id={`formSuaQuanLyBanHang-${id}`}
           form={form}
@@ -303,7 +514,12 @@ const SuaQuanLyBanHang = ({
             console.error("Form validation failed:", errorInfo);
           }}
         >
-          <FormQuanLyBanHang form={form} allowedFields={allowedFields} />
+          <FormQuanLyBanHang
+            form={form}
+            allowedFields={allowedFields}
+            stepMode={step}
+            wizardMode={true}
+          />
         </Form>
       </Modal>
     </>

@@ -1,20 +1,16 @@
 import { Col, Flex, Row } from "antd";
 import Heading from "../../components/heading";
-import DanhSachQuanLyBanHang from "./DanhSachQuanLyBanHang";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
-import ThemQuanLyBanHang from "./ThemQuanLyBanHang";
 import { useResponsive } from "../../hooks/useReponsive";
 import usePermission from "../../hooks/usePermission";
+import ThemGoiDichVuPackage from "./ThemGoiDichVuPackage";
+import DanhSachGoiDichVuPackage from "./DanhSachGoiDichVuPackage";
 
+const path = API_ROUTE_CONFIG.GOI_DICH_VU_PACKAGE;
+const title = "Gói dịch vụ";
 
-
-const path = API_ROUTE_CONFIG.QUAN_LY_BAN_HANG;
-// 🔹 ĐỔI: Đơn hàng -> Báo giá
-const title = "Báo giá";
-
-const QuanLyBanHang = () => {
+const GoiDichVuPackagePage = () => {
     const { isMobile } = useResponsive();
-
     const permission = usePermission(path);
 
     return (
@@ -26,8 +22,7 @@ const QuanLyBanHang = () => {
                     align={isMobile ? "" : "center"}
                     style={{ marginBottom: isMobile ? 20 : 0 }}
                 >
-                    {/* 🔹 ĐỔI HEADING: Quản lý báo giá sự kiện */}
-                    <Heading title={"Quản lý báo giá sự kiện"} />
+                    <Heading title={title} />
                     <Col
                         span={isMobile ? 24 : 12}
                         style={{
@@ -38,14 +33,15 @@ const QuanLyBanHang = () => {
                         }}
                     >
                         {permission.create && (
-                            <ThemQuanLyBanHang path={path} title={title} />
+                            <ThemGoiDichVuPackage path={path} title={title} />
                         )}
                     </Col>
                 </Flex>
+
                 <Row>
                     <Col span={24}>
                         {permission.index && (
-                            <DanhSachQuanLyBanHang
+                            <DanhSachGoiDichVuPackage
                                 path={path}
                                 permission={permission}
                                 title={title}
@@ -58,4 +54,4 @@ const QuanLyBanHang = () => {
     );
 };
 
-export default QuanLyBanHang;
+export default GoiDichVuPackagePage;

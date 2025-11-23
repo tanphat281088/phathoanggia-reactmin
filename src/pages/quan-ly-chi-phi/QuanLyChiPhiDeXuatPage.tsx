@@ -1,16 +1,14 @@
 import { Col, Flex, Row } from "antd";
 import Heading from "../../components/heading";
-import DanhSachSanPham from "./DanhSachSanPham";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
-import ThemSanPham from "./ThemSanPham";
 import { useResponsive } from "../../hooks/useReponsive";
 import usePermission from "../../hooks/usePermission";
+import DanhSachQuanLyChiPhiDeXuat from "./DanhSachQuanLyChiPhiDeXuat";
 
-const path = API_ROUTE_CONFIG.SAN_PHAM;
-// 🔹 Giờ SẢN PHẨM chỉ còn DỊCH VỤ (chi tiết), GÓI DỊCH VỤ dùng module riêng
-const title = "Dịch vụ";
+const path = "/quan-ly-chi-phi/de-xuat"; // sẽ đồng bộ với API_ROUTE_CONFIG sau
+const title = "QLCP Đề xuất";
 
-const SanPham = () => {
+const QuanLyChiPhiDeXuatPage = () => {
   const { isMobile } = useResponsive();
   const permission = usePermission(path);
 
@@ -23,8 +21,7 @@ const SanPham = () => {
           align={isMobile ? "" : "center"}
           style={{ marginBottom: isMobile ? 20 : 0 }}
         >
-          {/* Heading: Dịch vụ */}
-          <Heading title="Dịch vụ" />
+          <Heading title={title} />
           <Col
             span={isMobile ? 24 : 12}
             style={{
@@ -34,18 +31,16 @@ const SanPham = () => {
               gap: 10,
             }}
           >
-            {permission.create && (
-              // 🔹 Chỉ còn nút Thêm Dịch vụ
-              <ThemSanPham path={path} title={title} />
-            )}
+            {/* Hiện tại QLCP Đề xuất KHÔNG có nút Thêm trực tiếp.
+                Bảng chi phí được khởi tạo từ màn Quản lý báo giá (from-quote).
+                Nếu sau này anh muốn “Thêm từ báo giá” ngay tại đây, mình sẽ bổ sung. */}
           </Col>
         </Flex>
 
         <Row>
           <Col span={24}>
             {permission.index && (
-              // 🔹 Không còn Tabs, chỉ 1 bảng danh sách DỊCH VỤ
-              <DanhSachSanPham
+              <DanhSachQuanLyChiPhiDeXuat
                 path={path}
                 permission={permission}
                 title={title}
@@ -58,4 +53,4 @@ const SanPham = () => {
   );
 };
 
-export default SanPham;
+export default QuanLyChiPhiDeXuatPage;

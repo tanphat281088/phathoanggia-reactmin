@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "../../types/user.type";
 import useColumnSearch from "../../hooks/useColumnSearch";
-import { getListData, getDataSelect } from "../../services/getData.api";
+import { getListData } from "../../services/getData.api";
 import {
     createFilterQueryFromArray,
     formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex, Image, Select } from "antd";
+import { Col, Row, Space, Tag, Flex, Image } from "antd";
 import SuaSanPham from "./SuaSanPham";
 import Delete from "../../components/Delete";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,9 +23,7 @@ import ImportExcel from "../../components/ImportExcel";
 import ChiTietSanPham from "./ChiTietSanPham";
 import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 
-type OptionType = { value: number; label: string };
-
-const DanhSachSanPham = ({
+const DanhSachGoiDichVu = ({
     path,
     permission,
     title,
@@ -57,88 +55,21 @@ const DanhSachSanPham = ({
 
     const [isLoading, setIsLoading] = useState(false);
 
-    // 🔹 Bộ lọc Danh mục Tầng 1 & Tầng 2
-    const [filterParentId, setFilterParentId] = useState<number | undefined>();
-    const [filterDanhMucId, setFilterDanhMucId] = useState<number | undefined>();
-
-    const [parentOptions, setParentOptions] = useState<OptionType[]>([]);
-    const [childOptions, setChildOptions] = useState<OptionType[]>([]);
-
-    // Load options danh mục 1 lần
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                const parents: any = await getDataSelect(
-                    API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM + "/options?level=1",
-                    {}
-                );
-                const children: any = await getDataSelect(
-                    API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM + "/options?level=2",
-                    {}
-                );
-
-                const parentList = Array.isArray(parents) ? parents : [];
-                const childList = Array.isArray(children) ? children : [];
-
-                setParentOptions(
-                    parentList.map((it: any) => ({
-                        value: it.value ?? it.id,
-                        label: it.label ?? it.ten_danh_muc,
-                    }))
-                );
-
-                setChildOptions(
-                    childList.map((it: any) => ({
-                        value: it.value ?? it.id,
-                        label: it.label ?? it.ten_danh_muc,
-                    }))
-                );
-            } catch (e) {
-                // ignore
-            }
-        };
-
-        fetchCategories();
-    }, []);
-
     const getDanhSach = async () => {
         setIsLoading(true);
-        const filtersArr = Object.values(query) as any[];
-
-        const mergedFilters: any[] = [
-            ...filtersArr,
-            // 🔹 Chỉ lấy DỊCH VỤ LẺ: loại != NGUYEN_LIEU và != GOI_DICH_VU
-            {
-                field: "loai_san_pham",
-                operator: "not_equal",
-                value: "NGUYEN_LIEU",
-            },
-            {
-                field: "loai_san_pham",
-                operator: "not_equal",
-                value: "GOI_DICH_VU",
-            },
-        ];
-
-        // Lọc theo Danh mục Tầng 2 (danh_muc_id)
-        if (filterDanhMucId) {
-            mergedFilters.push({
-                field: "danh_muc_id",
-                operator: "equal",
-                value: filterDanhMucId,
-            });
-        }
-
-        const params: any = {
+        const filters = Object.values(query);
+        const params = {
             ...filter,
-            ...createFilterQueryFromArray(mergedFilters),
+            ...createFilterQueryFromArray([
+                ...filters,
+                // 🔹 Chỉ lấy GÓI DỊCH VỤ
+                {
+                    field: "loai_san_pham",
+                    operator: "equal",
+                    value: "GOI_DICH_VU",
+                },
+            ]),
         };
-
-        // Lọc theo Danh mục Tầng 1 (parent_danh_muc_id)
-        if (filterParentId) {
-            params.parent_danh_muc_id = filterParentId;
-        }
-
         const danhSach = await getListData(path, params);
         if (danhSach) {
             setIsLoading(false);
@@ -178,7 +109,7 @@ const DanhSachSanPham = ({
             },
         },
         {
-            title: "Ảnh dịch vụ",
+            title: "Ảnh gói dịch vụ",
             dataIndex: "images",
             align: "center",
             maxWidth: 120,
@@ -187,7 +118,7 @@ const DanhSachSanPham = ({
                 return (
                     <Image
                         src={image || "https://via.placeholder.com/80"}
-                        alt="Ảnh dịch vụ"
+                        alt="Ảnh gói dịch vụ"
                         width={50}
                         height={50}
                     />
@@ -200,21 +131,21 @@ const DanhSachSanPham = ({
             },
         },
         {
-            title: "Mã dịch vụ",
+            title: "Mã gói dịch vụ",
             dataIndex: "ma_san_pham",
             ...inputSearch({
                 dataIndex: "ma_san_pham",
                 operator: "contain",
-                nameColumn: "Mã dịch vụ",
+                nameColumn: "Mã gói dịch vụ",
             }),
         },
         {
-            title: "Tên dịch vụ",
+            title: "Tên gói dịch vụ",
             dataIndex: "ten_san_pham",
             ...inputSearch({
                 dataIndex: "ten_san_pham",
                 operator: "contain",
-                nameColumn: "Tên dịch vụ",
+                nameColumn: "Tên gói dịch vụ",
             }),
         },
         {
@@ -231,45 +162,14 @@ const DanhSachSanPham = ({
             }),
         },
         {
-            // 🔹 Loại dịch vụ
-            title: "Loại dịch vụ",
-            dataIndex: "ten_loai",
-            render: (_: any, record: any) => {
-                const code: string | undefined = record?.loai_san_pham;
-
-                let color = "default";
-                let text = "";
-
-                if (code === "GOI_DICH_VU") {
-                    color = "purple";
-                    text = "Gói dịch vụ";
-                } else if (code === "SP_NHA_CUNG_CAP") {
-                    color = "blue";
-                    text = "Thuê ngoài";
-                } else if (code === "SP_SAN_XUAT") {
-                    color = "green";
-                    text = "Tự cung cấp";
-                } else if (code === "NGUYEN_LIEU") {
-                    color = "gold";
-                    text = "Nguyên liệu";
-                } else if (code) {
-                    text = code;
-                }
-
-                if (!text) return "-";
-
-                return <Tag color={color}>{text}</Tag>;
+            title: "Loại",
+            dataIndex: "loai_san_pham",
+            render: () => {
+                return <Tag color="purple">Gói dịch vụ</Tag>;
             },
-            ...selectSearch({
-                dataIndex: "loai_san_pham",
-                path: "/loai-san-pham/options",
-                operator: "equal",
-                nameColumn: "Loại dịch vụ",
-            }),
         },
-
         {
-            title: "Giá dịch vụ",
+            title: "Giá gói dịch vụ",
             dataIndex: "gia_nhap_mac_dinh",
             render: (record: number) => {
                 return formatVietnameseCurrency(record);
@@ -328,63 +228,26 @@ const DanhSachSanPham = ({
     useEffect(() => {
         getDanhSach();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isReload, filter, query, filterParentId, filterDanhMucId]);
+    }, [isReload, filter, query]);
 
     return (
         <Row>
             <Col span={24}>
                 <Flex vertical gap={10}>
                     <Row
-                        justify="space-between"
+                        justify="end"
                         align="middle"
                         style={{ marginBottom: 5, gap: 10 }}
                     >
-                        {/* BỘ LỌC TẦNG 1 & TẦNG 2 */}
-                        <Col>
-                            <Space wrap>
-                                <Select
-                                    allowClear
-                                    style={{ minWidth: 220 }}
-                                    placeholder="Lọc theo Danh mục tầng 1"
-                                    value={filterParentId}
-                                    options={parentOptions}
-                                    onChange={(val) => {
-                                        setFilterParentId(val);
-                                        // Khi đổi tầng 1 thì reset tầng 2 cho dễ hiểu
-                                        setFilterDanhMucId(undefined);
-                                        handlePageChange(1);
-                                    }}
-                                />
-                                <Select
-                                    allowClear
-                                    style={{ minWidth: 220 }}
-                                    placeholder="Lọc theo Danh mục tầng 2"
-                                    value={filterDanhMucId}
-                                    options={childOptions}
-                                    onChange={(val) => {
-                                        setFilterDanhMucId(val);
-                                        handlePageChange(1);
-                                    }}
-                                />
-                            </Space>
-                        </Col>
-
-                        <Col>
-                            <Space style={{ gap: 10 }}>
-                                {permission.export && (
-                                    <ExportTableToExcel
-                                        columns={defaultColumns}
-                                        path={path}
-                                        params={{}}
-                                    />
-                                )}
-                                {permission.create && (
-                                    <ImportExcel path={path} />
-                                )}
-                            </Space>
-                        </Col>
+                        {permission.export && (
+                            <ExportTableToExcel
+                                columns={defaultColumns}
+                                path={path}
+                                params={{}}
+                            />
+                        )}
+                        {permission.create && <ImportExcel path={path} />}
                     </Row>
-
                     <CustomTable
                         rowKey="id"
                         dataTable={danhSach?.data}
@@ -402,4 +265,4 @@ const DanhSachSanPham = ({
     );
 };
 
-export default DanhSachSanPham;
+export default DanhSachGoiDichVu;

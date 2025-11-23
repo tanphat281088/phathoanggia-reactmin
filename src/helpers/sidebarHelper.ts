@@ -96,7 +96,10 @@ export const getSidebar = (items: any, phan_quyen: any) => {
 const PERMISSION_ALIAS: Record<string, string | string[]> = {
 
     "quan-ly-giao-hang": "quan-ly-ban-hang",
-
+ // Quản lý chi phí
+    "quan-ly-chi-phi": "quan-ly-chi-phi",
+    "qlcp-de-xuat": "quan-ly-chi-phi-de-xuat",
+    "qlcp-thuc-te": "quan-ly-chi-phi-thuc-te",
     // HR
     "quan-ly-nhan-su": "nhan-su",
     "nhan-su-cham-cong": "nhan-su",
@@ -134,7 +137,10 @@ const PERMISSION_ALIAS: Record<string, string | string[]> = {
 "tai-chinh": "bao-cao-tai-chinh",
 
 
-
+  // Gói dịch vụ
+    "nhom-danh-muc-goi-dich-vu": "goi-dich-vu-groups",
+    "nhom-goi-dich-vu": "goi-dich-vu-categories",
+    "goi-dich-vu": "goi-dich-vu-packages",
 
 
   };

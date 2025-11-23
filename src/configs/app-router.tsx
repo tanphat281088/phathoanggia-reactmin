@@ -19,11 +19,22 @@ import NhaCungCap from "../pages/nha-cung-cap/NhaCungCap";
 import DanhMucSanPham from "../pages/danh-muc-san-pham/DanhMucSanPham";
 import DonViTinh from "../pages/don-vi-tinh/DonViTinh";
 import SanPham from "../pages/san-pham/SanPham";
+
+import GoiDichVuGroupPage from "../pages/goi-dich-vu/GoiDichVuGroupPage";
+import GoiDichVuCategoryPage from "../pages/goi-dich-vu/GoiDichVuCategoryPage";
+import GoiDichVuPackagePage from "../pages/goi-dich-vu/GoiDichVuPackagePage";
+
 import PhieuNhapKho from "../pages/phieu-nhap-kho/PhieuNhapKho";
 import QuanLyTonKho from "../pages/quan-ly-ton-kho/QuanLyTonKho";
 import PhieuChi from "../pages/phieu-chi/PhieuChi";
 import QuanLyBanHang from "../pages/quan-ly-ban-hang/QuanLyBanHang";
 import QuanLyGiaoHang from "../pages/giao-hang/QuanLyGiaoHang"; // MỚI
+
+// ✅ MỚI: Quản lý chi phí (Đề xuất / Thực tế)
+import QuanLyChiPhiDeXuatPage from "../pages/quan-ly-chi-phi/QuanLyChiPhiDeXuatPage";
+import QuanLyChiPhiThucTePage from "../pages/quan-ly-chi-phi/QuanLyChiPhiThucTePage";
+
+
 import PhieuXuatKho from "../pages/phieu-xuat-kho/PhieuXuatKho";
 import PhieuThu from "../pages/phieu-thu/PhieuThu";
 import CongThucSanXuat from "../pages/cong-thuc-san-xuat/CongThucSanXuat";
@@ -275,6 +286,23 @@ export const router = createBrowserRouter([
             element: <MainLayout />,
             children: [{ index: true, element: <SanPham /> }],
           },
+
+                    {
+            path: "nhom-danh-muc-goi-dich-vu",
+            element: <MainLayout />,
+            children: [{ index: true, element: <GoiDichVuGroupPage /> }],
+          },
+          {
+            path: "nhom-goi-dich-vu",
+            element: <MainLayout />,
+            children: [{ index: true, element: <GoiDichVuCategoryPage /> }],
+          },
+          {
+            path: "goi-dich-vu",
+            element: <MainLayout />,
+            children: [{ index: true, element: <GoiDichVuPackagePage /> }],
+          },
+
         ],
       },
       {
@@ -393,6 +421,26 @@ export const router = createBrowserRouter([
         element: <MainLayout />,
         children: [{ index: true, element: <QuanLyGiaoHang /> }],
       },
+
+// ✅ MỚI: Quản lý chi phí (đặt dưới Quản lý báo giá)
+      {
+        path: "quan-ly-chi-phi",
+        children: [
+          {
+            path: "de-xuat",
+            element: <MainLayout />,
+            children: [{ index: true, element: <QuanLyChiPhiDeXuatPage /> }],
+          },
+          {
+            path: "thuc-te",
+            element: <MainLayout />,
+            children: [{ index: true, element: <QuanLyChiPhiThucTePage /> }],
+          },
+        ],
+      },
+
+
+
 
       {
         path: "quan-ly-san-xuat",

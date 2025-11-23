@@ -76,7 +76,7 @@ const ThemGoiDichVu = ({
             <Modal
                 title={`Thêm gói dịch vụ`}
                 open={isModalOpen}
-                width={1000}
+                 width={1300}
                 onCancel={handleCancel}
                 maskClosable={false}
                 centered

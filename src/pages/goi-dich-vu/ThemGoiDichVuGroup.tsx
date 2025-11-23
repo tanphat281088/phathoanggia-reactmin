@@ -1,55 +1,54 @@
 import { PlusOutlined } from "@ant-design/icons";
-import { postData } from "../../services/postData.api";
 import { useState } from "react";
 import { Button, Form, Modal, Row } from "antd";
-import FormSanPham from "./FormSanPham";
-import { useDispatch, useSelector } from "react-redux";
-import { clearImageSingle, setReload } from "../../redux/slices/main.slice";
-import type { RootState } from "../../redux/store";
+import { useDispatch } from "react-redux";
+import { postData } from "../../services/postData.api";
+import { setReload } from "../../redux/slices/main.slice";
+import FormGoiDichVuGroup from "./FormGoiDichVuGroup";
 
-const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
+const ThemGoiDichVuGroup = ({
+    path,
+    title,
+}: {
+    path: string;
+    title: string;
+}) => {
     const dispatch = useDispatch();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [form] = Form.useForm();
 
-
-
     const showModal = () => {
-        form.resetFields();          // reset form
-        dispatch(clearImageSingle()); // xoá ảnh đang lưu trong Redux
-        setIsModalOpen(true);        // rồi mới mở modal
+        // Mỗi lần mở: reset form
+        form.resetFields();
+        setIsModalOpen(true);
     };
-
 
     const handleCancel = () => {
         setIsModalOpen(false);
         form.resetFields();
-        dispatch(clearImageSingle());
     };
 
     const onCreate = async (values: any) => {
         setIsLoading(true);
-        const closeModel = () => {
+
+        const closeModal = () => {
             handleCancel();
             dispatch(setReload());
         };
 
-        // Tách image ra khỏi values
-        const { image, ...rest } = values;
-        const payload: any = { ...rest };
+        await postData(
+            path,
+            {
+                ...values,
+                // nếu không chọn trạng thái thì BE sẽ default = 1
+            },
+            closeModal
+        );
 
-        // Chỉ gửi image nếu user thật sự chọn hình
-        if (image) {
-            payload.image = image;
-        }
-
-        await postData(path, payload, closeModel);
         setIsLoading(false);
     };
-
-
 
     return (
         <>
@@ -64,7 +63,7 @@ const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
             <Modal
                 title={`Thêm ${title}`}
                 open={isModalOpen}
-                width={1000}
+                width={800}
                 onCancel={handleCancel}
                 maskClosable={false}
                 centered
@@ -72,7 +71,7 @@ const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
                     <Row justify="end" key="footer">
                         <Button
                             key="submit"
-                            form="formSanPham"
+                            form="formGoiDichVuGroup"
                             type="primary"
                             htmlType="submit"
                             size="large"
@@ -84,16 +83,16 @@ const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
                 ]}
             >
                 <Form
-                    id="formSanPham"
+                    id="formGoiDichVuGroup"
                     form={form}
                     layout="vertical"
                     onFinish={onCreate}
                 >
-                    <FormSanPham form={form} />
+                    <FormGoiDichVuGroup form={form} />
                 </Form>
             </Modal>
         </>
     );
 };
 
-export default ThemSanPham;
+export default ThemGoiDichVuGroup;

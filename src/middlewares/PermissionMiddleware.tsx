@@ -47,6 +47,13 @@ const EXTRA_WHITELIST = [
 const MODULE_ALIAS: Record<string, string> = {
   "quan-ly-giao-hang": "quan-ly-ban-hang",
   "quan-ly-nhan-su": "nhan-su",
+
+
+  
+  // Quản lý chi phí
+  "quan-ly-chi-phi": "quan-ly-chi-phi",
+  "de-xuat": "quan-ly-chi-phi-de-xuat",
+  "thuc-te": "quan-ly-chi-phi-thuc-te",
   // CSKH (mới)
   "cham-soc-khach-hang": "cskh",
   "diem-thanh-vien": "cskh-points",
@@ -72,7 +79,10 @@ const MODULE_ALIAS: Record<string, string> = {
   "thiet-lap-luong": "payroll-profile",
 
 
-
+ // Gói dịch vụ (3 tầng)
+  "nhom-danh-muc-goi-dich-vu": "goi-dich-vu-groups",
+  "nhom-goi-dich-vu": "goi-dich-vu-categories",
+  "goi-dich-vu": "goi-dich-vu-packages",
 
 };
 

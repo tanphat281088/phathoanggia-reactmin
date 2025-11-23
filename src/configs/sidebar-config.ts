@@ -183,7 +183,7 @@ export const sidebarConfig = (
     // ===== Quản lý sản phẩm =====
     {
       key: "quan-ly-san-pham",
-      label: "Quản lý sản phẩm",
+      label: "Quản lý dịch vụ",
       icon: React.createElement(Boxes, { style: iconStyle }),
       children: [
         {
@@ -194,7 +194,7 @@ export const sidebarConfig = (
         },
         {
           key: "danh-muc-san-pham",
-          label: "Danh mục sản phẩm",
+          label: "Danh mục dịch vụ",
           icon: React.createElement(Layers2, { style: iconStyle }),
           onClick: () => navigate(URL_CONSTANTS.DANH_MUC_SAN_PHAM),
         },
@@ -206,12 +206,67 @@ export const sidebarConfig = (
         },
         {
           key: "san-pham",
-          label: "Sản phẩm/Nguyên liệu",
+          label: "Chi tiết dịch vụ",
           icon: React.createElement(SquareMenu, { style: iconStyle }),
           onClick: () => navigate(URL_CONSTANTS.SAN_PHAM),
         },
       ],
     },
+
+    // ===== Quản lý Gói dịch vụ =====
+    ...(can(permJson, "goi-dich-vu", "showMenu")
+      ? [
+          {
+            key: "quan-ly-goi-dich-vu",
+            label: "Quản lý Gói dịch vụ",
+            icon: React.createElement(Package2, { style: iconStyle }),
+            children: [
+              // Nhóm danh mục gói DV
+              ...(can(permJson, "goi-dich-vu-groups", "index")
+                ? [
+                    {
+                      key: "nhom-danh-muc-goi-dich-vu",
+                      label: "Nhóm danh mục gói DV",
+                      icon: React.createElement(Layers2, { style: iconStyle }),
+                      onClick: () =>
+                        navigate(URL_CONSTANTS.GOI_DICH_VU_GROUP),
+                    },
+                  ]
+                : []),
+
+              // Nhóm gói dịch vụ
+              ...(can(permJson, "goi-dich-vu-categories", "index")
+                ? [
+                    {
+                      key: "nhom-goi-dich-vu",
+                      label: "Nhóm gói dịch vụ",
+                      icon: React.createElement(SquareMenu, {
+                        style: iconStyle,
+                      }),
+                      onClick: () =>
+                        navigate(URL_CONSTANTS.GOI_DICH_VU_CATEGORY),
+                    },
+                  ]
+                : []),
+
+              // Gói dịch vụ
+              ...(can(permJson, "goi-dich-vu-packages", "index")
+                ? [
+                    {
+                      key: "goi-dich-vu",
+                      label: "Gói dịch vụ",
+                      icon: React.createElement(Package2, {
+                        style: iconStyle,
+                      }),
+                      onClick: () =>
+                        navigate(URL_CONSTANTS.GOI_DICH_VU_PACKAGE),
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
 
 
 
@@ -330,9 +385,31 @@ export const sidebarConfig = (
     // ===== Quản lý bán hàng =====
     {
       key: "quan-ly-ban-hang",
-      label: "Quản lý bán hàng",
+      label: "Quản lý báo giá",
       icon: React.createElement(HandCoins, { style: iconStyle }),
       onClick: () => navigate(URL_CONSTANTS.QUAN_LY_BAN_HANG),
+    },
+
+
+// ===== Quản lý chi phí (mới) =====
+    {
+      key: "quan-ly-chi-phi",
+      label: "Quản lý chi phí",
+      icon: React.createElement(HandCoins, { style: iconStyle }),
+      children: [
+        {
+          key: "qlcp-de-xuat",
+          label: "QLCP Đề xuất",
+          icon: React.createElement(HandCoins, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.QLCP_DE_XUAT),
+        },
+        {
+          key: "qlcp-thuc-te",
+          label: "QLCP Thực tế",
+          icon: React.createElement(HandCoins, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.QLCP_THUC_TE),
+        },
+      ],
     },
 
     // ===== Quản lý giao hàng =====

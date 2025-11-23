@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "../../types/user.type";
 import useColumnSearch from "../../hooks/useColumnSearch";
-import { getListData } from "../../services/getData.api";
+import { getListData, getDataSelect } from "../../services/getData.api";
 import { createFilterQueryFromArray } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex, Image } from "antd";
+import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
+
+import { Col, Row, Space, Tag, Flex, Image, Select } from "antd";
 import SuaDanhMucSanPham from "./SuaDanhMucSanPham";
 import Delete from "../../components/Delete";
 import { useDispatch, useSelector } from "react-redux";
@@ -71,10 +73,37 @@ const DanhSachDanhMucSanPham = ({
     } = useColumnSearch();
 
     const [isLoading, setIsLoading] = useState(false);
+        // Map ID → tên danh mục tầng 1 (load từ options level=1)
+    const [parentNameMap, setParentNameMap] = useState<Record<number, string>>(
+        {}
+    );
+
+
+    // ====== LỌC THEO DANH MỤC TẦNG 1 (chỉ dùng cho mode = "level2") ======
+    const [filterParentId, setFilterParentId] = useState<number | undefined>();
 
     const getDanhSach = async () => {
         setIsLoading(true);
-        const params = { ...filter, ...createFilterQueryFromArray(query) };
+
+        let params: any;
+
+        if (mode === "level1") {
+            // ⭐ Tầng 1: luôn lấy HẾT danh mục từ BE (limit lớn),
+            // sau đó FE tự lọc theo parent_id
+            params = {
+                page: 1,
+                limit: 1000,          // đủ lớn cho toàn bộ danh mục dịch vụ
+                sort_column: "id",
+                sort_direction: "asc",
+            };
+        } else {
+            // Các tab khác (Tất cả, Tầng 2): giữ behaviour cũ
+            params = {
+                ...filter,
+                ...createFilterQueryFromArray(query),
+            };
+        }
+
         const danhSach = await getListData(path, params);
         if (danhSach) {
             setIsLoading(false);
@@ -82,19 +111,51 @@ const DanhSachDanhMucSanPham = ({
         setDanhSach(danhSach);
     };
 
-    // ✅ Filter theo mode: all / level1 / level2
+
+    const rawData = danhSach?.data || [];
+
+    // ✅ Map id -> record để lookup tên danh mục cha nhanh
+    const parentMap = useMemo(() => {
+        const map = new Map<number, any>();
+        rawData.forEach((item: any) => {
+            if (item && typeof item.id !== "undefined") {
+                map.set(item.id, item);
+            }
+        });
+        return map;
+    }, [rawData]);
+
+    // ✅ Options dropdown cho DANH MỤC TẦNG 1 (lấy từ chính list: parent_id null)
+    const parentOptions = useMemo(
+        () =>
+            rawData
+                .filter((r: any) => !r.parent_id)
+                .map((p: any) => ({
+                    value: p.id,
+                    label: p.ten_danh_muc || `ID ${p.id}`,
+                })),
+        [rawData]
+    );
+
+    // ✅ Filter theo mode: all / level1 / level2 + filterParentId
     const dataFiltered = useMemo(() => {
-        const raw = danhSach?.data || [];
+        let base: any[] = rawData;
+
         if (mode === "level1") {
             // Tầng 1: không có parent_id (cha)
-            return raw.filter((r: any) => !r.parent_id);
-        }
-        if (mode === "level2") {
+            base = rawData.filter((r: any) => !r.parent_id);
+        } else if (mode === "level2") {
             // Tầng 2: có parent_id (con)
-            return raw.filter((r: any) => !!r.parent_id);
+            base = rawData.filter((r: any) => !!r.parent_id);
+
+            // Nếu chọn lọc theo Danh mục tầng 1
+            if (filterParentId) {
+                base = base.filter((r: any) => r.parent_id === filterParentId);
+            }
         }
-        return raw;
-    }, [danhSach, mode]);
+
+        return base;
+    }, [rawData, mode, filterParentId]);
 
     const defaultColumns: any = [
         {
@@ -169,6 +230,27 @@ const DanhSachDanhMucSanPham = ({
                 nameColumn: "Tên danh mục",
             }),
         },
+        // ✅ Cột DANH MỤC TẦNG 1 (cha)
+        {
+            title: "Danh mục tầng 1",
+            dataIndex: "parent_id",
+            render: (_: any, record: any) => {
+                const parentId = record?.parent_id;
+                if (!parentId) return "-";
+
+                const idNum = Number(parentId);
+
+                // Ưu tiên tên từ map load từ API options level=1
+                const nameFromMap =
+                    !Number.isNaN(idNum) ? parentNameMap[idNum] : undefined;
+
+                // Fallback: tìm trong dữ liệu hiện tại (rawData)
+                const parent = parentMap.get(idNum);
+
+                return nameFromMap || parent?.ten_danh_muc || `ID ${parentId}`;
+            },
+        },
+
         // ✅ Cột NHÓM DỊCH VỤ
         {
             title: "Nhóm dịch vụ",
@@ -253,6 +335,40 @@ const DanhSachDanhMucSanPham = ({
         },
     ];
 
+    // Load FULL danh mục tầng 1 để map parent_id → tên (kể cả khi không có trong rawData)
+    useEffect(() => {
+        const fetchParents = async () => {
+            try {
+                const data: any = await getDataSelect(
+                    API_ROUTE_CONFIG.DANH_MUC_SAN_PHAM + "/options?level=1",
+                    {}
+                );
+
+                const list = Array.isArray(data) ? data : [];
+                const map: Record<number, string> = {};
+
+                list.forEach((item: any) => {
+                    const id = Number(item.value ?? item.id);
+                    const label =
+                        item.label ??
+                        item.ten_danh_muc ??
+                        `ID ${item.value ?? item.id}`;
+                    if (!Number.isNaN(id)) {
+                        map[id] = label;
+                    }
+                });
+
+                setParentNameMap(map);
+            } catch {
+                // ignore lỗi
+            }
+        };
+
+        fetchParents();
+    }, []);
+
+
+
     useEffect(() => {
         getDanhSach();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,19 +379,41 @@ const DanhSachDanhMucSanPham = ({
             <Col span={24}>
                 <Flex vertical gap={10}>
                     <Row
-                        justify="end"
+                        justify="space-between"
                         align="middle"
                         style={{ marginBottom: 5, gap: 10 }}
                     >
-                        {permission.export && (
-                            <ExportTableToExcel
-                                columns={defaultColumns}
-                                path={path}
-                                params={{}}
-                            />
-                        )}
-                        {/* {permission.create && <ImportExcel path={path} />} */}
+                        {/* BỘ LỌC DANH MỤC TẦNG 1 – chỉ hiển thị khi đang ở tab Tầng 2 */}
+                        <Col>
+                            {mode === "level2" && (
+                                <Select
+                                    allowClear
+                                    style={{ minWidth: 220 }}
+                                    placeholder="Lọc theo Danh mục tầng 1"
+                                    value={filterParentId}
+                                    options={parentOptions}
+                                    onChange={(value) => {
+                                        setFilterParentId(value);
+                                        handlePageChange(1);
+                                    }}
+                                />
+                            )}
+                        </Col>
+
+                        <Col>
+                            <Space style={{ gap: 10 }}>
+                                {permission.export && (
+                                    <ExportTableToExcel
+                                        columns={defaultColumns}
+                                        path={path}
+                                        params={{}}
+                                    />
+                                )}
+                                {/* {permission.create && <ImportExcel path={path} />} */}
+                            </Space>
+                        </Col>
                     </Row>
+
                     <CustomTable
                         rowKey="id"
                         dataTable={dataFiltered}

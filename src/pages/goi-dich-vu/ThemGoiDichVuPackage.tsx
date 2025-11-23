@@ -1,55 +1,57 @@
 import { PlusOutlined } from "@ant-design/icons";
-import { postData } from "../../services/postData.api";
 import { useState } from "react";
 import { Button, Form, Modal, Row } from "antd";
-import FormSanPham from "./FormSanPham";
-import { useDispatch, useSelector } from "react-redux";
-import { clearImageSingle, setReload } from "../../redux/slices/main.slice";
-import type { RootState } from "../../redux/store";
+import { useDispatch } from "react-redux";
+import { postData } from "../../services/postData.api";
+import { setReload } from "../../redux/slices/main.slice";
+import FormGoiDichVuPackage from "./FormGoiDichVuPackage";
 
-const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
+const ThemGoiDichVuPackage = ({
+    path,
+    title,
+}: {
+    path: string;
+    title: string;
+}) => {
     const dispatch = useDispatch();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [form] = Form.useForm();
-
-
-
     const showModal = () => {
-        form.resetFields();          // reset form
-        dispatch(clearImageSingle()); // xoá ảnh đang lưu trong Redux
-        setIsModalOpen(true);        // rồi mới mở modal
+        form.resetFields();
+        // mặc định: Trọn gói
+        form.setFieldsValue({ package_mode: 0 });
+        setIsModalOpen(true);
     };
 
 
     const handleCancel = () => {
         setIsModalOpen(false);
         form.resetFields();
-        dispatch(clearImageSingle());
     };
 
     const onCreate = async (values: any) => {
         setIsLoading(true);
-        const closeModel = () => {
+        console.log("[GoiDV] onCreate package_mode =", values.package_mode, typeof values.package_mode);
+
+        const closeModal = () => {
             handleCancel();
             dispatch(setReload());
         };
 
-        // Tách image ra khỏi values
-        const { image, ...rest } = values;
-        const payload: any = { ...rest };
+        await postData(
+            path,
+            {
+                ...values,
+                // items sẽ được gửi nguyên vẹn cho BE
+                // trang_thai nếu không gửi -> BE default = 1
+            },
+            closeModal
+        );
 
-        // Chỉ gửi image nếu user thật sự chọn hình
-        if (image) {
-            payload.image = image;
-        }
-
-        await postData(path, payload, closeModel);
         setIsLoading(false);
     };
-
-
 
     return (
         <>
@@ -72,7 +74,7 @@ const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
                     <Row justify="end" key="footer">
                         <Button
                             key="submit"
-                            form="formSanPham"
+                            form="formGoiDichVuPackage"
                             type="primary"
                             htmlType="submit"
                             size="large"
@@ -84,16 +86,16 @@ const ThemSanPham = ({ path, title }: { path: string; title: string }) => {
                 ]}
             >
                 <Form
-                    id="formSanPham"
+                    id="formGoiDichVuPackage"
                     form={form}
                     layout="vertical"
                     onFinish={onCreate}
                 >
-                    <FormSanPham form={form} />
+                    <FormGoiDichVuPackage form={form} />
                 </Form>
             </Modal>
         </>
     );
 };
 
-export default ThemSanPham;
+export default ThemGoiDichVuPackage;

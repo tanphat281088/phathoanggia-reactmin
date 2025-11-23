@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import type { User } from "../../types/user.type";
 import useColumnSearch from "../../hooks/useColumnSearch";
 import { getListData } from "../../services/getData.api";
+import { API_ROUTE_CONFIG } from "../../configs/api-route-config";
 import {
   createFilterQueryFromArray,
   formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex } from "antd";
+import { Col, Row, Space, Tag, Flex, Button } from "antd";
 import SuaQuanLyBanHang from "./SuaQuanLyBanHang";
 import Delete from "../../components/Delete";
 import { useDispatch, useSelector } from "react-redux";
@@ -30,6 +31,13 @@ import { donHangTrangThaiSelect } from "../../configs/select-config";
 
 /** Card view cho mobile */
 import CardList from "../../components/responsive/CardList";
+
+/** 🔹 NÚT QUẢN LÝ CHI PHÍ (Đề xuất / Thực tế) */
+
+/** NÚT QUẢN LÝ CHI PHÍ (Đề xuất / Thực tế) */
+import ChiPhiDeXuatButton from "../quan-ly-chi-phi/ChiPhiDeXuatButton";
+import ChiPhiThucTeButton from "../quan-ly-chi-phi/ChiPhiThucTeButton";
+
 
 /** Helper: map trạng thái giao hàng → màu Tag */
 const DON_HANG_STATUS_COLOR: Record<number, string> = {
@@ -60,6 +68,12 @@ const QUOTE_STATUS_COLOR: Record<number, string> = {
   6: "red",
 };
 
+// ===== Helper: build URL đầy đủ tới API (dựa vào VITE_API_URL) =====
+const API_BASE =
+  (import.meta as any).env?.VITE_API_URL?.replace(/\/$/, "") || "/api";
+
+const buildApiUrl = (path: string) => `${API_BASE}${path}`;
+
 const DanhSachQuanLyBanHang = ({
   path,
   permission,
@@ -69,6 +83,16 @@ const DanhSachQuanLyBanHang = ({
   permission: Actions;
   title: string;
 }) => {
+  const handleViewBaoGiaPdf = (id: number | string) => {
+    const url = buildApiUrl(API_ROUTE_CONFIG.BAO_GIA_VIEW(id));
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleExportBaoGiaExcel = (id: number | string) => {
+    const url = buildApiUrl(API_ROUTE_CONFIG.BAO_GIA_EXCEL(id));
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const dispatch = useDispatch();
   const isReload = useSelector((state: RootState) => state.main.isReload);
 
@@ -109,25 +133,66 @@ const DanhSachQuanLyBanHang = ({
       title: "Thao tác",
       dataIndex: "id",
       align: "center",
-      render: (id: number, record: any) => {
+      width: 320,
+      render: (_: any, record: any) => {
+        const id = record?.id;
+        const maBaoGia = record?.ma_don_hang;
+
         return (
-          <Space size={0}>
+          <Space size={4} wrap>
             {permission.show && (
               <ChiTietQuanLyBanHang path={path} id={id} title={title} />
             )}
+
             {permission.show && (
               <InHoaDon donHangId={id} disabled={!permission.show} />
             )}
+
+            {permission.show && (
+              <Button
+                size="small"
+                onClick={() => handleViewBaoGiaPdf(id)}
+                style={{ marginLeft: 4 }}
+              >
+                Báo giá PDF
+              </Button>
+            )}
+
+            {permission.show && (
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => handleExportBaoGiaExcel(id)}
+                style={{ marginLeft: 4 }}
+              >
+                Excel
+              </Button>
+            )}
+
             {permission.edit && (
               <SuaQuanLyBanHang path={path} id={id} title={title} />
             )}
+
             {permission.delete && (
               <Delete path={path} id={id} onShow={getDanhSach} />
             )}
+
+            {/* 🔹 Nút mở Chi phí đề xuất */}
+            <ChiPhiDeXuatButton
+              donHangId={id}
+              maBaoGia={maBaoGia}
+            />
+
+            {/* 🔹 Nút mở Chi phí thực tế */}
+            <ChiPhiThucTeButton
+              donHangId={id}
+              maBaoGia={maBaoGia}
+            />
           </Space>
         );
       },
     },
+
     {
       // 🔹 Mã báo giá (trước đây là Mã đơn hàng)
       title: "Mã báo giá",
@@ -316,7 +381,7 @@ const DanhSachQuanLyBanHang = ({
       dataTable={danhSach?.data}
       defaultColumns={defaultColumns}
       filter={filter}
-      scroll={{ x: 2400 }}
+      scroll={{ x: 2600 }}
       handlePageChange={handlePageChange}
       handleLimitChange={handleLimitChange}
       total={danhSach?.total}
@@ -331,9 +396,49 @@ const DanhSachQuanLyBanHang = ({
       {permission.show && (
         <ChiTietQuanLyBanHang path={path} id={r.id} title={title} />
       )}
-      {permission.show && <InHoaDon donHangId={r.id} disabled={!permission.show} />}
-      {permission.edit && <SuaQuanLyBanHang path={path} id={r.id} title={title} />}
-      {permission.delete && <Delete path={path} id={r.id} onShow={getDanhSach} />}
+
+      {permission.show && (
+        <InHoaDon donHangId={r.id} disabled={!permission.show} />
+      )}
+
+      {permission.edit && (
+        <SuaQuanLyBanHang path={path} id={r.id} title={title} />
+      )}
+
+      {permission.delete && (
+        <Delete path={path} id={r.id} onShow={getDanhSach} />
+      )}
+
+      {permission.show && (
+        <Button
+          size="small"
+          style={{ marginLeft: 4 }}
+          onClick={() => handleViewBaoGiaPdf(r.id)}
+        >
+          PDF
+        </Button>
+      )}
+
+      {permission.show && (
+        <Button
+          size="small"
+          type="primary"
+          style={{ marginLeft: 4 }}
+          onClick={() => handleExportBaoGiaExcel(r.id)}
+        >
+          Excel
+        </Button>
+      )}
+
+      {/* 🔹 Nút CP Đề xuất & CP Thực tế trên mobile */}
+      <ChiPhiDeXuatButton
+        donHangId={r.id}
+        maBaoGia={r.ma_don_hang}
+      />
+      <ChiPhiThucTeButton
+        donHangId={r.id}
+        maBaoGia={r.ma_don_hang}
+      />
     </>
   );
 

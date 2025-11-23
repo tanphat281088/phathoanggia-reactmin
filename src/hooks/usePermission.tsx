@@ -62,10 +62,19 @@ const PATH_ALIAS: Record<string, string> = {
   "don-vi-tinh": "don-vi-tinh",
   "san-pham": "san-pham",
 
+  // Gói dịch vụ (module mới)
+  "goi-dich-vu/groups": "goi-dich-vu-groups",
+  "goi-dich-vu/categories": "goi-dich-vu-categories",
+  "goi-dich-vu/packages": "goi-dich-vu-packages",
+
   "phieu-nhap-kho": "phieu-nhap-kho",
   "phieu-xuat-kho": "phieu-xuat-kho",
   "quan-ly-ton-kho": "quan-ly-ton-kho",
   "quan-ly-ban-hang": "quan-ly-ban-hang",
+
+    // Quản lý chi phí
+  "quan-ly-chi-phi/de-xuat": "quan-ly-chi-phi-de-xuat",
+  "quan-ly-chi-phi/thuc-te": "quan-ly-chi-phi-thuc-te",
 
   // Giao hàng (tách module riêng)
   "giao-hang": "giao-hang",
