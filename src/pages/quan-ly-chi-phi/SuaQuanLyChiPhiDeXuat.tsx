@@ -17,17 +17,10 @@ type Props = {
   title: string; // "QLCP Đề xuất"
 };
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
 /**
- * SỬA QLCP ĐỀ XUẤT – Wizard:
- *  1. Thông tin báo giá
- *  2. Nhân sự – Chi phí
- *  3. CSVC  – Chi phí
- *  4. Tiệc  – Chi phí
- *  5. Thuê địa điểm – Chi phí
- *  6. Chi phí khác – Chi phí
- *  7. Tổng hợp chi phí & lãi lỗ
+ * SỬA QLCP ĐỀ XUẤT
+ * - KHÔNG còn wizard 7 bước.
+ * - Modal duy nhất: hiển thị thông tin báo giá + bảng chi phí theo Hạng mục.
  */
 const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,45 +30,71 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
   const dispatch = useDispatch();
   const { isMobile } = useResponsive();
 
-  const [step, setStep] = useState<Step>(1);
+  const [donHangState, setDonHangState] = useState<any | null>(null);
 
-  const showModal = async () => {
-    setStep(1);
+
+const showModal = async () => {
     setIsModalOpen(true);
     setIsLoading(true);
-
     try {
-      // ===== 1) Lấy bản ghi QLCP (cp) =====
       const cp: any = await getDataById(id, path);
-
-      // ===== 2) Xác định donHangId =====
-      let donHang: any =
-        cp?.don_hang ??
-        cp?.donHang ??
-        cp?.order ??
-        null;
 
       const donHangId: number | null =
         cp?.don_hang_id ??
         cp?.donHangId ??
-        (donHang?.id ?? null);
+        cp?.don_hang?.id ??
+        cp?.donHang?.id ??
+        null;
 
-      // ===== 3) Gọi THẲNG API BÁO GIÁ nếu cần =====
-      // Nếu cp không embed don_hang hoặc không có chi_tiet_don_hangs → gọi /quan-ly-ban-hang/{id}
-      if (!donHang || !Array.isArray(donHang.chi_tiet_don_hangs)) {
-        if (donHangId) {
-          donHang = await getDataById(
-            donHangId,
-            API_ROUTE_CONFIG.QUAN_LY_BAN_HANG
-          );
-        } else {
-          donHang = null;
-        }
+      let donHang: any = null;
+
+      if (donHangId) {
+        const dhRes: any = await getDataById(
+          donHangId,
+          API_ROUTE_CONFIG.QUAN_LY_BAN_HANG
+        );
+        donHang = dhRes?.data ?? dhRes;
       }
 
-      // ===== 4) Lấy items chi phí nếu đã tồn tại trong QLCP =====
+      setDonHangState(donHang);
+
+      console.log("QLCP cp =", cp);
+      console.log("QLCP donHangId =", donHangId);
+      console.log("QLCP donHang =", donHang);
+
+      // ===== Map Hạng mục Step 8 (quote_category_titles) nếu có =====
+      const categoryTitleMap: Record<string, string> = {};
+      try {
+        const rawCt = (donHang as any)?.quote_category_titles;
+        let arr: any = rawCt;
+
+        // Có thể là JSON string hoặc array
+        if (typeof rawCt === "string") {
+          try {
+            const parsed = JSON.parse(rawCt);
+            if (Array.isArray(parsed)) arr = parsed;
+          } catch {
+            // ignore parse error
+          }
+        }
+
+        if (Array.isArray(arr)) {
+          arr.forEach((row: any) => {
+            const key = row?.key;
+            const label = row?.label;
+            if (key && label) {
+              categoryTitleMap[String(key)] = String(label);
+            }
+          });
+        }
+      } catch {
+        // ignore
+      }
+
       let rawItems: any[] = [];
       if (Array.isArray(cp?.items) && cp.items.length > 0) {
+
+
         rawItems = cp.items;
       } else if (
         Array.isArray(cp?.chi_phi_items) &&
@@ -121,9 +140,24 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
             Number(ct.thanh_tien ?? ct.tong_tien ?? 0) ||
             qty * sellUnit;
 
+          // 🔹 HẠNG MỤC GỐC: từ chi tiết đơn hoặc danh mục
+          const baseHangMuc =
+            ct.hang_muc_goc ??
+            dm.ten_danh_muc ??
+            dm.tenDanhMuc ??
+            null;
+
+          // 🔹 HẠNG MỤC HIỂN THỊ:
+          //  - Nếu Step 8 có map key = baseHangMuc → dùng label
+          //  - Nếu không → dùng baseHangMuc
+          const hangMuc =
+            baseHangMuc && categoryTitleMap[baseHangMuc]
+              ? categoryTitleMap[baseHangMuc]
+              : baseHangMuc;
+
           return {
             section_code: groupCode, // Nhóm NS / CSVC / TIEC / TD / CPK
-            hang_muc: ct.hang_muc_goc ?? null,
+            hang_muc: hangMuc,
             chi_tiet: name,
             dvt,
             so_luong: qty,
@@ -139,6 +173,8 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
           };
         });
       }
+
+
 
       // ===== 6) Chuẩn hoá items cho FE (cost/sell/section_code...) =====
       const normItems = (rawItems || []).map((row: any) => {
@@ -216,7 +252,7 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
       // ===== 7) Đẩy vào form =====
       form.setFieldsValue({
         ...cp,
-        don_hang: donHang, // để Step 1 hiển thị thông tin báo giá
+        don_hang: donHang, // để header hiển thị thông tin báo giá
         items: normItems,
       });
     } catch (e) {
@@ -248,74 +284,23 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
     }
   };
 
-  // ===== Tiêu đề theo step =====
-  const stepTitle = (() => {
-    switch (step) {
-      case 1:
-        return `Sửa ${title} – Thông tin báo giá`;
-      case 2:
-        return `Sửa ${title} – Nhân sự (NS)`;
-      case 3:
-        return `Sửa ${title} – Cơ sở vật chất (CSVC)`;
-      case 4:
-        return `Sửa ${title} – Tiệc (TIEC)`;
-      case 5:
-        return `Sửa ${title} – Thuê địa điểm (TD)`;
-      case 6:
-        return `Sửa ${title} – Chi phí khác (CPK)`;
-      case 7:
-        return `Sửa ${title} – Tổng hợp chi phí & lãi lỗ`;
-      default:
-        return `Sửa ${title}`;
-    }
-  })();
+  const modalTitle = `Sửa ${title} – Thông tin báo giá`;
 
-  // ===== Điều khiển wizard =====
-  const handleNextStep = async () => {
-    try {
-      if (step < 7) {
-        setStep((prev) => (prev + 1) as Step);
-      }
-    } catch (_e) {
-      // AntD sẽ tự highlight nếu có validate
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (step > 1) {
-      setStep((prev) => (prev - 1) as Step);
-    }
-  };
-
-  // ===== Footer =====
-  const footer =
-    step < 7
-      ? [
-          <Row justify="end" key="footer-step-mid" style={{ gap: 8 }}>
-            <Button onClick={handleCancel}>Hủy</Button>
-            <Button onClick={handlePrevStep} disabled={step === 1}>
-              Quay lại
-            </Button>
-            <Button type="primary" onClick={handleNextStep}>
-              Tiếp tục
-            </Button>
-          </Row>,
-        ]
-      : [
-          <Row justify="end" key="footer-step7" style={{ gap: 8 }}>
-            <Button onClick={handlePrevStep}>Quay lại</Button>
-            <Button
-              key="submit"
-              form={`formSuaQLCPDeXuat-${id}`}
-              type="primary"
-              htmlType="submit"
-              size="large"
-              loading={isSubmitting}
-            >
-              Lưu
-            </Button>
-          </Row>,
-        ];
+  const footer = (
+    <Row justify="end" style={{ gap: 8 }}>
+      <Button onClick={handleCancel}>Hủy</Button>
+      <Button
+        key="submit"
+        form={`formSuaQLCPDeXuat-${id}`}
+        type="primary"
+        htmlType="submit"
+        size="large"
+        loading={isSubmitting}
+      >
+        Lưu
+      </Button>
+    </Row>
+  );
 
   return (
     <>
@@ -327,7 +312,7 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
         icon={<EditOutlined />}
       />
       <Modal
-        title={stepTitle}
+        title={modalTitle}
         open={isModalOpen}
         onCancel={handleCancel}
         maskClosable={false}
@@ -354,8 +339,9 @@ const SuaQuanLyChiPhiDeXuat = ({ path, id, title }: Props) => {
           <FormQuanLyChiPhi
             form={form}
             mode="de-xuat"
-            stepMode={step}
+            donHang={donHangState}
           />
+
         </Form>
       </Modal>
     </>

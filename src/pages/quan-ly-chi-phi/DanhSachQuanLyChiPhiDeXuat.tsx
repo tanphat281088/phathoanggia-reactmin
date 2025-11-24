@@ -7,7 +7,8 @@ import {
   createFilterQueryFromArray,
   formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex, Typography } from "antd";
+import { Col, Row, Space, Tag, Flex, Typography, Button, message } from "antd";
+
 import { useDispatch, useSelector } from "react-redux";
 import CustomTable from "../../components/CustomTable";
 import type { RootState } from "../../redux/store";
@@ -18,6 +19,7 @@ import { OPTIONS_STATUS } from "../../utils/constant";
 import Delete from "../../components/Delete";
 import SuaQuanLyChiPhiDeXuat from "./SuaQuanLyChiPhiDeXuat";
 
+import axios from "../../configs/axios";
 
 const { Text } = Typography;
 
@@ -75,23 +77,68 @@ const DanhSachQuanLyChiPhiDeXuat = ({
       dataIndex: "id",
       align: "center",
       width: 160,
-      render: (id: number) => {
-        return (
-          <Space size={0}>
-            {permission.edit && (
-              <SuaQuanLyChiPhiDeXuat
-                path={path}
-                id={id}
-                title={title}
-              />
-            )}
-            {permission.delete && (
-              <Delete path={path} id={id} onShow={getDanhSach} />
-            )}
-          </Space>
-        );
-      },
+    render: (id: number) => {
+      return (
+        <Space size={4}>
+          {permission.edit && (
+            <SuaQuanLyChiPhiDeXuat
+              path={path}
+              id={id}
+              title={title}
+            />
+          )}
+
+          {/* Nút PDF chi phí đề xuất */}
+          <Button
+            size="small"
+            type="link"
+            onClick={() => {
+              const apiBase =
+                (import.meta as any).env?.VITE_API_URL || "/api";
+              window.open(
+                `${apiBase}/quan-ly-chi-phi/de-xuat/${id}/pdf`,
+                "_blank"
+              );
+            }}
+          >
+            PDF
+          </Button>
+
+          {/* Nút chuyển sang CP thực tế */}
+          <Button
+            size="small"
+            type="link"
+            onClick={async () => {
+              try {
+                const apiBase =
+                  (import.meta as any).env?.VITE_API_URL || "/api";
+
+                await axios.post(
+                  `${apiBase}/quan-ly-chi-phi/de-xuat/${id}/transfer-to-actual`
+                );
+
+                message.success("Đã chuyển sang chi phí thực tế");
+
+                // Chuyển sang màn QLCP Thực tế (FE route admin)
+                window.location.href = "/admin/quan-ly-chi-phi/thuc-te";
+              } catch (e) {
+                console.error(e);
+                message.error("Không chuyển được sang chi phí thực tế");
+              }
+            }}
+          >
+            CP thực tế
+          </Button>
+
+          {permission.delete && (
+            <Delete path={path} id={id} onShow={getDanhSach} />
+          )}
+        </Space>
+      );
     },
+
+  },
+
 
     {
       title: "Mã báo giá",
@@ -275,3 +322,4 @@ const DanhSachQuanLyChiPhiDeXuat = ({
 };
 
 export default DanhSachQuanLyChiPhiDeXuat;
+

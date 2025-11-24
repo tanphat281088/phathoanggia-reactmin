@@ -183,11 +183,7 @@ const DanhSachQuanLyBanHang = ({
               maBaoGia={maBaoGia}
             />
 
-            {/* 🔹 Nút mở Chi phí thực tế */}
-            <ChiPhiThucTeButton
-              donHangId={id}
-              maBaoGia={maBaoGia}
-            />
+
           </Space>
         );
       },

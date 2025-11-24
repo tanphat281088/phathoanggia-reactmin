@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Form, Select, type SelectProps } from "antd";
+import { Form, Select, type SelectProps, type FormItemProps } from "antd";
 import type { ReactNode } from "react";
 import { getDataSelect } from "../../services/getData.api";
 import type { Rule } from "antd/es/form";
@@ -34,6 +34,8 @@ interface SelectFormApiProps
 
   /** ✅ (MỚI) danh sách mã ưu tiên — chỉ khi bạn truyền prop này */
   priorityCodes?: string[];
+    /** Prop cho chính Form.Item bọc bên ngoài (để chỉnh marginBottom, className, ...) */
+  formItemProps?: FormItemProps;
 }
 
 const DEBOUNCE_MS = 350;
@@ -92,6 +94,7 @@ const SelectFormApi = ({
   getPopupContainer,
   dropdownMatchSelectWidth,
   popupClassName,
+  formItemProps,
   ...restProps
 }: SelectFormApiProps) => {
   const [apiOptions, setApiOptions] = useState<OptionItem[]>([]);
@@ -227,10 +230,17 @@ const SelectFormApi = ({
   }
 
   return (
-    <Form.Item name={name} label={label} rules={rules} initialValue={initialValue}>
+    <Form.Item
+      name={name}
+      label={label}
+      rules={rules}
+      initialValue={initialValue}
+      {...formItemProps}
+    >
       <Select {...selectProps} />
     </Form.Item>
   );
+
 };
 
 export default SelectFormApi;

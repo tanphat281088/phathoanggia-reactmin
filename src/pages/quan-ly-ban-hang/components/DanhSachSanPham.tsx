@@ -295,9 +295,17 @@ const [packageDisplayMode, setPackageDisplayMode] = useState<0 | 1>(0);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOption[]>([]);
 
-  const [selectedGroupId, setSelectedGroupId] = useState<
-    string | number | undefined
-  >(undefined);
+const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(
+  undefined
+);
+// 🔍 LOG: theo dõi state nhóm gói trong DanhSachSanPham
+useEffect(() => {
+  console.log("[DSP] selectedGroupId =", selectedGroupId);
+}, [selectedGroupId]);
+
+useEffect(() => {
+  console.log("[DSP] groupOptions =", groupOptions);
+}, [groupOptions]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<
     string | number | undefined
   >(undefined);
@@ -337,52 +345,53 @@ const [packageDisplayMode, setPackageDisplayMode] = useState<0 | 1>(0);
     }
   }, [sectionGroupCode]);
 
-  // 1️⃣ Tải danh sách NHÓM DANH MỤC GÓI DỊCH VỤ (tầng 1)
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const data = await getDataSelect(
-          `${API_ROUTE_CONFIG.GOI_DICH_VU_GROUP}/options`,
-          {}
-        );
-        const list: GroupOption[] = Array.isArray(data)
-          ? data.map((it: any) => ({
-              value: it.value ?? it.id,
-              label: it.label ?? it.ten_nhom ?? it.name,
-            }))
-          : [];
-        setGroupOptions(list);
-      } catch (e) {
-        // ignore
-      }
-    };
-    fetchGroups();
-  }, []);
-
-
-    // 🌟 Khi đang ở wizard (có sectionGroupCode), tự chọn Nhóm danh mục gói dịch vụ phù hợp
-  useEffect(() => {
-    if (!sectionGroupCode) return;
-    if (!groupOptions || groupOptions.length === 0) return;
-
-    const keywords = SECTION_GROUP_KEYWORDS[sectionGroupCode];
-    if (!keywords || keywords.length === 0) return;
-
-    const lowerKeywords = keywords.map((k) => k.toLowerCase());
-
-    const matched = groupOptions.find((opt) => {
-      const label = String(opt.label ?? "").toLowerCase();
-      return lowerKeywords.some((kw) => label.includes(kw));
-    });
-
-    if (matched) {
-      setSelectedGroupId(matched.value);
-    } else {
-      // Không tìm thấy group phù hợp → để user chọn tay (trong chế độ legacy),
-      // nhưng vì wizard đã ẩn ô group, nên coi như không có gì để chọn.
-      setSelectedGroupId(undefined);
+// 1️⃣ Tải danh sách NHÓM DANH MỤC GÓI DỊCH VỤ (tầng 1)
+useEffect(() => {
+  const fetchGroups = async () => {
+    try {
+      const data = await getDataSelect(
+        `${API_ROUTE_CONFIG.GOI_DICH_VU_GROUP}/options`,
+        {}
+      );
+      const list: GroupOption[] = Array.isArray(data)
+        ? data.map((it: any) => ({
+            // Ép tất cả value về string để Select so sánh chính xác
+            value: String(it.value ?? it.id),
+            label: it.label ?? it.ten_nhom ?? it.name,
+          }))
+        : [];
+      setGroupOptions(list);
+    } catch (e) {
+      // ignore
+      setGroupOptions([]);
     }
-  }, [sectionGroupCode, groupOptions]);
+  };
+  fetchGroups();
+}, []);
+
+// 🌟 Khi đang ở wizard (có sectionGroupCode), tự chọn Nhóm danh mục gói dịch vụ phù hợp
+useEffect(() => {
+  if (!sectionGroupCode) return;
+  if (!groupOptions || groupOptions.length === 0) return;
+
+  const keywords = SECTION_GROUP_KEYWORDS[sectionGroupCode];
+  if (!keywords || keywords.length === 0) return;
+
+  const lowerKeywords = keywords.map((k) => k.toLowerCase());
+
+  const matched = groupOptions.find((opt) => {
+    const label = String(opt.label ?? "").toLowerCase();
+    return lowerKeywords.some((kw) => label.includes(kw));
+  });
+
+  if (matched) {
+    // Đảm bảo luôn lưu dưới dạng string
+    setSelectedGroupId(String(matched.value));
+  } else {
+    setSelectedGroupId(undefined);
+  }
+}, [sectionGroupCode, groupOptions]);
+
 
   // 2️⃣ Khi chọn Group → load NHÓM GÓI DỊCH VỤ (tầng 2)
   useEffect(() => {
@@ -1002,24 +1011,29 @@ const row = {
               {/* Tầng 1: Nhóm danh mục gói */}
 {!sectionGroupCode && (
                 <Col span={5}>
-                  <Select
-                    showSearch
-                    allowClear
-                    placeholder="Nhóm danh mục gói dịch vụ"
-                    options={groupOptions}
-                    value={selectedGroupId}
-                    onChange={(v) => {
-                      setSelectedGroupId(v);
-                    }}
-                    optionFilterProp="label"
-                    getPopupContainer={(node) =>
-                      (node &&
-                        (node.closest(".ant-modal") as HTMLElement)) ||
-                      document.body
-                    }
-                    dropdownMatchSelectWidth={false}
-                    popupClassName="phg-dd"
-                  />
+<Select
+  showSearch
+  allowClear
+  placeholder="Nhóm danh mục gói dịch vụ"
+  options={groupOptions}
+  value={selectedGroupId}
+onChange={(v) => {
+  const next = v === undefined || v === null ? undefined : String(v);
+  console.log("[DSP] Group Select onChange v =", v, "next =", next);
+  setSelectedGroupId(next);
+}}
+
+  optionFilterProp="label"
+  // Chỉ disable khi đang xem chi tiết, KHÔNG khóa khi chưa chọn
+  disabled={isDetail}
+  getPopupContainer={(node) =>
+    (node && (node.closest(".ant-modal") as HTMLElement)) ||
+    document.body
+  }
+  dropdownMatchSelectWidth={false}
+  popupClassName="phg-dd"
+/>
+
                 </Col>
               )}
 

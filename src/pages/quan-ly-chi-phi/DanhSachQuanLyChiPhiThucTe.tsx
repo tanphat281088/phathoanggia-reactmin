@@ -7,7 +7,8 @@ import {
   createFilterQueryFromArray,
   formatVietnameseCurrency,
 } from "../../utils/utils";
-import { Col, Row, Space, Tag, Flex, Typography } from "antd";
+import { Col, Row, Space, Tag, Flex, Typography, Button } from "antd";
+
 import { useDispatch, useSelector } from "react-redux";
 import CustomTable from "../../components/CustomTable";
 import type { RootState } from "../../redux/store";
@@ -74,22 +75,40 @@ const DanhSachQuanLyChiPhiThucTe = ({
       dataIndex: "id",
       align: "center",
       width: 160,
-      render: (id: number) => {
-        return (
-          <Space size={0}>
-            {permission.edit && (
-              <SuaQuanLyChiPhiThucTe
-                path={path}
-                id={id}
-                title={title}
-              />
-            )}
-            {permission.delete && (
-              <Delete path={path} id={id} onShow={getDanhSach} />
-            )}
-          </Space>
-        );
-      },
+        render: (id: number) => {
+    return (
+      <Space size={0}>
+        {permission.edit && (
+          <SuaQuanLyChiPhiThucTe
+            path={path}
+            id={id}
+            title={title}
+          />
+        )}
+
+        {/* Nút PDF chi phí THỰC TẾ */}
+        <Button
+          size="small"
+          type="link"
+          onClick={() => {
+            const apiBase =
+              (import.meta as any).env?.VITE_API_URL || "/api";
+            window.open(
+              `${apiBase}/quan-ly-chi-phi/thuc-te/${id}/pdf`,
+              "_blank"
+            );
+          }}
+        >
+          PDF
+        </Button>
+
+        {permission.delete && (
+          <Delete path={path} id={id} onShow={getDanhSach} />
+        )}
+      </Space>
+    );
+  },
+
     },
 
     {
