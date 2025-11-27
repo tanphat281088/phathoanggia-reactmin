@@ -14,10 +14,13 @@ import dayjs from "dayjs";
 import FormQuanLyBanHang from "./FormQuanLyBanHang";
 import FormHangMucBaoGia from "./FormHangMucBaoGia";
 
+
 const DEFAULT_QUOTE_FOOTER_NOTE =
-  "- Giá trên đã bao gồm toàn bộ chi phí nhân sự và trang thiết bị theo mô tả trong bảng báo giá.\n" +
-  "- Giá chưa bao gồm thuế VAT (nếu có thỏa thuận khác sẽ ghi rõ trong hợp đồng).\n" +
-  "- Báo giá có hiệu lực đến ngày ...";
+  "- Lần 1: Thanh toán 50% ngay sau khi Hợp đồng hoặc Xác nhận dịch vụ được ký kết.\n" +
+  "- Lần 2: Thanh toán chi phí còn lại sau 2 ngày sau khi nhận được hóa đơn tài chính.\n" +
+  "- Chi phí bao gồm: Phí nhân công thi công; kỹ thuật lắp đặt; nhân sự chạy xuyên suốt chương trình.\n" +
+  "- Thời gian lắp đặt: Trong vòng 1 ngày.";
+
 
 const SuaQuanLyBanHang = ({
   path,
@@ -228,6 +231,38 @@ const SuaQuanLyBanHang = ({
       management_fee_percent: managementFeePercent,
     });
 
+    // ======== PARSE THÔNG TIN NGƯỜI XÁC NHẬN BÁO GIÁ TỪ quote_approver_note ========
+    let approverName: string | undefined = undefined;
+    let approverTitle: string | undefined = undefined;
+    let approverPhone: string | undefined = undefined;
+    let approverEmail: string | undefined = undefined;
+
+    if (data?.quote_approver_note) {
+      const raw = String(data.quote_approver_note);
+      const lines = raw.split(/\r\n|\r|\n/).map((s: string) => s.trim()).filter(Boolean);
+
+      // Dòng 1: tên
+      if (lines[0]) {
+        approverName = lines[0];
+      }
+
+      // Dòng 2: chức vụ (có thể đã có prefix "Chức vụ:")
+      if (lines[1]) {
+        approverTitle = lines[1].replace(/^Chức vụ:\s*/i, "").trim();
+      }
+
+      // Dòng 3: Điện thoại
+      if (lines[2]) {
+        approverPhone = lines[2].replace(/^Điện thoại:\s*/i, "").trim();
+      }
+
+      // Dòng 4: Email
+      if (lines[3]) {
+        approverEmail = lines[3].replace(/^Email:\s*/i, "").trim();
+      }
+    }
+
+
     // ======== Set form cho MODAL 2 (HẠNG MỤC) ========
     detailForm.setFieldsValue({
       items: danhSachSanPham,
@@ -240,13 +275,23 @@ const SuaQuanLyBanHang = ({
       giam_gia_thanh_vien: memberPercent,
       quote_category_titles: categoryTitles,
       quote_footer_note: data?.quote_footer_note || DEFAULT_QUOTE_FOOTER_NOTE,
+
+      // Người báo giá (giữ nguyên)
       quote_signer_name: data?.quote_signer_name ?? null,
       quote_signer_title: data?.quote_signer_title ?? null,
       quote_signer_phone: data?.quote_signer_phone ?? null,
       quote_signer_email: data?.quote_signer_email ?? null,
+
+      // Người xác nhận báo giá – FILL LẠI LÊN FORM
+      approver_name: approverName ?? undefined,
+      approver_title: approverTitle ?? undefined,
+      approver_phone: approverPhone ?? undefined,
+      approver_email: approverEmail ?? undefined,
       quote_approver_note: data?.quote_approver_note ?? null,
+
       ghi_chu: data?.ghi_chu ?? null,
     });
+
 
     // BUILD POLICY (allowedFields)
     const isDelivered =
@@ -355,6 +400,31 @@ const onUpdate = async (detailValues: any) => {
   try {
     const info  = draftInfo || infoForm.getFieldsValue(true) || {};
     const items: any[] = detailValues?.items || [];
+
+    // ===== GHÉP NGƯỜI XÁC NHẬN BÁO GIÁ → quote_approver_note =====
+    const approverName: string | undefined = detailValues?.approver_name;
+    const approverTitle: string | undefined = detailValues?.approver_title;
+    const approverPhone: string | undefined = detailValues?.approver_phone;
+    const approverEmail: string | undefined = detailValues?.approver_email;
+
+    const approverLines: string[] = [];
+    if (approverName && approverName.trim() !== "") {
+      approverLines.push(approverName.trim());
+    }
+     if (approverTitle && approverTitle.trim() !== "") {
+      approverLines.push("Chức vụ: " + approverTitle.trim());
+    }
+
+    if (approverPhone && approverPhone.trim() !== "") {
+      approverLines.push("Điện thoại: " + approverPhone.trim());
+    }
+    if (approverEmail && approverEmail.trim() !== "") {
+      approverLines.push("Email: " + approverEmail.trim());
+    }
+
+    detailValues.quote_approver_note =
+      approverLines.length > 0 ? approverLines.join("\n") : null;
+
 
     // Map items → danh_sach_san_pham cho BE
     // - Giữ san_pham_id

@@ -28,7 +28,17 @@ type GroupOption = { value: number | string; label: string };
 type CategoryOption = { value: number | string; label: string };
 
 // Các group dịch vụ (map 1-1 với group_code)
-type SectionGroupCode = "NS" | "CSVC" | "TIEC" | "TD" | "CPK";
+type SectionGroupCode =
+  | "NS"
+  | "CSVC"
+  | "TIEC"
+  | "TD"
+  | "CPK"
+  | "CPQL"
+  | "CPFT"
+  | "CPFG"
+  | "GG";
+
 
 // 🔹 Nhóm danh mục dịch vụ (dùng cho chọn DỊCH VỤ LẺ 3 tầng)
 const SERVICE_GROUP_OPTIONS = [
@@ -37,7 +47,14 @@ const SERVICE_GROUP_OPTIONS = [
   { label: "Tiệc", value: "TIEC" },
   { label: "Thuê địa điểm", value: "TD" },
   { label: "Chi phí khác", value: "CPK" },
+
+  // 🔹 Nhóm mới
+  { label: "Chi phí quản lý", value: "CPQL" },
+  { label: "Chi phí phát sinh tăng", value: "CPFT" },
+  { label: "Chi phí phát sinh giảm", value: "CPFG" },
+  { label: "Giảm giá", value: "GG" },
 ];
+
 
 // Map sectionGroupCode → các từ khoá dùng để tìm Nhóm danh mục gói dịch vụ phù hợp
 const SECTION_GROUP_KEYWORDS: Record<SectionGroupCode, string[]> = {
@@ -46,6 +63,12 @@ const SECTION_GROUP_KEYWORDS: Record<SectionGroupCode, string[]> = {
   TIEC: ["tiệc"],
   TD:   ["thuê địa điểm", "địa điểm"],
   CPK:  ["chi phí khác", "chi phí"],
+
+  // 🔹 Nhóm mới – match với tên Nhóm gói dịch vụ anh tạo bên GoiDichVuGroup
+  CPQL: ["chi phí quản lý", "quản lý"],
+  CPFT: ["chi phí phát sinh tăng", "phát sinh tăng"],
+  CPFG: ["chi phí phát sinh giảm", "phát sinh giảm"],
+  GG:   ["giảm giá", "discount"],
 };
 
 // ID đơn vị tính "Gói" trong don_vi_tinhs

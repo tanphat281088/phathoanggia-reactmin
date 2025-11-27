@@ -30,10 +30,30 @@ const { Text, Title } = Typography;
 
 type Mode = "create" | "edit";
 
-export type SectionGroupCode = "NS" | "CSVC" | "TIEC" | "TD" | "CPK";
+export type SectionGroupCode =
+  | "NS"
+  | "CSVC"
+  | "TIEC"
+  | "TD"
+  | "CPK"
+  | "CPQL"
+  | "CPFT"
+  | "CPFG"
+  | "GG";
 
 // Thứ tự & label section
-const SECTION_ORDER: SectionGroupCode[] = ["NS", "CSVC", "TIEC", "TD", "CPK"];
+const SECTION_ORDER: SectionGroupCode[] = [
+  "NS",
+  "CSVC",
+  "TIEC",
+  "TD",
+  "CPK",
+  "CPQL",
+  "CPFT",
+  "CPFG",
+  "GG",
+];
+
 
 const SECTION_LABELS: Record<string, string> = {
   NS: "Nhân sự",
@@ -41,8 +61,16 @@ const SECTION_LABELS: Record<string, string> = {
   TIEC: "Tiệc",
   TD: "Thuê địa điểm",
   CPK: "Chi phí khác",
+
+  // 🔹 Nhóm mới
+  CPQL: "Chi phí quản lý",
+  CPFT: "Chi phí phát sinh tăng",
+  CPFG: "Chi phí phát sinh giảm",
+  GG: "Giảm giá",
+
   OTHER: "Khác",
 };
+
 
 // Dùng để đoán section_code từ tên Nhóm DM gói
 const SECTION_GROUP_KEYWORDS: Record<SectionGroupCode, string[]> = {
@@ -50,8 +78,50 @@ const SECTION_GROUP_KEYWORDS: Record<SectionGroupCode, string[]> = {
   CSVC: ["cơ sở vật chất", "csvc"],
   TIEC: ["tiệc"],
   TD: ["thuê địa điểm", "địa điểm"],
-  CPK: ["chi phí khác", "chi phí"],
+  CPK: ["chi phí khác"],
+
+  // 🔹 Nhóm mới – match với tên Nhóm DM gói anh đặt bên GoiDichVuGroup
+  CPQL: ["chi phí quản lý", "quản lý"],
+  CPFT: ["chi phí phát sinh tăng", "phát sinh tăng"],
+  CPFG: ["chi phí phát sinh giảm", "phát sinh giảm"],
+  GG: ["giảm giá", "discount"],
 };
+
+
+// 🔹 Cấu hình người báo giá / người xác nhận
+const QUOTE_STAFFS = [
+  {
+    key: "TUYET",
+    name: "Võ Thị Ánh Tuyết",
+    email: "anhtuyet@phathoanggia.com.vn",
+    phone: "0936692203",
+  },
+  {
+    key: "AN",
+    name: "Võ Văn An",
+    email: "vanan@phathoanggia.com.vn",
+    phone: "0333470000",
+  },
+  {
+    key: "LINH",
+    name: "Cát Ngọc Lĩnh",
+    email: "catngoclinh@phathoanggia.com.vn",
+    phone: "0767474373",
+  },
+  {
+    key: "PHUC",
+    name: "Hà Hữu Phúc",
+    email: "huuphuc@phathoanggia.com.vn",
+    phone: "0879788875",
+  },
+];
+
+const QUOTE_TITLES = [
+  { label: "Nhân viên kinh doanh", value: "Nhân viên kinh doanh" },
+  { label: "Phó phòng kinh doanh", value: "Phó phòng kinh doanh" },
+  { label: "Trưởng phòng kinh doanh", value: "Trưởng phòng kinh doanh" },
+];
+
 
 const PACKAGE_UNIT_ID = 15;
 const PAGE_SIZE = 20;
@@ -70,6 +140,40 @@ type Props = {
 const FormHangMucBaoGia = ({ form, mode, donHangInfo, disabled }: Props) => {
   const isCreate = mode === "create";
   const isDisabled = !!disabled;
+
+
+  // Helper: set thông tin người báo giá theo name
+  const setSignerByName = useCallback(
+    (name: string | undefined) => {
+      const staff = QUOTE_STAFFS.find((s) => s.name === name);
+      if (!staff) return;
+      form.setFieldsValue({
+        quote_signer_name: staff.name,
+        quote_signer_email: staff.email,
+        quote_signer_phone: staff.phone,
+      });
+    },
+    [form]
+  );
+
+  // Helper: set thông tin người xác nhận theo name
+  const setApproverByName = useCallback(
+    (name: string | undefined) => {
+      const staff = QUOTE_STAFFS.find((s) => s.name === name);
+      if (!staff) return;
+      form.setFieldsValue({
+        approver_name: staff.name,
+        approver_email: staff.email,
+        approver_phone: staff.phone,
+      });
+    },
+    [form]
+  );
+
+
+  // Thứ tự section động trên UI (A,B,C...), khởi tạo từ SECTION_ORDER
+  const [sectionOrderState, setSectionOrderState] = useState<string[]>(SECTION_ORDER);
+
 
   // ===== WATCH FORM =====
   const items: any[] = Form.useWatch("items", form) || [];
@@ -284,204 +388,294 @@ useEffect(() => {
 
 
   // Đoán section_code từ label Nhóm DM gói
-  const detectSectionCodeFromGroupLabel = (
-    label: string | undefined
-  ): SectionGroupCode | "OTHER" => {
-    if (!label) return "OTHER";
-    const lower = label.toLowerCase();
-    for (const code of SECTION_ORDER) {
-      const kws = SECTION_GROUP_KEYWORDS[code];
-      if (kws.some((kw) => lower.includes(kw))) return code;
-    }
-    return "OTHER";
-  };
+const detectSectionCodeFromGroupLabel = (
+  label: string | undefined
+): SectionGroupCode | "OTHER" => {
+  if (!label) return "OTHER";
+  const lower = label.toLowerCase();
+  for (const code of sectionOrderState as SectionGroupCode[]) {
+    const kws = SECTION_GROUP_KEYWORDS[code];
+    if (kws.some((kw) => lower.includes(kw))) return code;
+  }
+  return "OTHER";
+};
 
-  // ===== THÊM GÓI VÀO items =====
-  const handleAddPackageToList = useCallback(
-    async (pkgId?: string | number) => {
-      const rawId = pkgId ?? selectedPackageId;
-      const idToUse =
-        rawId !== undefined && rawId !== null ? Number(rawId) : undefined;
 
-      if (!idToUse || Number.isNaN(idToUse) || isDisabled) return;
+// ===== THÊM GÓI VÀO items =====
+const handleAddPackageToList = useCallback(
+  async (pkgId?: string | number) => {
+    const rawId = pkgId ?? selectedPackageId;
+    const idToUse =
+      rawId !== undefined && rawId !== null ? Number(rawId) : undefined;
 
-      setLoadingPackage(true);
-      try {
-        const pkg: any = await getDataById(
-          idToUse,
-          API_ROUTE_CONFIG.GOI_DICH_VU_PACKAGE
+    if (!idToUse || Number.isNaN(idToUse) || isDisabled) return;
+
+    setLoadingPackage(true);
+    try {
+      const pkg: any = await getDataById(
+        idToUse,
+        API_ROUTE_CONFIG.GOI_DICH_VU_PACKAGE
+      );
+      if (!pkg || typeof pkg !== "object") {
+        console.warn("[GoiDV] Không tìm thấy dữ liệu gói", pkg);
+        return;
+      }
+
+      const packageModeFromBE: number = Number(pkg.package_mode ?? 0); // 0=Trọn gói,1=Thành phần
+
+      // Mode hiệu lực: ưu tiên lựa chọn trên UI, nếu chưa chọn thì dùng cấu hình gói
+      const effectiveMode =
+        packageDisplayMode === null ? packageModeFromBE : packageDisplayMode;
+      const packageMode: number = effectiveMode === 1 ? 1 : 0;
+
+      const rawItems: any[] = Array.isArray(pkg.items) ? pkg.items : [];
+      if (!rawItems.length) {
+        console.warn("[GoiDV] Gói không có items", pkg);
+        return;
+      }
+
+      // Giá gói (ban đầu)
+      let packagePrice = Number(
+        pkg.gia_khuyen_mai != null ? pkg.gia_khuyen_mai : pkg.gia_niem_yet
+      );
+      if (!packagePrice || packagePrice <= 0) {
+        packagePrice = rawItems.reduce(
+          (sum, it: any) => sum + Number(it.thanh_tien ?? 0),
+          0
         );
-        if (!pkg || typeof pkg !== "object") {
-          console.warn("[GoiDV] Không tìm thấy dữ liệu gói", pkg);
-          return;
-        }
+      }
 
-        const packageModeFromBE: number = Number(pkg.package_mode ?? 0); // 0=Trọn gói,1=Thành phần
+      // SP đại diện
+      const first = rawItems[0];
+      const sp0 = first.san_pham || first.sanPham || {};
+      const repSanPhamId = sp0.id ?? first.san_pham_id;
+      if (!repSanPhamId) {
+        console.warn("[GoiDV] Không tìm được san_pham_id đại diện", pkg);
+        return;
+      }
 
-        // Mode hiệu lực: ưu tiên lựa chọn trên UI, nếu chưa chọn thì dùng cấu hình gói
-        const effectiveMode =
-          packageDisplayMode === null ? packageModeFromBE : packageDisplayMode;
-        const packageMode: number = effectiveMode === 1 ? 1 : 0;
+      // Chi tiết gói (dùng cho card/view)
+      const packageItems = rawItems.map((it: any) => {
+        const sp = it.san_pham || it.sanPham || {};
+        const ten =
+          sp.ten_san_pham ??
+          sp.ten_vat_tu ??
+          sp.ten ??
+          sp.name ??
+          "";
+        return {
+          ten_san_pham: ten,
+          so_luong: Number(it.so_luong ?? 0),
+          don_vi_tinh: "",
+          ghi_chu: it.ghi_chu ?? "",
+        };
+      });
 
+      // Hạng mục (Nhóm gói)
+      const selectedCategory = categoryOptions.find(
+        (opt) => String(opt.value) === String(selectedCategoryId)
+      );
+      const baseHangMuc: string | undefined =
+        (selectedCategory?.label as string | undefined) ?? undefined;
 
-        const rawItems: any[] = Array.isArray(pkg.items) ? pkg.items : [];
-        if (!rawItems.length) {
-          console.warn("[GoiDV] Gói không có items", pkg);
-          return;
-        }
+      // Nhóm danh mục gói (dùng để đoán section_code)
+      const selectedGroup = groupOptions.find(
+        (opt) => String(opt.value) === String(selectedGroupId)
+      );
+      const groupLabel: string | undefined =
+        (selectedGroup?.label as string | undefined) ?? undefined;
 
-        // Giá gói
-        let packagePrice = Number(
-          pkg.gia_khuyen_mai != null ? pkg.gia_khuyen_mai : pkg.gia_niem_yet
-        );
-        if (!packagePrice || packagePrice <= 0) {
-          packagePrice = rawItems.reduce(
-            (sum, it: any) => sum + Number(it.thanh_tien ?? 0),
-            0
-          );
-        }
+      const secCode = detectSectionCodeFromGroupLabel(groupLabel);
+      const sectionCode =
+        secCode === "OTHER"
+          ? null
+          : (secCode as SectionGroupCode);
 
-        // SP đại diện
-        const first = rawItems[0];
-        const sp0 = first.san_pham || first.sanPham || {};
-        const repSanPhamId = sp0.id ?? first.san_pham_id;
-        if (!repSanPhamId) {
-          console.warn("[GoiDV] Không tìm được san_pham_id đại diện", pkg);
-          return;
-        }
+      const secCodeStr = String(sectionCode ?? "").toUpperCase();
+      const isNegativeSection = secCodeStr === "GG" || secCodeStr === "CPFG";
 
-        // Chi tiết gói
-        const packageItems = rawItems.map((it: any) => {
+      const currentList = (form.getFieldValue("items") || []) as any[];
+
+      if (packageMode === 1) {
+        // ===== GÓI THÀNH PHẦN → nổ từng dịch vụ con =====
+        const rowList: any[] = [];
+
+        rawItems.forEach((it: any) => {
           const sp = it.san_pham || it.sanPham || {};
-          const ten =
-            sp.ten_san_pham ??
-            sp.ten_vat_tu ??
-            sp.ten ??
-            sp.name ??
-            "";
-          return {
-            ten_san_pham: ten,
-            so_luong: Number(it.so_luong ?? 0),
-            don_vi_tinh: "",
-            ghi_chu: it.ghi_chu ?? "",
-          };
-        });
+          const sanPhamId = sp.id ?? it.san_pham_id;
+          if (!sanPhamId) return;
 
-        const selectedCategory = categoryOptions.find(
-          (opt) => String(opt.value) === String(selectedCategoryId)
-        );
-        const baseHangMuc: string | undefined =
-          (selectedCategory?.label as string | undefined) ?? undefined;
+          const code =
+            sp.ma_san_pham ?? sp.ma_vt ?? sp.ma_sp ?? sp.code ?? "";
+          const name =
+            sp.ten_san_pham ?? sp.ten_vat_tu ?? sp.ten ?? sp.name ?? "";
 
-        const selectedGroup = groupOptions.find(
-          (opt) => String(opt.value) === String(selectedGroupId)
-        );
-        const groupLabel: string | undefined =
-          (selectedGroup?.label as string | undefined) ?? undefined;
+          const soLuong = Number(it.so_luong ?? 1) || 1;
+          let donGia = Number(it.don_gia ?? sp.gia_nhap_mac_dinh ?? 0);
 
-        const secCode = detectSectionCodeFromGroupLabel(groupLabel);
-        const sectionCode =
-          secCode === "OTHER"
-            ? null
-            : (secCode as SectionGroupCode);
+          // 🔹 Nếu là GIẢM GIÁ hoặc CP PHÁT SINH GIẢM → luôn âm
+          if (isNegativeSection) {
+            donGia = -Math.abs(donGia);
+          }
 
-        const currentList = (form.getFieldValue("items") || []) as any[];
+          const thanhTien = soLuong * donGia;
 
-        if (packageMode === 1) {
-          // GÓI THÀNH PHẦN → nổ từng dịch vụ con
-          const rowList: any[] = [];
+          rowList.push({
+            san_pham_id: sanPhamId,
+            san_pham_label: [code, name].filter(Boolean).join(" - "),
 
-          rawItems.forEach((it: any) => {
-            const sp = it.san_pham || it.sanPham || {};
-            const sanPhamId = sp.id ?? it.san_pham_id;
-            if (!sanPhamId) return;
+            don_vi_tinh_id: undefined,
+            so_luong: soLuong,
+            don_gia: donGia,
+            thanh_tien: thanhTien,
 
-            const code =
-              sp.ma_san_pham ?? sp.ma_vt ?? sp.ma_sp ?? sp.code ?? "";
-            const name =
-              sp.ten_san_pham ?? sp.ten_vat_tu ?? sp.ten ?? sp.name ?? "";
-
-            const soLuong = Number(it.so_luong ?? 1) || 1;
-            const donGia = Number(
-              it.don_gia ?? sp.gia_nhap_mac_dinh ?? 0
-            );
-            const thanhTien = soLuong * donGia;
-
-            rowList.push({
-              san_pham_id: sanPhamId,
-              san_pham_label: [code, name].filter(Boolean).join(" - "),
-              don_vi_tinh_id: undefined,
-              so_luong: soLuong,
-              don_gia: donGia,
-              thanh_tien: thanhTien,
-              hang_muc: baseHangMuc,
-              hang_muc_goc: baseHangMuc ?? null,
-              chi_tiet: name,
-              section_code: sectionCode,
-              is_package: false,
-              package_items: null,
-            });
-          });
-
-          if (!rowList.length) return;
-
-          form.setFieldsValue({
-            items: [...currentList, ...rowList],
-          });
-        } else {
-          // GÓI TRỌN GÓI
-          const row = {
-            san_pham_id: repSanPhamId,
-            san_pham_label:
-              pkg.ten_goi || pkg.ma_goi || `Gói dịch vụ #${pkg.id}`,
-            don_vi_tinh_id: PACKAGE_UNIT_ID,
-            so_luong: 1,
-            don_gia: packagePrice,
-            thanh_tien: packagePrice,
             hang_muc: baseHangMuc,
             hang_muc_goc: baseHangMuc ?? null,
-            chi_tiet: pkg.ten_goi || "",
+            chi_tiet: name,
+
             section_code: sectionCode,
-            is_package: true,
-            package_items: packageItems,
-          };
-
-          form.setFieldsValue({
-            items: [...currentList, row],
+            is_package: false,
+            package_items: null,
           });
-        }
-      } catch (e) {
-        console.error("[GoiDV] Lỗi khi load gói dịch vụ", e);
-      } finally {
-        setLoadingPackage(false);
-      }
-    },
-    [
-      form,
-      isDisabled,
-      selectedPackageId,
-      selectedGroupId,
-      selectedCategoryId,
-      categoryOptions,
-      groupOptions,
-      packageDisplayMode,
-    ]
-  );
+        });
 
-  // ===== UPDATE THÀNH TIỀN =====
-  const updateLineTotal = useCallback(
-    (rowIndex: number) => {
+        if (!rowList.length) return;
+
+        form.setFieldsValue({
+          items: [...currentList, ...rowList],
+        });
+      } else {
+        // ===== GÓI TRỌN GÓI (1 dòng) =====
+        let finalPrice = packagePrice;
+        if (isNegativeSection) {
+          finalPrice = -Math.abs(finalPrice);
+        }
+
+        const row = {
+          san_pham_id: repSanPhamId,
+          san_pham_label:
+            pkg.ten_goi || pkg.ma_goi || `Gói dịch vụ #${pkg.id}`,
+
+          don_vi_tinh_id: PACKAGE_UNIT_ID,
+          so_luong: 1,
+          don_gia: finalPrice,
+          thanh_tien: finalPrice,
+
+          hang_muc: baseHangMuc,
+          hang_muc_goc: baseHangMuc ?? null,
+          chi_tiet: pkg.ten_goi || "",
+
+          section_code: sectionCode,
+          is_package: true,
+          package_items: packageItems,
+        };
+
+        form.setFieldsValue({
+          items: [...currentList, row],
+        });
+      }
+    } catch (e) {
+      console.error("[GoiDV] Lỗi khi load gói dịch vụ", e);
+    } finally {
+      setLoadingPackage(false);
+    }
+  },
+  [
+    form,
+    isDisabled,
+    selectedPackageId,
+    selectedGroupId,
+    selectedCategoryId,
+    categoryOptions,
+    groupOptions,
+    packageDisplayMode,
+  ]
+);
+
+
+const updateLineTotal = useCallback(
+  (rowIndex: number) => {
+    const arr: any[] = form.getFieldValue("items") || [];
+    if (!Array.isArray(arr) || !arr[rowIndex]) return;
+
+    const row = { ...(arr[rowIndex] || {}) };
+    const qtyRaw = row.so_luong ?? 0;
+    const priceRaw = row.don_gia ?? 0;
+
+    const qty = Number(qtyRaw) || 0;
+    let price = Number(priceRaw) || 0;
+
+    // 🔹 Nếu dòng thuộc nhóm GIẢM GIÁ (GG) hoặc CHI PHÍ PHÁT SINH GIẢM (CPFG)
+    //    → luôn ép đơn giá âm
+    const sec = String(row.section_code ?? "").toUpperCase();
+    const isNegativeSection = sec === "GG" || sec === "CPFG";
+
+    if (isNegativeSection) {
+      price = -Math.abs(price);
+      row.don_gia = price; // gán lại lên form
+    }
+
+    row.thanh_tien = qty * price;
+    arr[rowIndex] = row;
+    form.setFieldsValue({ items: arr });
+  },
+  [form]
+);
+
+  // ===== DI CHUYỂN DÒNG TRONG CÙNG 1 SECTION =====
+  const moveRow = useCallback(
+    (fromIndex: number, toIndex: number) => {
       const arr: any[] = form.getFieldValue("items") || [];
-      if (!Array.isArray(arr) || !arr[rowIndex]) return;
-      const row = { ...(arr[rowIndex] || {}) };
-      const qty = Number(row.so_luong ?? 0);
-      const price = Number(row.don_gia ?? 0);
-      row.thanh_tien = qty * price;
-      arr[rowIndex] = row;
+      if (
+        !Array.isArray(arr) ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= arr.length ||
+        toIndex >= arr.length
+      ) {
+        return;
+      }
+
+      // chỉ cho phép move trong cùng 1 section
+      const fromRow = arr[fromIndex];
+      const toRow = arr[toIndex];
+      if (
+        !fromRow ||
+        !toRow ||
+        String(fromRow.section_code ?? "").toUpperCase() !==
+          String(toRow.section_code ?? "").toUpperCase()
+      ) {
+        return;
+      }
+
+      const [moved] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, moved);
+
       form.setFieldsValue({ items: arr });
     },
     [form]
   );
+
+  // ===== DI CHUYỂN NGUYÊN NHÓM (SECTION) TRÊN UI =====
+  const moveSection = useCallback(
+    (code: string, direction: -1 | 1) => {
+      setSectionOrderState((prev) => {
+        const idx = prev.indexOf(code);
+        if (idx === -1) return prev;
+
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= prev.length) return prev;
+
+        const next = [...prev];
+        const [moved] = next.splice(idx, 1);
+        next.splice(newIdx, 0, moved);
+        return next;
+      });
+    },
+    []
+  );
+
+
 
   // ===== TỔNG / VAT / THANH TOÁN =====
   const tongTienHang = useMemo(
@@ -659,7 +853,7 @@ useEffect(() => {
                 disabled={isDisabled}
                 onClick={() => setPackageDisplayMode(0)}
               >
-                Trọn gói (1 dòng)
+                Trọn gói (Hiện nguyên 1 gói)
               </Button>
 
               <Button
@@ -668,7 +862,7 @@ useEffect(() => {
                 disabled={isDisabled}
                 onClick={() => setPackageDisplayMode(1)}
               >
-                Thành phần (nổ từng dịch vụ)
+                Thành phần (Hiện ra từng dòng dịch vụ)
               </Button>
             </Space>
           </Col>
@@ -832,61 +1026,66 @@ useEffect(() => {
                   rows: number[];
                 };
 
-                const sections: SectionInfo[] = [];
-                const secIndex = new Map<string, number>();
+                   const sections: SectionInfo[] = [];
+    const secIndex = new Map<string, number>();
 
-fields.forEach((field) => {
-  const idx = Number(field.name);
-  const row = items[idx] || {};
+    fields.forEach((field) => {
+      const idx = Number(field.name);
+      const row = items[idx] || {};
 
-  const rawCode = row.section_code as string | null | undefined;
-  const upper =
-    typeof rawCode === "string" ? rawCode.toUpperCase() : "";
+      const rawCode = row.section_code as string | null | undefined;
+      const upper =
+        typeof rawCode === "string" ? rawCode.toUpperCase() : "";
 
-  // Ưu tiên dùng section_code nếu đã có (NS/CSVC/TIEC/TD/CPK/OTHER),
-  // nếu không có thì gom vào OTHER (Khác)
-  let normalized: string;
-  if (rawCode && typeof rawCode === "string") {
-    normalized = rawCode;
-  } else if (upper && SECTION_ORDER.includes(upper as SectionGroupCode)) {
-    normalized = upper;
-  } else {
-    normalized = "OTHER";
-  }
+      // Ưu tiên dùng section_code nếu đã có (NS/CSVC/TIEC/TD/CPK/CPQL/CPFT/CPFG/GG),
+      // nếu không có thì gom vào OTHER (Khác)
+      let normalized: string;
+      if (rawCode && typeof rawCode === "string") {
+        normalized = rawCode;
+      } else if (upper && SECTION_ORDER.includes(upper as SectionGroupCode)) {
+        normalized = upper;
+      } else {
+        normalized = "OTHER";
+      }
 
-  if (!secIndex.has(normalized)) {
-    const letter = String.fromCharCode(65 + secIndex.size); // A,B,C,...
-    const label = SECTION_LABELS[normalized] ?? "Khác";
-    sections.push({
-      code: normalized,
-      letter,
-      label,
-      rows: [],
+      if (!secIndex.has(normalized)) {
+        const label = SECTION_LABELS[normalized] ?? "Khác";
+        sections.push({
+          code: normalized,
+          letter: "",   // sẽ gán sau khi sort
+          label,
+          rows: [],
+        });
+        secIndex.set(normalized, sections.length - 1);
+      }
+
+      const sIdx = secIndex.get(normalized)!;
+      sections[sIdx].rows.push(idx);
     });
-    secIndex.set(normalized, sections.length - 1);
-  }
 
-  const sIdx = secIndex.get(normalized)!;
-  sections[sIdx].rows.push(idx);
+    // 🔹 Sắp xếp theo thứ tự SECTION_ORDER
+// Sắp xếp theo thứ tự hiện tại trên UI
+sections.sort((a, b) => {
+  const ia = sectionOrderState.indexOf(a.code as SectionGroupCode);
+  const ib = sectionOrderState.indexOf(b.code as SectionGroupCode);
+  const na = ia < 0 ? 999 : ia;
+  const nb = ib < 0 ? 999 : ib;
+  return na - nb;
 });
 
+// Gán chữ cái A,B,C,… theo thứ tự sau khi sort
+sections.forEach((sec, index) => {
+  sec.letter = String.fromCharCode(65 + index);
+});
 
-
-                       // Sắp xếp theo thứ tự NS/CSVC/TIEC/TD/CPK/OTHER
-                sections.sort((a, b) => {
-                  const ia = SECTION_ORDER.indexOf(a.code as SectionGroupCode);
-                  const ib = SECTION_ORDER.indexOf(b.code as SectionGroupCode);
-                  const na = ia < 0 ? 999 : ia;
-                  const nb = ib < 0 ? 999 : ib;
-                  return na - nb;
-                });
 
                 const fieldMap = new Map<number, any>();
                 fields.forEach((f) => fieldMap.set(Number(f.name), f));
 
                 return (
                   <tbody>
-                    {sections.map((sec) => {
+                                      {sections.map((sec, sectionIndex) => {
+
                       const visible = sec.rows.filter(
                         (i) => i >= startIndex && i < endIndex
                       );
@@ -896,7 +1095,8 @@ fields.forEach((field) => {
                       return (
                         <>
                           {/* Hàng section: A. CƠ SỞ VẬT CHẤT, B. CHI PHÍ KHÁC, ... */}
-                          <tr key={`sec-${sec.code}`} style={{ background: "#fde9d9" }}>
+     <tr key={`sec-${sec.code}`} style={{ background: "#fde9d9" }}>
+                            {/* Cột 1–2: chữ A., tên nhóm */}
                             <td
                               colSpan={2}
                               style={{
@@ -907,13 +1107,37 @@ fields.forEach((field) => {
                             >
                               {sec.letter}. {sec.label.toUpperCase()}
                             </td>
+
+                            {/* Cột còn lại: nút Lên nhóm / Xuống nhóm */}
                             <td
                               colSpan={6}
                               style={{
                                 border: "1px solid #eee",
                                 padding: "4px",
+                                textAlign: "right",
                               }}
-                            />
+                            >
+                              {!isDisabled && (
+                                <Space size={4}>
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    disabled={sectionIndex === 0}
+                                    onClick={() => moveSection(sec.code, -1)}
+                                  >
+                                    ↑ Nhóm
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    disabled={sectionIndex === sections.length - 1}
+                                    onClick={() => moveSection(sec.code, +1)}
+                                  >
+                                    ↓ Nhóm
+                                  </Button>
+                                </Space>
+                              )}
+                            </td>
                           </tr>
 
                           {visible.map((idx) => {
@@ -1069,7 +1293,7 @@ fields.forEach((field) => {
                                     style={{ marginBottom: 0 }}
                                   >
                                     <InputNumber
-                                      min={0}
+                               
                                       style={{ width: "100%" }}
                                       formatter={formatter}
                                       parser={parser}
@@ -1104,7 +1328,7 @@ fields.forEach((field) => {
                                   </Form.Item>
                                 </td>
 
-                                {/* Xoá dòng */}
+                                                 {/* LÊN / XUỐNG / XOÁ DÒNG */}
                                 <td
                                   style={{
                                     border: "1px solid #eee",
@@ -1112,16 +1336,54 @@ fields.forEach((field) => {
                                     textAlign: "center",
                                   }}
                                 >
-                                  {!isDisabled && (
-                                    <Button
-                                      type="text"
-                                      danger
-                                      onClick={() => remove(field.name)}
-                                    >
-                                      X
-                                    </Button>
-                                  )}
+                                  {!isDisabled && (() => {
+                                    // vị trí của dòng hiện tại trong section
+                                    const posInSection = sec.rows.indexOf(idx);
+                                    const prevIndex =
+                                      posInSection > 0
+                                        ? sec.rows[posInSection - 1]
+                                        : null;
+                                    const nextIndex =
+                                      posInSection < sec.rows.length - 1
+                                        ? sec.rows[posInSection + 1]
+                                        : null;
+
+                                    return (
+                                      <Space size={4}>
+                                        <Button
+                                          type="text"
+                                          size="small"
+                                          disabled={prevIndex === null}
+                                          onClick={() =>
+                                            prevIndex !== null &&
+                                            moveRow(idx, prevIndex)
+                                          }
+                                        >
+                                          ↑
+                                        </Button>
+                                        <Button
+                                          type="text"
+                                          size="small"
+                                          disabled={nextIndex === null}
+                                          onClick={() =>
+                                            nextIndex !== null &&
+                                            moveRow(idx, nextIndex)
+                                          }
+                                        >
+                                          ↓
+                                        </Button>
+                                        <Button
+                                          type="text"
+                                          danger
+                                          onClick={() => remove(field.name)}
+                                        >
+                                          X
+                                        </Button>
+                                      </Space>
+                                    );
+                                  })()}
                                 </td>
+
                               </tr>
                             );
                           })}
@@ -1185,67 +1447,19 @@ fields.forEach((field) => {
 
       {/* BLOCK TIỀN / THUẾ / THANH TOÁN */}
       <Card size="small" bodyStyle={{ padding: 8 }} style={{ marginBottom: 12 }}>
+        {/* Ẩn 3 field: Giảm giá, Giảm giá thành viên, Chi phí khác – luôn gửi 0 về BE */}
+        <Form.Item name="giam_gia" initialValue={0} hidden>
+          <InputNumber />
+        </Form.Item>
+        <Form.Item name="giam_gia_thanh_vien" initialValue={0} hidden>
+          <InputNumber />
+        </Form.Item>
+        <Form.Item name="chi_phi" initialValue={0} hidden>
+          <InputNumber />
+        </Form.Item>
+
+        {/* Chỉ còn phần Thuế hiển thị */}
         <Row gutter={[16, 8]} align="middle" wrap={false}>
-          <Col flex="0 0 20%">
-            <Form.Item
-              name="giam_gia"
-              label="Giảm giá"
-              initialValue={0}
-              style={{ marginBottom: 0 }}
-              rules={[
-                { required: true, message: "Giảm giá không được bỏ trống!" },
-              ]}
-            >
-              <InputNumber
-                placeholder="Nhập giảm giá"
-                disabled={isDisabled}
-                style={{ width: "100%" }}
-                addonAfter="đ"
-                formatter={formatter}
-                parser={parser}
-                min={0}
-                inputMode="numeric"
-              />
-            </Form.Item>
-          </Col>
-
-          <Col flex="0 0 20%">
-            <Form.Item
-              name="giam_gia_thanh_vien"
-              label="Giảm giá thành viên (%)"
-              style={{ marginBottom: 0 }}
-            >
-              <InputNumber
-                disabled
-                style={{ width: "100%" }}
-                addonAfter="%"
-                min={0}
-                max={100}
-                inputMode="decimal"
-              />
-            </Form.Item>
-          </Col>
-
-          <Col flex="0 0 20%">
-            <Form.Item
-              name="chi_phi"
-              label="Chi phí khác (VND)"
-              initialValue={0}
-              style={{ marginBottom: 0 }}
-            >
-              <InputNumber
-                placeholder="Nhập chi phí"
-                disabled={isDisabled}
-                style={{ width: "100%" }}
-                addonAfter="đ"
-                formatter={formatter}
-                parser={parser}
-                min={0}
-                inputMode="numeric"
-              />
-            </Form.Item>
-          </Col>
-
           <Col flex="0 0 20%">
             <Form.Item
               name="tax_mode"
@@ -1259,15 +1473,20 @@ fields.forEach((field) => {
                   { label: "Có VAT", value: 1 },
                 ]}
                 placeholder="Chọn"
-                disabled={isDisabled}
+                // KHÔNG dùng disabled={isDisabled} nữa để luôn cho phép chọn
+                onChange={(val) => {
+                  console.log("[FHB] tax_mode change =", val);
+                }}
                 getPopupContainer={(trigger) =>
-                  (trigger && trigger.closest(".ant-modal")) || document.body
+                  (trigger && trigger.closest(".modal")!) || document.body
                 }
               />
             </Form.Item>
           </Col>
 
-          {Number(taxMode) === 1 ? (
+
+
+          {Number(taxMode) === 1 && (
             <Col flex="0 0 20%">
               <Form.Item
                 name="vat_rate"
@@ -1286,10 +1505,11 @@ fields.forEach((field) => {
                 />
               </Form.Item>
             </Col>
-          ) : (
-            <Col flex="0 0 20%" />
           )}
         </Row>
+
+        {/* === GIỮ NGUYÊN các Row phía dưới: Loại thanh toán, Tổng tiền thanh toán, Tổng tiền còn lại === */}
+
 
         <Row
           gutter={[16, 8]}
@@ -1302,28 +1522,35 @@ fields.forEach((field) => {
           </Col>
 
           <Col flex="0 0 320px">
+            {/* Field ẩn để Form submit lên BE */}
+            <Form.Item name="loai_thanh_toan" initialValue={0} hidden>
+              <Input />
+            </Form.Item>
+
+            {/* Select hiển thị cho người dùng */}
             <Form.Item
-              name="loai_thanh_toan"
               label={<span style={{ whiteSpace: "nowrap" }}>Loại thanh toán</span>}
-              rules={[
-                {
-                  required: true,
-                  message: "Loại thanh toán không được bỏ trống!",
-                },
-              ]}
-              initialValue={0}
               style={{ marginBottom: 0 }}
             >
               <Select
                 options={OPTIONS_LOAI_THANH_TOAN}
                 placeholder="Chọn loại thanh toán"
-                disabled={isDisabled}
+                value={loaiThanhToan ?? 0}
+                onChange={(val) => {
+                  console.log("[FHB] loai_thanh_toan change =", val);
+                  form.setFieldValue("loai_thanh_toan", val);
+                }}
                 getPopupContainer={(trigger) =>
                   (trigger && trigger.closest(".ant-modal")) || document.body
                 }
+                dropdownMatchSelectWidth={false}
+                popupClassName="phg-dd"
               />
             </Form.Item>
           </Col>
+
+
+
 
           <Col flex="1 1 33.33%">
             {loaiThanhToan === OPTIONS_LOAI_THANH_TOAN[1].value ? (
@@ -1408,12 +1635,13 @@ fields.forEach((field) => {
         </Row>
       </Card>
 
-      {/* GHI CHÚ + NGƯỜI BÁO GIÁ (PDF) */}
+         {/* GHI CHÚ + NGƯỜI BÁO GIÁ (PDF) */}
       <Card size="small" bodyStyle={{ padding: 8 }}>
         <Title level={5} style={{ marginBottom: 8 }}>
           Ghi chú & Thông tin người báo giá trên PDF
         </Title>
 
+        {/* Ghi chú cuối PDF giữ nguyên */}
         <Form.Item name="quote_footer_note" label="Ghi chú cuối PDF">
           <Input.TextArea
             rows={3}
@@ -1422,23 +1650,48 @@ fields.forEach((field) => {
           />
         </Form.Item>
 
-        <Row gutter={[8, 8]}>
+        {/* ===== NGƯỜI BÁO GIÁ ===== */}
+        <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
           <Col span={12}>
-            <Form.Item name="quote_signer_name" label="Tên người báo giá">
-              <Input placeholder="VD: Trần Tấn Phát" disabled={isDisabled} />
+            <Form.Item
+              name="quote_signer_name"
+              label="Tên người báo giá"
+              rules={[{ required: true, message: "Chọn người báo giá" }]}
+            >
+              <Select
+                placeholder="Chọn người báo giá"
+                disabled={isDisabled}
+                options={QUOTE_STAFFS.map((s) => ({
+                  label: s.name,
+                  value: s.name,
+                }))}
+                onChange={(val) => setSignerByName(val)}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="quote_signer_title" label="Chức danh người báo giá">
-              <Input placeholder="VD: Phụ trách kinh doanh" disabled={isDisabled} />
+            <Form.Item
+              name="quote_signer_title"
+              label="Chức danh người báo giá"
+              rules={[{ required: true, message: "Chọn chức danh" }]}
+            >
+              <Select
+                placeholder="Chọn chức danh"
+                disabled={isDisabled}
+                options={QUOTE_TITLES}
+              />
             </Form.Item>
           </Col>
 
           <Col span={12}>
-            <Form.Item name="quote_signer_phone" label="Điện thoại người báo giá">
+            <Form.Item
+              name="quote_signer_phone"
+              label="Điện thoại người báo giá"
+              rules={[{ required: true, message: "Chọn điện thoại" }]}
+            >
               <Input
-                placeholder="Nếu bỏ trống sẽ dùng số công ty"
-                disabled={isDisabled}
+                disabled
+                placeholder="Tự fill theo người báo giá"
               />
             </Form.Item>
           </Col>
@@ -1446,28 +1699,83 @@ fields.forEach((field) => {
             <Form.Item
               name="quote_signer_email"
               label="Email người báo giá"
-              rules={[{ type: "email", message: "Email không hợp lệ" }]}
+              rules={[{ required: true, message: "Chọn email" }]}
             >
               <Input
-                placeholder="Nếu bỏ trống sẽ dùng email công ty"
+                disabled
+                placeholder="Tự fill theo người báo giá"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        {/* ===== NGƯỜI XÁC NHẬN BÁO GIÁ ===== */}
+        <Title
+          level={5}
+          style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}
+        >
+          Thông tin người xác nhận báo giá
+        </Title>
+
+        {/* Field ẩn: quote_approver_note – vẫn gửi cho BE / PDF, không cho sửa trực tiếp */}
+        <Form.Item name="quote_approver_note" hidden>
+          <Input />
+        </Form.Item>
+
+        <Row gutter={[8, 8]}>
+          <Col span={12}>
+            <Form.Item
+              name="approver_name"
+              label="Tên người xác nhận báo giá"
+            >
+              <Select
+                placeholder="Chọn người xác nhận"
                 disabled={isDisabled}
+                options={QUOTE_STAFFS.map((s) => ({
+                  label: s.name,
+                  value: s.name,
+                }))}
+                onChange={(val) => setApproverByName(val)}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="approver_title"
+              label="Chức danh người xác nhận báo giá"
+            >
+              <Select
+                placeholder="Chọn chức danh"
+                disabled={isDisabled}
+                options={[
+                  {
+                    label: "Trưởng phòng kinh doanh",
+                    value: "Trưởng phòng kinh doanh",
+                  },
+                ]}
               />
             </Form.Item>
           </Col>
 
-          <Col span={24}>
-            <Form.Item
-              name="quote_approver_note"
-              label='Nội dung ô "XÁC NHẬN BÁO GIÁ"'
-            >
+          <Col span={12}>
+            <Form.Item name="approver_phone" label="Điện thoại người xác nhận">
               <Input
-                placeholder="VD: Đại diện khách hàng, Trưởng phòng mua hàng..."
                 disabled={isDisabled}
+                placeholder="Tự fill theo người xác nhận"
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="approver_email" label="Email người xác nhận">
+              <Input
+                disabled={isDisabled}
+                placeholder="Tự fill theo người xác nhận"
               />
             </Form.Item>
           </Col>
         </Row>
       </Card>
+
     </div>
   );
 };

@@ -22,11 +22,30 @@ import ImportExcel from "../../components/ImportExcel";
 
 // ✅ Mapping code -> label cho NHÓM DỊCH VỤ cao nhất
 const SERVICE_GROUP_LABEL: Record<string, string> = {
+    // Mã dài cũ
     NHAN_SU: "Nhân sự",
     CO_SO_VAT_CHAT: "Cơ sở vật chất",
     TIEC: "Tiệc",
     THUE_DIA_DIEM: "Thuê địa điểm",
     CHI_PHI_KHAC: "Chi phí khác",
+
+    // Mã ngắn (lưu trong DB sau này)
+    NS: "Nhân sự",
+    CSVC: "Cơ sở vật chất",
+    TD: "Thuê địa điểm",
+    CPK: "Chi phí khác",
+
+    // 🔹 Nhóm mới – dài
+    CHI_PHI_QUAN_LY: "Chi phí quản lý",
+    CHI_PHI_PHAT_SINH_TANG: "Chi phí phát sinh tăng",
+    CHI_PHI_PHAT_SINH_GIAM: "Chi phí phát sinh giảm",
+    GIAM_GIA: "Giảm giá",
+
+    // 🔹 Nhóm mới – ngắn
+    CPQL: "Chi phí quản lý",
+    CPFT: "Chi phí phát sinh tăng",
+    CPFG: "Chi phí phát sinh giảm",
+    GG: "Giảm giá",
 };
 
 // ✅ Options cho filter NHÓM DỊCH VỤ
@@ -36,7 +55,14 @@ const OPTIONS_SERVICE_GROUP = [
     { label: "Tiệc", value: "TIEC" },
     { label: "Thuê địa điểm", value: "THUE_DIA_DIEM" },
     { label: "Chi phí khác", value: "CHI_PHI_KHAC" },
+
+    // 🔹 Nhóm mới
+    { label: "Chi phí quản lý", value: "CHI_PHI_QUAN_LY" },
+    { label: "Chi phí phát sinh tăng", value: "CHI_PHI_PHAT_SINH_TANG" },
+    { label: "Chi phí phát sinh giảm", value: "CHI_PHI_PHAT_SINH_GIAM" },
+    { label: "Giảm giá", value: "GIAM_GIA" },
 ];
+
 
 type Mode = "all" | "level1" | "level2";
 

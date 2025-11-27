@@ -54,6 +54,10 @@ const MODULE_ALIAS: Record<string, string> = {
   "quan-ly-chi-phi": "quan-ly-chi-phi",
   "de-xuat": "quan-ly-chi-phi-de-xuat",
   "thuc-te": "quan-ly-chi-phi-thuc-te",
+
+    // Quản lý HĐ + TL
+  "quan-ly-hop-dong": "quan-ly-hop-dong",
+
   // CSKH (mới)
   "cham-soc-khach-hang": "cskh",
   "diem-thanh-vien": "cskh-points",

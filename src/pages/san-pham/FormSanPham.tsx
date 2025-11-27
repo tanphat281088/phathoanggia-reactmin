@@ -23,6 +23,11 @@ const SERVICE_GROUP_OPTIONS = [
   { label: "Tiệc", value: "TIEC" },
   { label: "Thuê địa điểm", value: "TD" },
   { label: "Chi phí khác", value: "CPK" },
+   // 🔹 NHÓM MỚI
+  { label: "Chi phí quản lý", value: "CPQL" },
+  { label: "Chi phí phát sinh tăng", value: "CPFT" },
+  { label: "Chi phí phát sinh giảm", value: "CPFG" },
+  { label: "Giảm giá", value: "GG" },
 ];
 
 const FormSanPham = ({

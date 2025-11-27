@@ -13,9 +13,12 @@ import { useResponsive } from "../../hooks/useReponsive";
 import FormHangMucBaoGia from "./FormHangMucBaoGia";
 
 const DEFAULT_QUOTE_FOOTER_NOTE =
-  "- Giá trên đã bao gồm toàn bộ chi phí nhân sự và trang thiết bị theo mô tả trong bảng báo giá.\n" +
-  "- Giá chưa bao gồm thuế VAT (nếu có thỏa thuận khác sẽ ghi rõ trong hợp đồng).\n" +
-  "- Báo giá có hiệu lực đến ngày ...";
+  "- Lần 1: Thanh toán 50% ngay sau khi Hợp đồng hoặc Xác nhận dịch vụ được ký kết.\n" +
+  "- Lần 2: Thanh toán chi phí còn lại sau 2 ngày sau khi nhận được hóa đơn tài chính.\n" +
+  "- Chi phí bao gồm: Phí nhân công thi công; kỹ thuật lắp đặt; nhân sự chạy xuyên suốt chương trình.\n" +
+  "- Thời gian lắp đặt: Trong vòng 1 ngày.";
+
+
 
 const ThemQuanLyBanHang = ({
   path,
@@ -135,6 +138,31 @@ const ThemQuanLyBanHang = ({
     setIsSaving(true);
     try {
       const info = draftInfo || infoForm.getFieldsValue(true) || {};
+
+      // ===== GHÉP NGƯỜI XÁC NHẬN BÁO GIÁ → quote_approver_note =====
+      const approverName: string | undefined = detailValues?.approver_name;
+      const approverTitle: string | undefined = detailValues?.approver_title;
+      const approverPhone: string | undefined = detailValues?.approver_phone;
+      const approverEmail: string | undefined = detailValues?.approver_email;
+
+      const approverLines: string[] = [];
+      if (approverName && approverName.trim() !== "") {
+        approverLines.push(approverName.trim());
+      }
+        if (approverTitle && approverTitle.trim() !== "") {
+        approverLines.push("Chức vụ: " + approverTitle.trim());
+      }
+
+      if (approverPhone && approverPhone.trim() !== "") {
+        approverLines.push("Điện thoại: " + approverPhone.trim());
+      }
+      if (approverEmail && approverEmail.trim() !== "") {
+        approverLines.push("Email: " + approverEmail.trim());
+      }
+
+      detailValues.quote_approver_note =
+        approverLines.length > 0 ? approverLines.join("\n") : null;
+
 
 
       // Map items → danh_sach_san_pham cho BE

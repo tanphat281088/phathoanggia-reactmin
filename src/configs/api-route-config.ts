@@ -71,6 +71,21 @@ export const API_ROUTE_CONFIG = {
   BAO_GIA_VIEW: (id: number | string) => `/quan-ly-ban-hang/xem-bao-gia/${id}`,
   BAO_GIA_EXCEL: (id: number | string) => `/quan-ly-ban-hang/${id}/bao-gia-excel`,
 
+
+ // ===== Quản lý Hợp đồng (HĐ dịch vụ) =====
+  HOP_DONG: "/quan-ly-hop-dong",
+  HOP_DONG_FROM_QUOTE: (id: number | string) =>
+    `/quan-ly-hop-dong/from-quote/${id}`,
+  HOP_DONG_EXPORT_DOCX: (id: number | string) =>
+    `/quan-ly-hop-dong/${id}/export-docx`,
+
+  HOP_DONG_EXPORT_DOCX_BILINGUAL: (id: number | string) =>
+    `/quan-ly-hop-dong/${id}/export-docx-bilingual`,   
+  HOP_DONG_EXPORT_PDF: (id: number | string) =>
+    `/quan-ly-hop-dong/${id}/export-pdf`,
+HOP_DONG_PREVIEW: (id: number | string) =>
+    `/quan-ly-hop-dong/${id}/preview`,
+
  // ===== Quản lý chi phí (Chi phí đề xuất / Thực tế) =====
   QLCP_DE_XUAT: "/quan-ly-chi-phi/de-xuat",
   QLCP_DE_XUAT_FROM_QUOTE: (id: number | string) =>
@@ -269,6 +284,9 @@ export const URL_CONSTANTS = {
   QLCP_DE_XUAT: "/admin/quan-ly-chi-phi/de-xuat",
   QLCP_THUC_TE: "/admin/quan-ly-chi-phi/thuc-te",
 
+
+    // ===== Quản lý HĐ + TL (Hợp đồng) =====
+  HOP_DONG: "/admin/quan-ly-hop-dong",
 QLCP_DE_XUAT_FROM_QUOTE: (id: number | string) =>
     `/quan-ly-chi-phi/de-xuat/from-quote/${id}`,
   QLCP_THUC_TE_FROM_QUOTE: (id: number | string) =>

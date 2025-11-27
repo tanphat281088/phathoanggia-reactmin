@@ -100,6 +100,10 @@ const PERMISSION_ALIAS: Record<string, string | string[]> = {
     "quan-ly-chi-phi": "quan-ly-chi-phi",
     "qlcp-de-xuat": "quan-ly-chi-phi-de-xuat",
     "qlcp-thuc-te": "quan-ly-chi-phi-thuc-te",
+
+      // ✅ Quản lý HĐ + TL
+    "quan-ly-hop-dong-hd": "quan-ly-hop-dong",
+    "quan-ly-hop-dong-thanh-ly": "quan-ly-hop-dong", // tạm map chung, sau này có module riêng thì đổi
     // HR
     "quan-ly-nhan-su": "nhan-su",
     "nhan-su-cham-cong": "nhan-su",

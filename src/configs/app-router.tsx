@@ -34,6 +34,8 @@ import QuanLyGiaoHang from "../pages/giao-hang/QuanLyGiaoHang"; // MỚI
 import QuanLyChiPhiDeXuatPage from "../pages/quan-ly-chi-phi/QuanLyChiPhiDeXuatPage";
 import QuanLyChiPhiThucTePage from "../pages/quan-ly-chi-phi/QuanLyChiPhiThucTePage";
 
+// ✅ MỚI: Quản lý hợp đồng
+import QuanLyHopDongPage from "../pages/hop-dong/QuanLyHopDongPage";
 
 import PhieuXuatKho from "../pages/phieu-xuat-kho/PhieuXuatKho";
 import PhieuThu from "../pages/phieu-thu/PhieuThu";
@@ -439,6 +441,12 @@ export const router = createBrowserRouter([
         ],
       },
 
+ // ✅ MỚI: Quản lý HĐ + TL → Quản lý hợp đồng
+      {
+        path: "quan-ly-hop-dong",
+        element: <MainLayout />,
+        children: [{ index: true, element: <QuanLyHopDongPage /> }],
+      },
 
 
 

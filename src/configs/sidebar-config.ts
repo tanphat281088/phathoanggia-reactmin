@@ -412,6 +412,33 @@ export const sidebarConfig = (
       ],
     },
 
+    // ===== Quản lý HĐ + TL (mới) =====
+    ...(can(permJson, "quan-ly-hop-dong", "showMenu")
+      ? [
+          {
+            key: "quan-ly-hop-dong",
+            label: "Quản lý HĐ + TL",
+            icon: React.createElement(NotepadText, { style: iconStyle }),
+            children: [
+              {
+                key: "quan-ly-hop-dong-hd",
+                label: "Quản lý hợp đồng",
+                icon: React.createElement(NotepadText, { style: iconStyle }),
+                onClick: () => navigate(URL_CONSTANTS.HOP_DONG), // "/admin/quan-ly-hop-dong"
+              },
+              {
+                key: "quan-ly-hop-dong-thanh-ly",
+                label: "Quản lý thanh lý",
+                icon: React.createElement(NotepadText, { style: iconStyle }),
+                // Tạm thời chưa có page → sau này thêm URL riêng cho thanh lý
+                onClick: () => {
+                  // placeholder: sau này chuyển sang URL_CONSTANTS.THANH_LY_HOP_DONG
+                },
+              },
+            ],
+          },
+        ]
+      : []),
     // ===== Quản lý giao hàng =====
     {
       key: "quan-ly-giao-hang",

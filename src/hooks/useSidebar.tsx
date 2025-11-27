@@ -143,6 +143,11 @@ return { items: updatedItems, rawItems: items, openKeys };
             // Quản lý chi phí
     "qlcp-de-xuat": "quan-ly-chi-phi-de-xuat",
     "qlcp-thuc-te": "quan-ly-chi-phi-thuc-te",
+
+     // Hợp đồng (menu con)
+    "quan-ly-hop-dong-hd": "quan-ly-hop-dong",
+    "quan-ly-hop-dong-thanh-ly": "quan-ly-hop-dong", // tạm map chung, sau này có module riêng thì đổi
+
     // Gói dịch vụ (3 tầng)
     "nhom-danh-muc-goi-dich-vu": "goi-dich-vu-groups",
     "nhom-goi-dich-vu": "goi-dich-vu-categories",
@@ -180,7 +185,7 @@ const MANAGER_HR_KEYS = new Set<string>([
     // Parent là module thực tế
     "bao-cao-quan-tri": "bao-cao-quan-tri",
     "quan-ly-ban-hang": "quan-ly-ban-hang",
-
+  "quan-ly-hop-dong": "quan-ly-hop-dong",
     // Parent KHÔNG phải module → null (chỉ hiển thị nếu có child)
     "quan-ly-nguoi-dung": null,
     "thiet-lap-he-thong": null,

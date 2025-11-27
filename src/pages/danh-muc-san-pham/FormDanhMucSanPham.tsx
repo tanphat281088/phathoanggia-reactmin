@@ -13,7 +13,14 @@ const GROUP_CODE_OPTIONS = [
     { label: "Tiệc", value: "TIEC" },
     { label: "Thuê địa điểm", value: "TD" },
     { label: "Chi phí khác", value: "CPK" },
+
+    // 🔹 Nhóm mới (code ngắn)
+    { label: "Chi phí quản lý", value: "CPQL" },
+    { label: "Chi phí phát sinh tăng", value: "CPFT" },
+    { label: "Chi phí phát sinh giảm", value: "CPFG" },
+    { label: "Giảm giá", value: "GG" },
 ];
+
 
 const FormDanhMucSanPham = ({ form }: { form: FormInstance }) => {
     return (
@@ -53,11 +60,12 @@ const FormDanhMucSanPham = ({ form }: { form: FormInstance }) => {
 
             {/* NHÓM DỊCH VỤ (cao nhất) */}
             <Col span={12}>
-                <Form.Item
-                    name="group_code"
-                    label="Nhóm dịch vụ"
-                    tooltip="Nhân sự / Cơ sở vật chất / Tiệc / Thuê địa điểm / Chi phí khác"
-                >
+        <Form.Item
+    name="group_code"
+    label="Nhóm dịch vụ"
+    tooltip="Nhân sự / Cơ sở vật chất / Tiệc / Thuê địa điểm / Chi phí khác / Chi phí quản lý / Chi phí phát sinh tăng / Chi phí phát sinh giảm / Giảm giá"
+>
+
                     <Select
                         options={GROUP_CODE_OPTIONS}
                         placeholder="Chọn nhóm (có thể bỏ trống)"

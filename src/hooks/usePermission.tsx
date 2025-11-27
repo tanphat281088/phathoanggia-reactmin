@@ -71,7 +71,8 @@ const PATH_ALIAS: Record<string, string> = {
   "phieu-xuat-kho": "phieu-xuat-kho",
   "quan-ly-ton-kho": "quan-ly-ton-kho",
   "quan-ly-ban-hang": "quan-ly-ban-hang",
-
+  // Quản lý Hợp đồng (HĐ dịch vụ)
+  "quan-ly-hop-dong": "quan-ly-hop-dong",
     // Quản lý chi phí
   "quan-ly-chi-phi/de-xuat": "quan-ly-chi-phi-de-xuat",
   "quan-ly-chi-phi/thuc-te": "quan-ly-chi-phi-thuc-te",

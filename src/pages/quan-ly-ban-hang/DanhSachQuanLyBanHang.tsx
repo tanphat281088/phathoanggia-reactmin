@@ -25,6 +25,7 @@ import {
 import dayjs from "dayjs";
 import ChiTietQuanLyBanHang from "./ChiTietQuanLyBanHang";
 import InHoaDon from "../../components/InHoaDon";
+import ChuyenHopDongButton from "../hop-dong/ChuyenHopDongButton";
 
 /** Trạng thái GIAO HÀNG (cũ, vẫn giữ để không gãy logic) */
 import { donHangTrangThaiSelect } from "../../configs/select-config";
@@ -182,7 +183,11 @@ const DanhSachQuanLyBanHang = ({
               donHangId={id}
               maBaoGia={maBaoGia}
             />
-
+  {/* 🔹 Nút Chuyển HĐ từ báo giá */}
+        <ChuyenHopDongButton
+          donHangId={id}
+          maBaoGia={maBaoGia}
+        />
 
           </Space>
         );
@@ -435,6 +440,11 @@ const DanhSachQuanLyBanHang = ({
         donHangId={r.id}
         maBaoGia={r.ma_don_hang}
       />
+     {/* 🔹 Nút Chuyển HĐ trên mobile */}
+    <ChuyenHopDongButton
+      donHangId={r.id}
+      maBaoGia={r.ma_don_hang}
+    />
     </>
   );
 
