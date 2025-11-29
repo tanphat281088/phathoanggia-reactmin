@@ -183,15 +183,24 @@ const showModal = async () => {
           row?.section ??
           row?.group_code ??
           "";
-        const secUpper = String(secRaw || "").toUpperCase();
-        const sec: string =
-          secUpper === "NS" ||
-          secUpper === "CSVC" ||
-          secUpper === "TIEC" ||
-          secUpper === "TD" ||
-          secUpper === "CPK"
-            ? secUpper
-            : "OTHER";
+  const secUpper = String(secRaw || "").toUpperCase();
+
+  const allowedSections = [
+    "NS",
+    "CSVC",
+    "TIEC",
+    "TD",
+    "CPK",
+    "CPQL",
+    "CPFT",
+    "CPFG",
+    "GG",
+  ] as const;
+
+  const sec: string = allowedSections.includes(secUpper as any)
+    ? secUpper
+    : "OTHER";
+
 
         const dvt =
           row?.dvt ??
