@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   App,
@@ -8,21 +8,19 @@ import {
   Col,
   Descriptions,
   Divider,
+  Empty,
   Flex,
   Form,
   Input,
   InputNumber,
   Modal,
   Row,
-  Select,
   Space,
   Table,
   Tag,
   Typography,
-  Upload,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import type { UploadChangeParam, UploadFile } from "antd/es/upload/interface";
 import dayjs from "dayjs";
 import {
   attendanceCheckin,
@@ -65,23 +63,6 @@ async function getCurrentPosition(): Promise<GeolocationPosition> {
       return;
     }
     navigator.geolocation.getCurrentPosition(resolve, reject, GEO_OPTIONS);
-  });
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        const idx = result.indexOf(",");
-        resolve(idx >= 0 ? result.slice(idx + 1) : result);
-      } else {
-        reject(new Error("Không đọc được file ảnh."));
-      }
-    };
-    reader.onerror = () => reject(reader.error || new Error("Lỗi đọc file ảnh."));
-    reader.readAsDataURL(file);
   });
 }
 
@@ -146,11 +127,19 @@ export default function ChamCongNhanVien() {
 
   const [submitting, setSubmitting] = useState<"in" | "out" | null>(null);
 
+  // Camera trực tiếp
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Ảnh selfie đã chụp
   const [faceB64, setFaceB64] = useState<string | null>(null);
   const [facePreviewUrl, setFacePreviewUrl] = useState<string | null>(null);
   const [faceName, setFaceName] = useState<string | null>(null);
-  const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
 
+  // Tạo địa điểm event
   const [createOpen, setCreateOpen] = useState(false);
   const [creatingWP, setCreatingWP] = useState(false);
   const [createForm] = Form.useForm();
@@ -267,25 +256,25 @@ export default function ChamCongNhanVien() {
     }
   };
 
-  const fetchNearbyWorkpoints = async (keepSelectionId?: number) => {
-    if (geo.lat == null || geo.lng == null) return;
-
+  const fetchWorkpoints = async (keepSelectionId?: number) => {
     setLoadingWorkpoints(true);
     try {
-      const resp = await workpointList({
-        lat: geo.lat,
-        lng: geo.lng,
+      const params: any = {
         only_available: true,
         limit: 100,
-      });
+      };
 
+      // Có GPS thì BE sort theo khoảng cách
+      if (geo.lat != null && geo.lng != null) {
+        params.lat = geo.lat;
+        params.lng = geo.lng;
+      }
+
+      const resp = await workpointList(params);
       const items = resp?.success ? resp.data.items || [] : [];
+
       setWorkpoints(items);
 
-      // Ưu tiên:
-      // 1) nếu đang có phiên mở -> auto lock theo điểm đang mở
-      // 2) nếu caller muốn giữ selection -> giữ
-      // 3) nếu chưa có gì -> chọn điểm đầu tiên
       if (currentSession?.workpoint_id) {
         setSelectedWorkpointId(currentSession.workpoint_id);
       } else if (keepSelectionId && items.some((x) => x.id === keepSelectionId)) {
@@ -301,6 +290,109 @@ export default function ChamCongNhanVien() {
     }
   };
 
+  // ===== Camera trực tiếp =====
+  const stopCamera = () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    } catch {
+      // ignore
+    }
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      try {
+        (videoRef.current as any).srcObject = null;
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        message.error("Thiết bị/trình duyệt không hỗ trợ camera trực tiếp.");
+        return;
+      }
+
+      setCameraLoading(true);
+      stopCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+        },
+      });
+
+      streamRef.current = stream;
+      setCameraOpen(true);
+    } catch (err: any) {
+      message.error(err?.message || "Không thể mở camera.");
+      stopCamera();
+      setCameraOpen(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const capturePhoto = async () => {
+    if (!videoRef.current) {
+      message.warning("Camera chưa sẵn sàng.");
+      return;
+    }
+
+    try {
+      setCapturing(true);
+
+      const video = videoRef.current;
+      const width = video.videoWidth || 720;
+      const height = video.videoHeight || 1280;
+
+      if (!width || !height) {
+        message.warning("Camera chưa sẵn sàng, vui lòng thử lại.");
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        message.error("Không tạo được ảnh chụp.");
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const base64 = dataUrl.split(",")[1];
+
+      setFaceB64(base64);
+      setFacePreviewUrl(dataUrl);
+      setFaceName(`selfie_${dayjs().format("YYYYMMDD_HHmmss")}.jpg`);
+
+      stopCamera();
+      setCameraOpen(false);
+      message.success("Đã chụp selfie thành công.");
+    } catch (err: any) {
+      message.error(err?.message || "Không thể chụp ảnh.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const clearFace = () => {
+    setFaceB64(null);
+    setFaceName(null);
+    setFacePreviewUrl(null);
+  };
+
   useEffect(() => {
     fetchGeo();
     fetchMy();
@@ -308,9 +400,7 @@ export default function ChamCongNhanVien() {
   }, []);
 
   useEffect(() => {
-    if (geo.lat != null && geo.lng != null) {
-      fetchNearbyWorkpoints();
-    }
+    fetchWorkpoints();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.lat, geo.lng]);
 
@@ -321,47 +411,26 @@ export default function ChamCongNhanVien() {
   }, [currentSession?.workpoint_id]);
 
   useEffect(() => {
+    if (cameraOpen && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      (video as any).srcObject = streamRef.current;
+      video.muted = true;
+      video.playsInline = true;
+
+      const playPromise = video.play();
+      if (playPromise?.catch) {
+        playPromise.catch(() => {});
+      }
+    }
+  }, [cameraOpen]);
+
+  useEffect(() => {
     return () => {
-      if (facePreviewUrl) URL.revokeObjectURL(facePreviewUrl);
+      stopCamera();
     };
-  }, [facePreviewUrl]);
-
-  const onFaceChange = async (info: UploadChangeParam<UploadFile<any>>) => {
-    const file = info.file.originFileObj as File | undefined;
-    setUploadFileList(info.fileList.slice(-1));
-
-    if (!file) return;
-
-    try {
-      const b64 = await fileToBase64(file);
-      if (facePreviewUrl) URL.revokeObjectURL(facePreviewUrl);
-
-      setFaceB64(b64);
-      setFaceName(file.name);
-      setFacePreviewUrl(URL.createObjectURL(file));
-      message.success("Đã chọn ảnh selfie");
-    } catch (err: any) {
-      message.error(err?.message || "Không đọc được ảnh selfie.");
-      clearFace();
-    }
-  };
-
-  const clearFace = () => {
-    setFaceB64(null);
-    setFaceName(null);
-    setUploadFileList([]);
-    if (facePreviewUrl) {
-      URL.revokeObjectURL(facePreviewUrl);
-    }
-    setFacePreviewUrl(null);
-  };
+  }, []);
 
   const openCreateModal = () => {
-    if (geo.lat == null || geo.lng == null) {
-      message.warning("Chưa có vị trí GPS, không thể tạo địa điểm.");
-      return;
-    }
-
     createForm.setFieldsValue({
       ten: `Sự kiện ${dayjs().format("DD/MM/YYYY HH:mm")}`,
       dia_chi: "",
@@ -395,7 +464,7 @@ export default function ChamCongNhanVien() {
         setCreateOpen(false);
         message.success(res.data.notice || "Đã xử lý địa điểm.");
 
-        await fetchNearbyWorkpoints(item.id);
+        await fetchWorkpoints(item.id);
         setSelectedWorkpointId(item.id);
       }
     } catch (err: any) {
@@ -423,14 +492,14 @@ export default function ChamCongNhanVien() {
     }
 
     if (!faceB64) {
-      message.warning("Vui lòng chụp/chọn ảnh selfie trước khi chấm công vào.");
+      message.warning("Vui lòng chụp selfie trực tiếp từ camera trước khi chấm công vào.");
       return;
     }
 
     setSubmitting("in");
 
     try {
-      const payload: any = {
+      const resp = await attendanceCheckin({
         lat: geo.lat,
         lng: geo.lng,
         accuracy_m: geo.accuracy ?? undefined,
@@ -438,15 +507,13 @@ export default function ChamCongNhanVien() {
         face_image_base64: faceB64,
         workpoint_id: selectedWorkpointId,
         also_timesheet: true,
-      };
-
-      const resp = await attendanceCheckin(payload);
+      });
 
       if (resp?.success) {
         message.success("Chấm công vào thành công!");
         clearFace();
         await fetchMy();
-        await fetchNearbyWorkpoints(selectedWorkpointId);
+        await fetchWorkpoints(selectedWorkpointId);
         return;
       }
 
@@ -485,34 +552,29 @@ export default function ChamCongNhanVien() {
     }
 
     if (!faceB64) {
-      message.warning("Vui lòng chụp/chọn ảnh selfie trước khi chấm công ra.");
+      message.warning("Vui lòng chụp selfie trực tiếp từ camera trước khi chấm công ra.");
       return;
     }
 
     setSubmitting("out");
 
     try {
-      const payload: any = {
+      const resp = await attendanceCheckout({
         lat: geo.lat,
         lng: geo.lng,
         accuracy_m: geo.accuracy ?? undefined,
         device_id: "MOBILE",
         face_image_base64: faceB64,
+        workpoint_id: currentSession.workpoint_id ?? undefined,
         also_timesheet: true,
         also_payroll: false,
-      };
-
-      if (currentSession.workpoint_id) {
-        payload.workpoint_id = currentSession.workpoint_id;
-      }
-
-      const resp = await attendanceCheckout(payload);
+      });
 
       if (resp?.success) {
         message.success("Chấm công ra thành công!");
         clearFace();
         await fetchMy();
-        await fetchNearbyWorkpoints(currentSession.workpoint_id || selectedWorkpointId);
+        await fetchWorkpoints(currentSession.workpoint_id || selectedWorkpointId);
         return;
       }
 
@@ -539,17 +601,9 @@ export default function ChamCongNhanVien() {
     }
   };
 
-  const workpointOptions = useMemo(() => {
-    return workpoints.map((w) => ({
-      value: w.id,
-      label: `${w.ten} • ${w.loai_label || w.loai_dia_diem || "-"}${
-        typeof w.distance_m === "number" ? ` • ${w.distance_m}m` : ""
-      }`,
-    }));
-  }, [workpoints]);
-
   const disabledCheckin =
     loadingGeo ||
+    loadingWorkpoints ||
     submitting !== null ||
     geo.lat === null ||
     geo.lng === null ||
@@ -565,7 +619,7 @@ export default function ChamCongNhanVien() {
   return (
     <Flex vertical gap={16}>
       <Title level={3} style={{ margin: 0 }}>
-        Chấm công (Nhân viên)
+        Chấm công
       </Title>
 
       <Card>
@@ -582,17 +636,11 @@ export default function ChamCongNhanVien() {
                     <Text>
                       Lat: <Text code>{geo.lat.toFixed(6)}</Text> • Lng: <Text code>{geo.lng.toFixed(6)}</Text>
                     </Text>
-                    <Text type="secondary">
-                      Độ chính xác ~ {geo.accuracy ?? "-"} m
-                    </Text>
+                    <Text type="secondary">Độ chính xác ~ {geo.accuracy ?? "-"} m</Text>
                   </Space>
                 ) : (
                   <Text type="secondary">Chưa có vị trí.</Text>
                 )}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Khoảng dữ liệu">
-                {dayjs(range.from).format("DD/MM/YYYY")} → {dayjs(range.to).format("DD/MM/YYYY")}
               </Descriptions.Item>
 
               <Descriptions.Item label="Phiên hiện tại">
@@ -610,64 +658,24 @@ export default function ChamCongNhanVien() {
                   <Tag color="default">Không có phiên mở</Tag>
                 )}
               </Descriptions.Item>
+
+              <Descriptions.Item label="Khoảng dữ liệu">
+                {dayjs(range.from).format("DD/MM/YYYY")} → {dayjs(range.to).format("DD/MM/YYYY")}
+              </Descriptions.Item>
             </Descriptions>
           </Col>
 
           <Col xs={24} md={12}>
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-              <Space wrap>
-                <Button onClick={fetchGeo} loading={loadingGeo}>
-                  Lấy lại vị trí
-                </Button>
-                <Button onClick={() => fetchNearbyWorkpoints(selectedWorkpointId)} loading={loadingWorkpoints}>
-                  Nạp địa điểm gần đây
-                </Button>
-                <Button onClick={openCreateModal} disabled={geo.lat == null || geo.lng == null}>
-                  Tạo điểm sự kiện mới
-                </Button>
-              </Space>
-
-              <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                <Text>Chọn địa điểm chấm công</Text>
-                <Select
-                  style={{ width: "100%" }}
-                  placeholder="-- Chọn địa điểm --"
-                  loading={loadingWorkpoints}
-                  options={workpointOptions}
-                  value={selectedWorkpointId}
-                  onChange={(v) => setSelectedWorkpointId(v)}
-                  showSearch
-                  optionFilterProp="label"
-                />
-              </Space>
-
-              {selectedWorkpoint && (
-                <Descriptions size="small" bordered column={1}>
-                  <Descriptions.Item label="Tên">{selectedWorkpoint.ten}</Descriptions.Item>
-                  <Descriptions.Item label="Mã">{selectedWorkpoint.ma_dia_diem || "-"}</Descriptions.Item>
-                  <Descriptions.Item label="Loại">
-                    <Tag color={selectedWorkpoint.loai_dia_diem === "fixed" ? "blue" : "purple"}>
-                      {selectedWorkpoint.loai_label || selectedWorkpoint.loai_dia_diem || "-"}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Bán kính">
-                    {selectedWorkpoint.ban_kinh_m} m
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Khoảng cách hiện tại">
-                    {typeof selectedWorkpoint.distance_m === "number"
-                      ? `${selectedWorkpoint.distance_m} m`
-                      : "-"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Địa chỉ">
-                    {selectedWorkpoint.dia_chi || "-"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Hiệu lực">
-                    {selectedWorkpoint.hieu_luc_den
-                      ? `Đến ${dayjs(selectedWorkpoint.hieu_luc_den).format("DD/MM/YYYY HH:mm")}`
-                      : "Không giới hạn"}
-                  </Descriptions.Item>
-                </Descriptions>
-              )}
+            <Space wrap>
+              <Button onClick={fetchGeo} loading={loadingGeo}>
+                Lấy lại vị trí
+              </Button>
+              <Button onClick={() => fetchWorkpoints(selectedWorkpointId)} loading={loadingWorkpoints}>
+                Nạp địa điểm gần đây
+              </Button>
+              <Button onClick={openCreateModal} disabled={geo.lat == null || geo.lng == null}>
+                Tạo điểm sự kiện mới
+              </Button>
             </Space>
           </Col>
         </Row>
@@ -678,7 +686,7 @@ export default function ChamCongNhanVien() {
           type="info"
           showIcon
           message="Bạn đang có phiên làm việc đang mở"
-          description={`Checkout sẽ được thực hiện theo đúng địa điểm đã check-in: ${currentSession.workpoint_ten || "Không rõ địa điểm"}.`}
+          description={`Chấm công ra sẽ được khóa theo đúng địa điểm: ${currentSession.workpoint_ten || "Không rõ địa điểm"}.`}
         />
       ) : (
         <Alert
@@ -689,83 +697,177 @@ export default function ChamCongNhanVien() {
         />
       )}
 
+      <Card
+        title="Danh sách địa điểm chấm công"
+        extra={
+          <Text type="secondary">
+            {loadingWorkpoints ? "Đang tải..." : `${workpoints.length} địa điểm`}
+          </Text>
+        }
+      >
+        {workpoints.length === 0 ? (
+          <Empty
+            description="Chưa có địa điểm nào gần bạn hoặc chưa tải được danh sách địa điểm."
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        ) : (
+          <Space direction="vertical" style={{ width: "100%" }} size={12}>
+            {workpoints.map((wp) => {
+              const selected =
+                currentSession?.workpoint_id != null
+                  ? currentSession.workpoint_id === wp.id
+                  : selectedWorkpointId === wp.id;
+
+              const lockedByOpenSession =
+                !!currentSession && currentSession.workpoint_id != null && currentSession.workpoint_id !== wp.id;
+
+              return (
+                <Card
+                  key={wp.id}
+                  size="small"
+                  hoverable={!lockedByOpenSession}
+                  onClick={() => {
+                    if (!currentSession) {
+                      setSelectedWorkpointId(wp.id);
+                    }
+                  }}
+                  styles={{
+                    body: {
+                      border: selected ? "2px solid #1677ff" : "1px solid #f0f0f0",
+                      borderRadius: 8,
+                      cursor: lockedByOpenSession ? "not-allowed" : "pointer",
+                      opacity: lockedByOpenSession ? 0.65 : 1,
+                    },
+                  }}
+                >
+                  <Flex justify="space-between" align="flex-start" gap={12}>
+                    <Space direction="vertical" size={4} style={{ flex: 1 }}>
+                      <Space wrap>
+                        <Text strong>{wp.ten}</Text>
+                        <Tag color={wp.loai_dia_diem === "fixed" ? "blue" : "purple"}>
+                          {wp.loai_label || wp.loai_dia_diem || "-"}
+                        </Tag>
+                        {selected ? <Tag color="processing">Đang chọn</Tag> : null}
+                      </Space>
+
+                      <Text type="secondary">
+                        {wp.ma_dia_diem || "-"} • {wp.dia_chi || "Không có địa chỉ"}
+                      </Text>
+
+                      <Text type="secondary">
+                        Bán kính: {wp.ban_kinh_m}m
+                        {typeof wp.distance_m === "number" ? ` • Cách bạn ${wp.distance_m}m` : ""}
+                      </Text>
+
+                      <Text type="secondary">
+                        Hiệu lực:{" "}
+                        {wp.hieu_luc_den
+                          ? `đến ${dayjs(wp.hieu_luc_den).format("DD/MM/YYYY HH:mm")}`
+                          : "không giới hạn"}
+                      </Text>
+                    </Space>
+
+                    {!currentSession ? (
+                      <Button
+                        type={selected ? "primary" : "default"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedWorkpointId(wp.id);
+                        }}
+                      >
+                        {selected ? "Đã chọn" : "Chọn"}
+                      </Button>
+                    ) : null}
+                  </Flex>
+                </Card>
+              );
+            })}
+          </Space>
+        )}
+      </Card>
+
+      {selectedWorkpoint ? (
+        <Card title="Địa điểm đang chọn">
+          <Descriptions size="small" bordered column={1}>
+            <Descriptions.Item label="Tên">{selectedWorkpoint.ten}</Descriptions.Item>
+            <Descriptions.Item label="Mã">{selectedWorkpoint.ma_dia_diem || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Loại">
+              <Tag color={selectedWorkpoint.loai_dia_diem === "fixed" ? "blue" : "purple"}>
+                {selectedWorkpoint.loai_label || selectedWorkpoint.loai_dia_diem || "-"}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Khoảng cách hiện tại">
+              {typeof selectedWorkpoint.distance_m === "number"
+                ? `${selectedWorkpoint.distance_m}m`
+                : "-"}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      ) : null}
+
+      <Card title="Ảnh selfie hiện tại">
+        <Space direction="vertical" size={12} style={{ width: "100%" }}>
+          {facePreviewUrl ? (
+            <img
+              src={facePreviewUrl}
+              alt="selfie-preview"
+              style={{
+                width: 220,
+                maxWidth: "100%",
+                borderRadius: 12,
+                border: "1px solid #f0f0f0",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <Text type="secondary">Chưa có ảnh selfie.</Text>
+          )}
+
+          <Space wrap>
+            <Button type="primary" onClick={startCamera} loading={cameraLoading}>
+              {faceB64 ? "Chụp lại bằng camera" : "Mở camera chụp selfie"}
+            </Button>
+            <Button onClick={clearFace} disabled={!faceB64}>
+              Xóa ảnh
+            </Button>
+          </Space>
+
+          {faceName ? <Text type="secondary">{faceName}</Text> : null}
+        </Space>
+      </Card>
+
       <Card>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={10}>
-            <Space direction="vertical" style={{ width: "100%" }} size={8}>
-              <Text strong>Ảnh selfie hiện tại</Text>
+        <Space direction="vertical" style={{ width: "100%" }} size={12}>
+          <Button
+            type="primary"
+            size="large"
+            onClick={onCheckIn}
+            loading={submitting === "in"}
+            disabled={disabledCheckin}
+            block
+          >
+            Chấm công vào
+          </Button>
 
-              <Upload
-                accept="image/*"
-                listType="picture-card"
-                maxCount={1}
-                beforeUpload={() => false}
-                onChange={onFaceChange}
-                fileList={uploadFileList}
-              >
-                {uploadFileList.length >= 1 ? null : "Chọn ảnh"}
-              </Upload>
+          <Button
+            danger
+            size="large"
+            onClick={onCheckOut}
+            loading={submitting === "out"}
+            disabled={disabledCheckout}
+            block
+          >
+            Chấm công ra
+          </Button>
 
-              {faceName ? (
-                <Space direction="vertical" size={2}>
-                  <Text>{faceName}</Text>
-                  {facePreviewUrl && (
-                    <img
-                      src={facePreviewUrl}
-                      alt="selfie-preview"
-                      style={{
-                        width: 120,
-                        height: 120,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        border: "1px solid #f0f0f0",
-                      }}
-                    />
-                  )}
-                </Space>
-              ) : (
-                <Text type="secondary">Chưa có ảnh selfie.</Text>
-              )}
-
-              <Space>
-                <Button onClick={clearFace} disabled={!faceB64}>
-                  Xóa ảnh
-                </Button>
-              </Space>
-            </Space>
-          </Col>
-
-          <Col xs={24} md={14}>
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-              <Button
-                type="primary"
-                size="large"
-                onClick={onCheckIn}
-                loading={submitting === "in"}
-                disabled={disabledCheckin}
-              >
-                Chấm công vào
-              </Button>
-
-              <Button
-                danger
-                size="large"
-                onClick={onCheckOut}
-                loading={submitting === "out"}
-                disabled={disabledCheckout}
-              >
-                Chấm công ra
-              </Button>
-
-              <Text type="secondary">
-                Lưu ý:
-                <br />- Chấm công vào: phải chọn đúng địa điểm trước khi mở phiên.
-                <br />- Chấm công ra: hệ thống tự khóa theo địa điểm của phiên đang mở.
-                <br />- Tạo địa điểm mới chỉ dùng khi không có điểm phù hợp gần vị trí hiện tại.
-              </Text>
-            </Space>
-          </Col>
-        </Row>
+          <Text type="secondary">
+            Lưu ý:
+            <br />- Chấm công vào: phải chọn đúng địa điểm trước khi mở phiên.
+            <br />- Chấm công ra: hệ thống tự khóa theo địa điểm của phiên đang mở.
+            <br />- Tạo địa điểm mới chỉ dùng khi không có điểm phù hợp gần vị trí hiện tại.
+            <br />- Ảnh selfie dùng để chấm công phải được chụp trực tiếp từ camera.
+          </Text>
+        </Space>
       </Card>
 
       <Card>
@@ -787,9 +889,11 @@ export default function ChamCongNhanVien() {
           columns={columns}
           dataSource={rows}
           pagination={{ pageSize: 10 }}
+          scroll={{ x: 900 }}
         />
       </Card>
 
+      {/* Modal tạo điểm event */}
       <Modal
         title="Tạo địa điểm sự kiện mới"
         open={createOpen}
@@ -827,7 +931,7 @@ export default function ChamCongNhanVien() {
           <Alert
             type="warning"
             showIcon
-            message="Địa điểm mới sẽ được tạo tại đúng GPS hiện tại"
+            message="Địa điểm mới sẽ được tạo theo đúng GPS hiện tại"
             description={
               geo.lat && geo.lng
                 ? `Lat ${geo.lat.toFixed(6)} • Lng ${geo.lng.toFixed(6)} • Sai số ~ ${geo.accuracy ?? "-"}m`
@@ -835,6 +939,68 @@ export default function ChamCongNhanVien() {
             }
           />
         </Form>
+      </Modal>
+
+      {/* Modal camera trực tiếp */}
+      <Modal
+        title="Chụp selfie trực tiếp"
+        open={cameraOpen}
+        onCancel={() => {
+          stopCamera();
+          setCameraOpen(false);
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              stopCamera();
+              setCameraOpen(false);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="capture"
+            type="primary"
+            onClick={capturePhoto}
+            loading={capturing}
+          >
+            Chụp ảnh
+          </Button>,
+        ]}
+        width={520}
+        destroyOnClose
+      >
+        <Space direction="vertical" style={{ width: "100%" }} size={12}>
+          <Alert
+            type="info"
+            showIcon
+            message="Camera selfie trực tiếp"
+            description="Đưa mặt vào khung hình rồi bấm Chụp ảnh. Không dùng thư viện ảnh trong luồng chính."
+          />
+
+          <div
+            style={{
+              width: "100%",
+              background: "#000",
+              borderRadius: 12,
+              overflow: "hidden",
+              minHeight: 280,
+            }}
+          >
+            <video
+              ref={videoRef}
+              style={{
+                width: "100%",
+                display: "block",
+                background: "#000",
+              }}
+              autoPlay
+              muted
+              playsInline
+            />
+          </div>
+        </Space>
       </Modal>
     </Flex>
   );
