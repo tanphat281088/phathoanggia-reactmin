@@ -27,7 +27,7 @@
 //                 return item;
 //             }
 //         }
-//     });
+//     }); 
 
 //     return checkRole.filter((item: any) =>
 //         item?.children ? item.children.length > 0 : item !== null
@@ -66,31 +66,15 @@ export const getSidebar = (items: any, phan_quyen: any) => {
   const isKeyValid = (key: string): boolean =>
     ["dashboard", "lich-su-import"].includes(key);
 
-  // ✅ LUÔN HIỂN THỊ các nhóm sau (bất kể quyền FE)
-  const ALWAYS_SHOW_TOP = new Set<string>([
-
-    "quan-ly-tien-ich", // <— nhóm “Quản lý tiện ích”
-  ]);
+  // Không ép hiện nhóm top-level nào, tất cả đều theo phan_quyen
+  const ALWAYS_SHOW_TOP = new Set<string>();
 
   // Ẩn hẳn nhóm này (giữ logic cũ của bạn)
   const ALWAYS_HIDE_TOP = ["quan-ly-san-xuat"];
 
   // ✅ Child luôn hiển thị (giữ & bổ sung key nếu cần)
-  const ALWAYS_SHOW_CHILDREN = [
-    "bao-cao",
-    "bao-cao-kqkd",
-    "khach-hang-vang-lai",
-    "nhan-su-cham-cong",
-    "nhan-su-duyet-cham-cong",
-    "diem-thanh-vien",
-    // Gợi ý: nếu child FB Inbox có key riêng, thêm luôn vào đây:
-    "utilities-fb",   // hoặc "fb-inbox" tuỳ bạn đặt key
+  const ALWAYS_SHOW_CHILDREN: string[] = [];
 
-      "zl-inbox",
-   
-      
-
-  ];
 
   // Alias quyền → key menu
 const PERMISSION_ALIAS: Record<string, string | string[]> = {

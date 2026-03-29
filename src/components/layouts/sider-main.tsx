@@ -1,14 +1,7 @@
-import { Menu } from "antd";
-import { Tag } from "antd";
-import { Flex, Layout, Typography } from "antd";
+import { Menu, Tag, Flex, Layout, Typography } from "antd";
 import { DATA_CONSTANTS } from "../../utils/constant";
 import useSidebar from "../../hooks/useSidebar";
-import { getSidebar } from "../../helpers/sidebarHelper";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../redux/store";
 import { useLocation } from "react-router-dom";
-
-
 
 const SiderMain = ({
   sidebarWidth,
@@ -19,135 +12,32 @@ const SiderMain = ({
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
 }) => {
-    const location = useLocation();
+  const location = useLocation();
 
-const { items, rawItems = [], openKeys } = useSidebar();
+  // Lấy menu đã lọc theo quyền từ hook useSidebar
+  const { items, openKeys } = useSidebar();
 
+  // ===== Tính defaultOpenKeys (nhóm nào mở sẵn) =====
+  const defaultOpenKeys = openKeys.filter((key) => !["profile"].includes(key));
 
+  const pathAfterAdmin = location.pathname.replace(/^\/admin\/?/, "");
 
-  /** ================== QUY TẮC HIỂN THỊ/ẨN MENU (BỔ SUNG) ================== */
-  // ✅ Luôn hiển thị nhóm "Quản lý vật tư"
- const ALWAYS_SHOW_KEYS = new Set<string>(["quan-ly-vat-tu", "quan-ly-thu-chi", "quan-ly-tien-ich",]);
-
-  // ✅ Ẩn hoàn toàn nhóm "Quản lý kho"
-  const BLACKLIST_KEYS = new Set<string>(["quan-ly-kho"]);
-
-  // Lấy item gốc (đầy đủ children) từ danh sách raw (chưa lọc quyền)
-// Lấy item gốc (đầy đủ children) từ danh sách RAW (chưa lọc quyền)
-const rawAlways = rawItems.filter((it: any) =>
-  ALWAYS_SHOW_KEYS.has(String(it?.key))
-);
-
-
-  // Lấy user (chỉ 1 lần, dùng cho getSidebar)
-  const { user } = useSelector((state: RootState) => state.auth);
-  // === Chỉ bơm 'cashflow' khi user thực sự có quyền (cash hoặc bất kỳ cash-*) ===
-const canShowCashflow = (() => {
-  try {
-    const arr = JSON.parse(user?.vai_tro?.phan_quyen || "[]");
-    const need = new Set(["cash", "cash-ledger", "cash-accounts", "cash-aliases", "cash-internal-transfers"]);
-    return arr.some((r: any) => need.has(String(r?.name)) && r?.actions?.showMenu && r?.actions?.index);
-  } catch { return false; }
-})();
-
-
-  // Giữ nguyên hành vi cũ: menu đã lọc theo quyền từ helper
-  const filtered = getSidebar(items, user?.vai_tro?.phan_quyen) as any[];
-
-  // Hợp nhất:
-  //  - Nếu filtered đã có key "quan-ly-vat-tu" thì giữ nguyên
-  //  - Nếu thiếu, bơm item raw vào (đảm bảo luôn hiển thị VT)
-  const keyOf = (x: any) => String(x?.key ?? "");
-  const existKeys = new Set(filtered.map(keyOf));
-  const mergedSidebar = [
-    ...filtered,
-    ...rawAlways.filter((it) => !existKeys.has(keyOf(it))),
-  ];
-
-
-// Bảo đảm child "cashflow" luôn có trong nhóm "quan-ly-thu-chi"
-const rawThuChi = rawItems.find((it: any) => String(it?.key) === "quan-ly-thu-chi");
-
-const idxThuChi = mergedSidebar.findIndex((it: any) => String(it?.key) === "quan-ly-thu-chi");
-
-if (canShowCashflow && rawThuChi && idxThuChi >= 0) {
-
-  const curChildren = mergedSidebar[idxThuChi]?.children || [];
-  const curChildKeys = new Set<string>(curChildren.map((c: any) => String(c?.key ?? "")));
-
-  // lấy đúng child 'cashflow' từ raw (không filter quyền)
-  const cashflowChild = (rawThuChi.children || []).find(
-    (c: any) => String(c?.key) === "cashflow"
-  );
-
-  if (cashflowChild && !curChildKeys.has("cashflow")) {
-    mergedSidebar[idxThuChi] = {
-      ...mergedSidebar[idxThuChi],
-      children: [...curChildren, cashflowChild],
-    };
-  }
-
-// ⬇️ Bơm child 'kiem-toan' nếu role có quyền showMenu+index mà bị filter mất
-// (không bắt buộc vì getSidebar đã lọc theo quyền, nhưng thêm cho chắc kèo khi có custom merge)
-let canShowKiemToan = false;
-try {
-  const pq = JSON.parse(user?.vai_tro?.phan_quyen || "[]");
-  const mod = pq.find((r: any) => r?.name === "kiem-toan");
-  canShowKiemToan = !!(mod?.actions?.showMenu && mod?.actions?.index);
-} catch { /* ignore */ }
-
-const kiemToanChild = (rawThuChi.children || []).find(
-  (c: any) => String(c?.key) === "kiem-toan"
-);
-
-if (kiemToanChild && canShowKiemToan && !curChildKeys.has("kiem-toan")) {
-  mergedSidebar[idxThuChi] = {
-    ...mergedSidebar[idxThuChi],
-    children: [...(mergedSidebar[idxThuChi]?.children || []), kiemToanChild],
+  const ensureOpen = (parentKey: string) => {
+    if (
+      pathAfterAdmin.startsWith(parentKey + "/") &&
+      !defaultOpenKeys.includes(parentKey)
+    ) {
+      defaultOpenKeys.push(parentKey);
+    }
   };
-}
 
-
-}
-
-  // Áp dụng blacklist để ẩn hẳn "Quản lý kho"
-  const finalSidebar = mergedSidebar.filter(
-    (it: any) => !BLACKLIST_KEYS.has(keyOf(it))
-  );
-  /** ======================================================================== */
-
-// Chỉ mở nhóm VT nếu đang ở đường dẫn VT; còn lại giữ nguyên
-const defaultOpenKeys = openKeys.filter((key) => !["profile"].includes(key));
-const pathAfterAdmin = location.pathname.replace(/^\/admin\/?/, ""); // ví dụ "quan-ly-vat-tu/receipts"
-if (pathAfterAdmin.startsWith("quan-ly-vat-tu/")) {
-  if (!defaultOpenKeys.includes("quan-ly-vat-tu")) {
-    defaultOpenKeys.push("quan-ly-vat-tu");
-  }
-}
-// Mở nhóm Thu chi khi đang ở bất kỳ trang con /quan-ly-thu-chi/*
-if (pathAfterAdmin.startsWith("quan-ly-thu-chi/")) {
-  if (!defaultOpenKeys.includes("quan-ly-thu-chi")) {
-    defaultOpenKeys.push("quan-ly-thu-chi");
-  }
-}
-
-// Mở nhóm Báo cáo quản trị khi đang ở bất kỳ trang con /bao-cao-quan-tri/*
-if (pathAfterAdmin.startsWith("bao-cao-quan-tri/")) {
-  if (!defaultOpenKeys.includes("bao-cao-quan-tri")) {
-    defaultOpenKeys.push("bao-cao-quan-tri");
-  }
-}
-
-// Mở nhóm CSKH khi đang ở bất kỳ trang con /cham-soc-khach-hang/*
-if (pathAfterAdmin.startsWith("cham-soc-khach-hang/")) {
-  if (!defaultOpenKeys.includes("cham-soc-khach-hang")) {
-    defaultOpenKeys.push("cham-soc-khach-hang");
-  }
-}
-
-
-  // (Giữ lại biến sidebar cũ để không phá cấu trúc; không còn dùng ở Menu)
-  const sidebar = getSidebar(items, user?.vai_tro?.phan_quyen);
+  // Mở các group phổ biến nếu đang đứng trong đó
+  ensureOpen("quan-ly-khach-hang");
+  ensureOpen("cham-soc-khach-hang");
+  ensureOpen("quan-ly-san-pham");
+  ensureOpen("quan-ly-thu-chi");
+  ensureOpen("quan-ly-ban-hang");
+  ensureOpen("quan-ly-nhan-su");
 
   return (
     <Layout.Sider
@@ -159,8 +49,8 @@ if (pathAfterAdmin.startsWith("cham-soc-khach-hang/")) {
         console.log(broken);
       }}
       className="custom-sidebar-scrollbar"
-      onCollapse={(collapsed) => {
-        setCollapsed(collapsed);
+      onCollapse={(c) => {
+        setCollapsed(c);
       }}
       style={{
         height: "100vh",
@@ -216,10 +106,9 @@ if (pathAfterAdmin.startsWith("cham-soc-khach-hang/")) {
       <Menu
         theme="dark"
         mode="inline"
-        defaultSelectedKeys={["1"]}
+        defaultSelectedKeys={["dashboard"]}
         defaultOpenKeys={defaultOpenKeys}
-        // ⬇️ Dùng danh sách đã hợp nhất/ẩn kho cũ
-        items={finalSidebar}
+        items={items} // 👈 dùng thẳng items từ useSidebar (đã lọc quyền)
         style={{
           fontSize: "15px",
           borderRight: "none",

@@ -31,7 +31,8 @@ const EXTRA_WHITELIST = [
 
         "/admin/quan-ly-thu-chi/cong-no-khach-hang",      // 👈 THÊM
 
-
+ // ✅ MỚI: cho phép tất cả user truy cập trang Thông tin cá nhân
+  "/admin/profile",
 
 
 
