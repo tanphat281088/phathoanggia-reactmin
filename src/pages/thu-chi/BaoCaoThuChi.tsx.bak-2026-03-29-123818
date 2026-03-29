@@ -18,7 +18,7 @@ type TongHopResp = {
   };
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "https://api-phathoanggia.phgfloral.com/api";
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "https://api.phgfloral.com/api";
 const ENDPOINT = `${API_BASE}/thu-chi/bao-cao/tong-hop`;
 
 const BaoCaoThuChi = () => {

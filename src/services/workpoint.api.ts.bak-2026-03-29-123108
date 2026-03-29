@@ -43,8 +43,7 @@ export type WorkpointListParams = {
   lng?: number;
   q?: string;
   type?: WorkpointType;
-  only_available?: boolean | 0 | 1;
-  max_distance_m?: number;
+  only_available?: boolean;
   limit?: number;
 };
 
@@ -54,8 +53,7 @@ export type WorkpointListResponse = {
     lng?: number | null;
     q?: string | null;
     type?: WorkpointType | null;
-    only_available?: boolean | 0 | 1;
-  max_distance_m?: number;
+    only_available?: boolean;
     limit?: number;
   };
   items: WorkpointItem[];
@@ -70,7 +68,7 @@ export type WorkpointCreatePayload = {
   ghi_chu?: string;
 };
 
-const WORKPOINT_PATH = "https://api-phathoanggia.phgfloral.com/api/nhan-su/workpoints";
+const WORKPOINT_PATH = "/nhan-su/workpoints";
 
 /**
  * Lấy danh sách địa điểm chấm công

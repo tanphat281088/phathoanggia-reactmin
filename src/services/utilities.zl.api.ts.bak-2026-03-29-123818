@@ -19,7 +19,7 @@ const API_BASE = (() => {
   // Hot-fix: nếu đang chạy trên admin.phgfloral.com thì trỏ thẳng API domain
   const host =
     typeof window !== "undefined" ? window.location.host : "";
-  if (host === "admin.phgfloral.com") return "https://api-phathoanggia.phgfloral.com/api";
+  if (host === "admin.phgfloral.com") return "https://api.phgfloral.com/api";
 
   // Fallback dev
   return "/api";

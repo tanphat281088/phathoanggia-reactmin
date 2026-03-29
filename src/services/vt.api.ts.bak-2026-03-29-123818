@@ -2,12 +2,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ===== API base URL (runtime-safe) =====
-// 1) Ưu tiên meta <meta name="phg-api-url" content="https://api-phathoanggia.phgfloral.com/api">
+// 1) Ưu tiên meta <meta name="phg-api-url" content="https://api.phgfloral.com/api">
 // ===== FORCE API (test) =====
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ===== API base (FORCED) =====
-const API: string = 'https://api-phathoanggia.phgfloral.com/api';
+const API: string = 'https://api.phgfloral.com/api';
 
 // Ghim để kiểm tra runtime
 ;(window as any).__API = API;

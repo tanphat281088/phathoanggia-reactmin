@@ -208,8 +208,7 @@ if (status === 403 && (isHarmless403 || (reqMethod === 'GET' && (isPermList || i
 );
 
 // ======================== DEFAULTS ========================
-axios.defaults.baseURL = "https://api-phathoanggia.phgfloral.com/api";
-console.log("[FE] API base (PATCHED):", axios.defaults.baseURL);
+axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 axios.defaults.headers.common["Content-Type"] = "application/json";
 axios.defaults.headers.common["Accept"] = "application/json";
 // axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";

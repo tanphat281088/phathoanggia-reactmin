@@ -140,7 +140,7 @@ export default function BaoCaoKQKD() {
     try {
       // Doanh thu (line=1) → mở hóa đơn xem trước (public)
       if (detailLine === 1) {
-        const apiBase = import.meta.env.VITE_API_URL?.replace(/\/+$/,''); // ví dụ https://api-phathoanggia.phgfloral.com/api
+        const apiBase = import.meta.env.VITE_API_URL?.replace(/\/+$/,''); // ví dụ https://api.phgfloral.com/api
         window.open(`${apiBase}/quan-ly-ban-hang/xem-truoc-hoa-don/${row.id}`, "_blank", "noopener,noreferrer");
         return;
       }

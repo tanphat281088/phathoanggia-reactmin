@@ -43,8 +43,7 @@ export type WorkpointListParams = {
   lng?: number;
   q?: string;
   type?: WorkpointType;
-  only_available?: boolean | 0 | 1;
-  max_distance_m?: number;
+  only_available?: boolean;
   limit?: number;
 };
 
@@ -54,8 +53,7 @@ export type WorkpointListResponse = {
     lng?: number | null;
     q?: string | null;
     type?: WorkpointType | null;
-    only_available?: boolean | 0 | 1;
-  max_distance_m?: number;
+    only_available?: boolean;
     limit?: number;
   };
   items: WorkpointItem[];

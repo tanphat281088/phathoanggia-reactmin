@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ==============================
-//  Utilities → Tư vấn Zalo
-//  Service gọi API (song song FB)
+//  Utilities → Tư vấn Facebook
+//  Service gọi API (MVP placeholder)
 //  - Độc lập: dùng fetch + JWT từ localStorage
 //  - Base URL: VITE_API_URL hoặc "/api"
 // ==============================
@@ -19,11 +19,12 @@ const API_BASE = (() => {
   // Hot-fix: nếu đang chạy trên admin.phgfloral.com thì trỏ thẳng API domain
   const host =
     typeof window !== "undefined" ? window.location.host : "";
-  if (host === "admin.phgfloral.com") return "https://api-phathoanggia.phgfloral.com/api";
+  if (host === "admin.phgfloral.com") return "https://api.phgfloral.com/api";
 
   // Fallback dev
   return "/api";
 })();
+
 
 /** Headers kèm JWT */
 function authHeaders(): HeadersInit {
@@ -64,24 +65,21 @@ async function http<T = any>(
 }
 
 // ========== Types (FE) ==========
-export type ZlHealth = {
+export type FbHealth = {
   enabled: boolean;
   provider: "google" | "openai" | "hybrid" | string;
   ai_polish: boolean;
   ai_tone?: "neutral" | "friendly" | "formal" | string;
-
-  // bổ sung (có thể null khi BE chưa tính)
-  access_token_ttl_sec?: number | null;
-  refresh_token_ttl_sec?: number | null;
-  need_reauth?: boolean;
 };
 
-export type ZlConversation = {
+export type FbConversation = {
   id: number;
+  page_id?: number;
+  fb_user_id?: number;
   assigned_user_id?: number | null;
   status?: 0 | 1 | "open" | "closed";
   lang_primary?: string | null;
-  can_send_until_at?: string | null;
+  within_24h_until_at?: string | null;
   tags?: any;
   last_message_at?: string | null;
 
@@ -89,16 +87,14 @@ export type ZlConversation = {
   latest_message_vi?: string | null;
   latest_message_at?: string | null;
   customer_name?: string | null;
-
-  // giữ prop cũ để UI dùng chung (FbInboxPage logic)
-  within24h?: boolean; // BE map từ can_send_until_at
+  within24h?: boolean; // computed phía BE/FE
 };
 
-export type ZlMessage = {
+export type FbMessage = {
   id?: number;
   conversation_id: number;
   direction: "in" | "out";
-  mid?: string | null; // map từ provider_message_id để tương thích UI cũ
+  mid?: string | null;
   text_raw?: string | null;
   text_translated?: string | null;
   text_polished?: string | null;
@@ -124,29 +120,29 @@ export type ListResponse<T> = {
 
 // ========== API Paths ==========
 const PATHS = {
-  health: "/utilities/zl/health",
-  conversations: "/utilities/zl/conversations",
-  conversation: (id: number | string) => `/utilities/zl/conversations/${id}`,
-  reply: (id: number | string) => `/utilities/zl/conversations/${id}/reply`,
-  assign: (id: number | string) => `/utilities/zl/conversations/${id}/assign`,
-  status: (id: number | string) => `/utilities/zl/conversations/${id}/status`,
+  health: "/utilities/fb/health",
+  conversations: "/utilities/fb/conversations",
+  conversation: (id: number | string) => `/utilities/fb/conversations/${id}`,
+  reply: (id: number | string) => `/utilities/fb/conversations/${id}/reply`,
+  assign: (id: number | string) => `/utilities/fb/conversations/${id}/assign`,
+  status: (id: number | string) => `/utilities/fb/conversations/${id}/status`,
 };
 
 // ========== Service Methods ==========
 
 /** Đọc trạng thái module & flags (.env) */
-export async function zlHealth(): Promise<ZlHealth> {
-  return http<ZlHealth>(PATHS.health, { method: "GET" });
+export async function fbHealth(): Promise<FbHealth> {
+  return http<FbHealth>(PATHS.health, { method: "GET" });
 }
 
-/** Danh sách hội thoại */
-export async function zlConversations(params?: {
+/** Danh sách hội thoại (MVP: BE trả rỗng) */
+export async function fbConversations(params?: {
   page?: number;
   per_page?: number;
   q?: string;
   status?: "open" | "closed";
   assigned?: "mine" | "unassigned";
-}): Promise<ListResponse<ZlConversation>> {
+}): Promise<ListResponse<FbConversation>> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set("page", String(params.page));
   if (params?.per_page) qs.set("per_page", String(params.per_page));
@@ -154,23 +150,24 @@ export async function zlConversations(params?: {
   if (params?.status) qs.set("status", params.status);
   if (params?.assigned) qs.set("assigned", params.assigned);
 
-  const url = PATHS.conversations + (qs.toString() ? `?${qs.toString()}` : "");
-  return http<ListResponse<ZlConversation>>(url, { method: "GET" });
+  const url =
+    PATHS.conversations + (qs.toString() ? `?${qs.toString()}` : "");
+  return http<ListResponse<FbConversation>>(url, { method: "GET" });
 }
 
 /** Lấy chi tiết 1 hội thoại + messages */
-export async function zlConversationShow(
+export async function fbConversationShow(
   id: number | string
 ): Promise<{
   success?: boolean;
   conversation_id: number;
-  messages: ZlMessage[];
+  messages: FbMessage[];
 }> {
   return http(PATHS.conversation(id), { method: "GET" });
 }
 
 /** Gửi trả lời (nhập VI → BE sẽ xử lý dịch/gửi sau này) */
-export async function zlReply(
+export async function fbReply(
   id: number | string,
   payload: { text_vi: string; polish?: boolean; tone?: string }
 ): Promise<{
@@ -187,7 +184,7 @@ export async function zlReply(
 }
 
 /** Gán/đổi người phụ trách */
-export async function zlAssign(
+export async function fbAssign(
   id: number | string,
   payload: { assigned_user_id: number }
 ): Promise<{
@@ -203,7 +200,7 @@ export async function zlAssign(
 }
 
 /** Đổi trạng thái hội thoại (open|closed) */
-export async function zlSetStatus(
+export async function fbSetStatus(
   id: number | string,
   payload: { status: "open" | "closed" }
 ): Promise<{

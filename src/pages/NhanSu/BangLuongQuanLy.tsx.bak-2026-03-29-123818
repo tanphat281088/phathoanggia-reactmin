@@ -281,7 +281,7 @@ export default function BangLuongQuanLy() {
 
 // ===== Export Excel / PDF =====
 const exportPayroll = (format: "csv" | "html" | "pdf", userId: number) => {
-  // Lấy baseURL đang dùng cho axios (vd: https://api-phathoanggia.phgfloral.com/api)
+  // Lấy baseURL đang dùng cho axios (vd: https://api.phgfloral.com/api)
   const base = (axios.defaults.baseURL || "").replace(/\/$/, ""); // bỏ dấu / cuối nếu có
 
   // Gọi đúng vào API backend: {base}/reports/payroll/export

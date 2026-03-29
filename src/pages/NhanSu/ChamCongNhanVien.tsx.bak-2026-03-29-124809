@@ -82,78 +82,6 @@ function getRespError(err: any) {
   return err?.message || err?.code || "Lỗi không xác định.";
 }
 
-
-function haversineDistanceM(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (v: number) => (v * Math.PI) / 180;
-  const R = 6371000;
-
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-}
-
-function normalizeWorkpointName(name: string) {
-  return String(name || "")
-    .replace(/^\[[^\]]+\]\s*/u, "")
-    .trim()
-    .toLowerCase();
-}
-
-
-function extractWorkpointCode(wp: WorkpointItem) {
-  const ma = String(wp.ma_dia_diem || "").trim().toUpperCase();
-  if (ma) return ma;
-
-  const m = String(wp.ten || "").match(/^\[([^\]]+)\]/);
-  return m ? m[1].trim().toUpperCase() : "";
-}
-
-function cleanDisplayName(name: string) {
-  return String(name || "")
-    .replace(/^\[[^\]]+\]\s*/u, "")
-    .trim();
-}
-
-function mergeDuplicateWorkpoint(prev: WorkpointItem, next: WorkpointItem): WorkpointItem {
-  const prevDistance =
-    typeof prev.distance_m === "number" ? prev.distance_m : Number.MAX_SAFE_INTEGER;
-  const nextDistance =
-    typeof next.distance_m === "number" ? next.distance_m : Number.MAX_SAFE_INTEGER;
-
-  const nearer = nextDistance < prevDistance ? next : prev;
-  const farther = nearer === next ? prev : next;
-
-  const mergedCode =
-    extractWorkpointCode(nearer) || extractWorkpointCode(farther) || "";
-
-  const nicerName =
-    cleanDisplayName(nearer.ten) ||
-    cleanDisplayName(farther.ten) ||
-    String(nearer.ten || farther.ten || "");
-
-  return {
-    ...farther,
-    ...nearer,
-    ma_dia_diem: mergedCode || nearer.ma_dia_diem || farther.ma_dia_diem || null,
-    ten: nicerName,
-    dia_chi: nearer.dia_chi || farther.dia_chi || null,
-    ghi_chu: nearer.ghi_chu || farther.ghi_chu || null,
-    distance_m:
-      Math.min(prevDistance, nextDistance) !== Number.MAX_SAFE_INTEGER
-        ? Math.min(prevDistance, nextDistance)
-        : nearer.distance_m ?? farther.distance_m,
-  };
-}
-
 function findOpenSessionFromRows(rows: AttendanceItem[]): OpenSession | null {
   const sorted = [...rows]
     .filter((r) => !!r.checked_at)
@@ -203,7 +131,6 @@ export default function ChamCongNhanVien() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [capturing, setCapturing] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -337,65 +264,21 @@ export default function ChamCongNhanVien() {
         limit: 100,
       };
 
+      // Có GPS thì BE sort theo khoảng cách
       if (geo.lat != null && geo.lng != null) {
         params.lat = geo.lat;
         params.lng = geo.lng;
       }
 
-      const resp = await workpointList(params);
-      console.log("[WP] raw resp =", resp);
+const resp = await workpointList(params);
 
-      const rawItems: WorkpointItem[] = Array.isArray(resp?.data?.items) ? resp.data.items : [];
+console.log("WORKPOINT RESP =", resp);
 
-      const deduped = new Map<string, WorkpointItem>();
+const items =
+  resp?.data?.items ??
+  [];
 
-      for (const wp of rawItems) {
-        const computedDistance =
-          geo.lat != null &&
-          geo.lng != null &&
-          typeof wp.lat === "number" &&
-          typeof wp.lng === "number"
-            ? haversineDistanceM(geo.lat, geo.lng, wp.lat, wp.lng)
-            : typeof wp.distance_m === "number"
-            ? wp.distance_m
-            : undefined;
-
-        const candidate: WorkpointItem = {
-          ...wp,
-          distance_m:
-            typeof computedDistance === "number" ? computedDistance : wp.distance_m,
-        };
-
-        const code = extractWorkpointCode(candidate);
-        const key = code
-          ? `code:${code}`
-          : `name:${normalizeWorkpointName(candidate.ten)}`;
-
-        const prev = deduped.get(key);
-
-        if (!prev) {
-          deduped.set(key, candidate);
-        } else {
-          deduped.set(key, mergeDuplicateWorkpoint(prev, candidate));
-        }
-      }
-
-      const MAX_DISTANCE_M = 3000;
-
-      const items = Array.from(deduped.values())
-        .filter((wp) => typeof wp.distance_m !== "number" || wp.distance_m <= MAX_DISTANCE_M)
-        .sort((a, b) => {
-          const da =
-            typeof a.distance_m === "number" ? a.distance_m : Number.MAX_SAFE_INTEGER;
-          const db =
-            typeof b.distance_m === "number" ? b.distance_m : Number.MAX_SAFE_INTEGER;
-          return da - db;
-        })
-        .slice(0, 10);
-
-      console.log("[WP] normalized items =", items);
-
-      setWorkpoints(items);
+setWorkpoints(Array.isArray(items) ? items : []);
 
       if (currentSession?.workpoint_id) {
         setSelectedWorkpointId(currentSession.workpoint_id);
@@ -405,7 +288,6 @@ export default function ChamCongNhanVien() {
         setSelectedWorkpointId(items[0].id);
       }
     } catch (err: any) {
-      console.error("fetchWorkpoints error:", err);
       message.error(err?.message || "Không tải được danh sách địa điểm.");
       setWorkpoints([]);
     } finally {
@@ -414,81 +296,24 @@ export default function ChamCongNhanVien() {
   };
 
   // ===== Camera trực tiếp =====
-const stopCamera = () => {
-  try {
+  const stopCamera = () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    } catch {
+      // ignore
+    }
+    streamRef.current = null;
+
     if (videoRef.current) {
       try {
-        videoRef.current.pause();
+        (videoRef.current as any).srcObject = null;
       } catch {
         // ignore
       }
     }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-    }
-  } catch {
-    // ignore
-  }
-
-  setCameraReady(false);
-  streamRef.current = null;
-
-  if (videoRef.current) {
-    try {
-      (videoRef.current as any).srcObject = null;
-      videoRef.current.removeAttribute("src");
-      videoRef.current.load();
-    } catch {
-      // ignore
-    }
-  }
-};
-
-const attachStreamToVideo = async () => {
-  const video = videoRef.current;
-  const stream = streamRef.current;
-
-  if (!video || !stream) return false;
-
-  try {
-    if ((video as any).srcObject !== stream) {
-      (video as any).srcObject = stream;
-    }
-
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.setAttribute("autoplay", "true");
-    video.setAttribute("muted", "true");
-    video.setAttribute("playsinline", "true");
-    video.setAttribute("webkit-playsinline", "true");
-
-    video.onloadedmetadata = async () => {
-      try {
-        await video.play();
-        setCameraReady(true);
-      } catch {
-        setCameraReady(false);
-      }
-    };
-
-    if (video.readyState >= 1) {
-      try {
-        await video.play();
-        setCameraReady(true);
-      } catch {
-        setCameraReady(false);
-      }
-    }
-
-    return true;
-  } catch (err) {
-    console.error("attachStreamToVideo error:", err);
-    setCameraReady(false);
-    return false;
-  }
-};
+  };
 
   const startCamera = async () => {
     try {
@@ -498,43 +323,20 @@ const attachStreamToVideo = async () => {
       }
 
       setCameraLoading(true);
-      setCameraReady(false);
       stopCamera();
 
-      let stream: MediaStream;
-
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: "user",
-            width: { ideal: 720 },
-            height: { ideal: 1280 },
-          },
-        });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: true,
-        });
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+        },
+      });
 
       streamRef.current = stream;
       setCameraOpen(true);
-
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          void attachStreamToVideo();
-        }, 80);
-        setTimeout(() => {
-          void attachStreamToVideo();
-        }, 250);
-        setTimeout(() => {
-          void attachStreamToVideo();
-        }, 600);
-      });
     } catch (err: any) {
-      console.error("startCamera error:", err);
       message.error(err?.message || "Không thể mở camera.");
       stopCamera();
       setCameraOpen(false);
@@ -553,11 +355,11 @@ const attachStreamToVideo = async () => {
       setCapturing(true);
 
       const video = videoRef.current;
-      const width = video.videoWidth;
-      const height = video.videoHeight;
+      const width = video.videoWidth || 720;
+      const height = video.videoHeight || 1280;
 
-      if (video.readyState < 2 || !width || !height) {
-        message.warning("Camera chưa hiển thị hình ảnh, vui lòng đợi 1 chút rồi thử lại.");
+      if (!width || !height) {
+        message.warning("Camera chưa sẵn sàng, vui lòng thử lại.");
         return;
       }
 
@@ -602,6 +404,10 @@ const attachStreamToVideo = async () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    fetchWorkpoints();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geo.lat, geo.lng]);
 
   useEffect(() => {
     if (currentSession?.workpoint_id) {
@@ -610,31 +416,17 @@ const attachStreamToVideo = async () => {
   }, [currentSession?.workpoint_id]);
 
   useEffect(() => {
-    if (!cameraOpen) return;
+    if (cameraOpen && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      (video as any).srcObject = streamRef.current;
+      video.muted = true;
+      video.playsInline = true;
 
-    let t1: ReturnType<typeof setTimeout> | undefined;
-    let t2: ReturnType<typeof setTimeout> | undefined;
-    let t3: ReturnType<typeof setTimeout> | undefined;
-
-    void attachStreamToVideo();
-
-    t1 = setTimeout(() => {
-      void attachStreamToVideo();
-    }, 120);
-
-    t2 = setTimeout(() => {
-      void attachStreamToVideo();
-    }, 400);
-
-    t3 = setTimeout(() => {
-      void attachStreamToVideo();
-    }, 900);
-
-    return () => {
-      if (t1) clearTimeout(t1);
-      if (t2) clearTimeout(t2);
-      if (t3) clearTimeout(t3);
-    };
+      const playPromise = video.play();
+      if (playPromise?.catch) {
+        playPromise.catch(() => {});
+      }
+    }
   }, [cameraOpen]);
 
   useEffect(() => {
@@ -677,20 +469,8 @@ const attachStreamToVideo = async () => {
         setCreateOpen(false);
         message.success(res.data.notice || "Đã xử lý địa điểm.");
 
-const optimisticItem: WorkpointItem = {
-  ...item,
-  distance_m: 0,
-  loai_label:
-    item.loai_label || (item.loai_dia_diem === "event" ? "Sự kiện" : "Cố định"),
-};
-
-setWorkpoints((prev) => {
-  const withoutDup = prev.filter((x) => x.id !== optimisticItem.id);
-  return [optimisticItem, ...withoutDup].slice(0, 10);
-});
-
-setSelectedWorkpointId(item.id);
-createForm.resetFields();
+        await fetchWorkpoints(item.id);
+        setSelectedWorkpointId(item.id);
       }
     } catch (err: any) {
       if (err?.errorFields) return;
@@ -932,7 +712,7 @@ createForm.resetFields();
       >
         {workpoints.length === 0 ? (
           <Empty
-            description='Bấm "Nạp địa điểm gần đây" để tải 10 địa điểm gần nhất.'
+            description="Chưa có địa điểm nào gần bạn hoặc chưa tải được danh sách địa điểm."
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ) : (
@@ -1168,78 +948,65 @@ createForm.resetFields();
 
       {/* Modal camera trực tiếp */}
       <Modal
-  title="Chụp selfie trực tiếp"
-  open={cameraOpen}
-  afterOpenChange={(open) => {
-    if (open) {
-      setTimeout(() => {
-        void attachStreamToVideo();
-      }, 120);
-    }
-  }}
-  onCancel={() => {
-    stopCamera();
-    setCameraOpen(false);
-  }}
-  footer={null}
-  width={520}
-  style={{ top: 16 }}
-  styles={{ body: { maxHeight: "calc(100vh - 150px)", overflowY: "auto" } }}
-  destroyOnClose
->
-  <Space direction="vertical" style={{ width: "100%" }} size={12}>
-    <Alert
-      type="info"
-      showIcon
-      message="Camera selfie trực tiếp"
-      description="Đưa mặt vào khung hình rồi bấm Chụp ảnh. Không dùng thư viện ảnh trong luồng chính."
-    />
-
-    <Space style={{ width: "100%", justifyContent: "space-between" }} wrap>
-      <Button
-        onClick={() => {
+        title="Chụp selfie trực tiếp"
+        open={cameraOpen}
+        onCancel={() => {
           stopCamera();
           setCameraOpen(false);
         }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              stopCamera();
+              setCameraOpen(false);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="capture"
+            type="primary"
+            onClick={capturePhoto}
+            loading={capturing}
+          >
+            Chụp ảnh
+          </Button>,
+        ]}
+        width={520}
+        destroyOnClose
       >
-        Hủy
-      </Button>
+        <Space direction="vertical" style={{ width: "100%" }} size={12}>
+          <Alert
+            type="info"
+            showIcon
+            message="Camera selfie trực tiếp"
+            description="Đưa mặt vào khung hình rồi bấm Chụp ảnh. Không dùng thư viện ảnh trong luồng chính."
+          />
 
-      <Button
-        type="primary"
-        onClick={capturePhoto}
-        loading={capturing}
-        disabled={!cameraReady}
-      >
-        {cameraReady ? "Chụp ảnh" : "Đang mở camera..."}
-      </Button>
-    </Space>
-
-    <div
-      style={{
-        width: "100%",
-        height: "min(45vh, 420px)",
-        background: "#000",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
-    >
-      <video
-        ref={videoRef}
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "block",
-          background: "#000",
-          objectFit: "cover",
-        }}
-        autoPlay
-        muted
-        playsInline
-      />
-    </div>
-  </Space>
-</Modal>
+          <div
+            style={{
+              width: "100%",
+              background: "#000",
+              borderRadius: 12,
+              overflow: "hidden",
+              minHeight: 280,
+            }}
+          >
+            <video
+              ref={videoRef}
+              style={{
+                width: "100%",
+                display: "block",
+                background: "#000",
+              }}
+              autoPlay
+              muted
+              playsInline
+            />
+          </div>
+        </Space>
+      </Modal>
     </Flex>
   );
 }

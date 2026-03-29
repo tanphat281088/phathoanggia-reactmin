@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ⚠️ BỎ QUA axios CHO 3 API NÀY — dùng fetch với URL tuyệt đối để né baseURL/interceptor
-const API_BASE = (import.meta.env.VITE_API_URL || "https://api-phathoanggia.phgfloral.com/api").replace(/\/+$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "https://api.phgfloral.com/api").replace(/\/+$/, "");
 
 export type SignTemplate = {
   id: number;
