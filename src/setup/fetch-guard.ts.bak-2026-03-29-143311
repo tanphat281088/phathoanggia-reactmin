@@ -29,15 +29,11 @@ export function installFetchGuard() {
 
     const resp = await origFetch(url.toString(), { ...init, headers });
 
-    const method = String(init?.method || "GET").toUpperCase();
-
     const isHarmless =
-      method === "GET" &&
-      (
-        /\/auth\/me$/.test(path) ||
-        /\/danh-sach-phan-quyen$/.test(path) ||
-        /\/vai-tro\/options$/.test(path)
-      );
+      /\/auth\/me$/.test(path) ||
+      /\/danh-sach-phan-quyen$/.test(path) ||
+      /\/vai-tro\/options$/.test(path) ||
+      /^\/nhan-su(\/|$)/.test(path);
 
     if (resp.status === 403 && isHarmless) {
       const body = JSON.stringify({ success: true, data: null, suppressed: true });

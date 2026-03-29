@@ -230,6 +230,11 @@ export default function ChamCongNhanVien() {
     [workpoints, selectedWorkpointId]
   );
 
+  const isMobileBrowser = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  }, []);
+
   const columns: ColumnsType<AttendanceItem> = [
     {
       title: "Loại",
@@ -279,6 +284,31 @@ export default function ChamCongNhanVien() {
       dataIndex: "short_desc",
       key: "short_desc",
       ellipsis: true,
+    },
+    {
+      title: "Selfie",
+      dataIndex: "selfie_url",
+      key: "selfie_url",
+      width: 110,
+      render: (v: string | null) =>
+        v ? (
+          <a href={v} target="_blank" rel="noreferrer">
+            <img
+              src={v}
+              alt="selfie"
+              style={{
+                width: 56,
+                height: 56,
+                objectFit: "cover",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                display: "block",
+              }}
+            />
+          </a>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
   ];
 
@@ -827,19 +857,24 @@ createForm.resetFields();
   };
 
   const disabledCheckin =
+    !isMobileBrowser ||
     loadingGeo ||
     loadingWorkpoints ||
     submitting !== null ||
     geo.lat === null ||
     geo.lng === null ||
-    !!currentSession;
+    !!currentSession ||
+    !selectedWorkpointId ||
+    !faceB64;
 
   const disabledCheckout =
+    !isMobileBrowser ||
     loadingGeo ||
     submitting !== null ||
     geo.lat === null ||
     geo.lng === null ||
-    !currentSession;
+    !currentSession ||
+    !faceB64;
 
   return (
     <Flex vertical gap={16}>
@@ -898,7 +933,7 @@ createForm.resetFields();
               <Button onClick={() => fetchWorkpoints(selectedWorkpointId)} loading={loadingWorkpoints}>
                 Nạp địa điểm gần đây
               </Button>
-              <Button onClick={openCreateModal} disabled={geo.lat == null || geo.lng == null}>
+              <Button onClick={openCreateModal} disabled={!isMobileBrowser || geo.lat == null || geo.lng == null}>
                 Tạo điểm sự kiện mới
               </Button>
             </Space>
@@ -906,7 +941,14 @@ createForm.resetFields();
         </Row>
       </Card>
 
-      {currentSession ? (
+      {!isMobileBrowser ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Máy tính chỉ dùng để xem dữ liệu chấm công thôi nhé anh em PHG"
+          description="Các thao tác Chấm công vào, chấm công ra và tạo điểm sự kiện chỉ thực hiện trên điện thoại."
+        />
+      ) : currentSession ? (
         <Alert
           type="info"
           showIcon
@@ -1049,7 +1091,7 @@ createForm.resetFields();
           )}
 
           <Space wrap>
-            <Button type="primary" onClick={startCamera} loading={cameraLoading}>
+            <Button type="primary" onClick={startCamera} loading={cameraLoading} disabled={!isMobileBrowser}>
               {faceB64 ? "Chụp lại bằng camera" : "Mở camera chụp selfie"}
             </Button>
             <Button onClick={clearFace} disabled={!faceB64}>
@@ -1061,6 +1103,15 @@ createForm.resetFields();
         </Space>
       </Card>
 
+      {!faceB64 ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Lưu ý ảnh selfie"
+          description="Anh em PHG phải bấm “Mở camera chụp selfie” trước. Khi đã có selfie thì nút chấm công vào / ra mới hoạt động."
+        />
+      ) : null}
+
       <Card>
         <Space direction="vertical" style={{ width: "100%" }} size={12}>
           <Button
@@ -1071,7 +1122,7 @@ createForm.resetFields();
             disabled={disabledCheckin}
             block
           >
-            Chấm công vào
+            {faceB64 ? "Chấm công vào" : "Chấm công vào (cần selfie)"}
           </Button>
 
           <Button
@@ -1082,7 +1133,7 @@ createForm.resetFields();
             disabled={disabledCheckout}
             block
           >
-            Chấm công ra
+            {faceB64 ? "Chấm công ra" : "Chấm công ra (cần selfie)"}
           </Button>
 
           <Text type="secondary">

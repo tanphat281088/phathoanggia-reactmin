@@ -27,7 +27,8 @@ export const handleAxiosError = (error: unknown) => {
     const isPreloadRead =
       /\/auth\/me$/.test(reqPath) ||
       /\/danh-sach-phan-quyen$/.test(reqPath) ||
-      /\/vai-tro\/options$/.test(reqPath);
+      /\/vai-tro\/options$/.test(reqPath) ||
+      /^\/nhan-su(\/|$)/.test(reqPath);
 
     // ✅ EARLY-RETURN: nuốt 403 vô hại (không log/không toast)
     if (suppressedFlag || (status === 403 && isPreloadRead)) {

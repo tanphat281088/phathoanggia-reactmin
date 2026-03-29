@@ -59,6 +59,9 @@ export type AttendanceItem = {
   /** Địa điểm */
   workpoint_id?: number | null;
   workpoint_ten?: string | null;
+
+  /** Selfie đã chụp */
+  selfie_url?: string | null;
 };
 
 /** Kết quả phân trang chung */

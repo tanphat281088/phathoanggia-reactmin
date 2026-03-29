@@ -139,10 +139,6 @@ HOP_DONG_PREVIEW: (id: number | string) =>
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/nhan-su/holiday", // GET/POST; PATCH/DELETE kèm id
 
-  // 🔹 Quản lý địa điểm
-  NHAN_SU_WORKPOINT_MANAGE: "/nhan-su/workpoints-admin",
-  NHAN_SU_WORKPOINT_MANAGE_ID: (id: number | string) => `/nhan-su/workpoints-admin/${id}`,
-
   // 🔹 Thiết lập lương (Payroll Profile)
   NHAN_SU_LUONG_PROFILE_GET: "/nhan-su/luong-profile",            // GET: ?user_id=
   NHAN_SU_LUONG_PROFILE_UPSERT: "/nhan-su/luong-profile/upsert",   // POST
@@ -346,9 +342,6 @@ CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
 
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/admin/quan-ly-nhan-su/holiday",
-
-  // 🔹 Quản lý địa điểm
-  NHAN_SU_QUAN_LY_DIA_DIEM: "/admin/quan-ly-nhan-su/quan-ly-dia-diem",
 
     // 🔹 Thiết lập lương (UI mới)
   NHAN_SU_THIET_LAP_LUONG: "/admin/quan-ly-nhan-su/thiet-lap-luong",

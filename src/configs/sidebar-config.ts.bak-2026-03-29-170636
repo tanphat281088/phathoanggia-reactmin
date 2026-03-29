@@ -517,8 +517,8 @@ export const sidebarConfig = (
         }]
       : []),
 
-// === 3 mục QUẢN LÝ: chỉ hiện khi role là super_admin hoặc admin ===
-...(isAdminRole(roleCode)
+// === 3 mục QUẢN LÝ: hiện cho admin HOẶC role có quyền nhan-su ===
+...((isAdminRole(roleCode) || (can(permJson, "nhan-su", "showMenu") && can(permJson, "nhan-su", "index")))
   ? [
       {
         key: "nhan-su-duyet-cham-cong",

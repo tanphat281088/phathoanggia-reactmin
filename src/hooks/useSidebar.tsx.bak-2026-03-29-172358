@@ -235,13 +235,10 @@ if (Array.isArray(mapped)) {
 
         // ❸ Có children → kiểm theo child trước, nếu child không map được module thì fallback về parent
 const filteredChildren = item.children.filter((child: any) => {
-  // ✅ Cho phép role có quyền module 'nhan-su' thấy các tab HR quản lý
-  if (item.key === "quan-ly-nhan-su" && MANAGER_HR_KEYS.has(child.key)) {
-    if (!(isAdminRole(roleCode) || hasMenu("nhan-su"))) {
-      return false;
-    }
+  // ✅ Ẩn 3 tab quản lý HR nếu KHÔNG phải admin/super_admin
+  if (item.key === "quan-ly-nhan-su" && MANAGER_HR_KEYS.has(child.key) && !isAdminRole(roleCode)) {
+    return false;
   }
-
   const mod = resolveModuleForMenu(item.key, child.key) ?? "";
   return hasMenu(mod);
 });

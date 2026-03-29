@@ -4,7 +4,7 @@ import { RouterProvider } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
 import { SnackbarProvider } from "notistack";
-import { ConfigProvider, App as AntdApp } from "antd";
+import { ConfigProvider } from "antd";
 import { router } from "./configs/app-router";
 import { installFetchGuard } from "./setup/fetch-guard";
 installFetchGuard();
@@ -17,12 +17,10 @@ import "./components/responsive/Responsive.css";
 
 createRoot(document.getElementById("root")!).render(
   <ConfigProvider theme={{ token: {} }}>
-    <AntdApp>
-      <SnackbarProvider anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-        <Provider store={store}>
-          <RouterProvider router={router} />
-        </Provider>
-      </SnackbarProvider>
-    </AntdApp>
+    <SnackbarProvider anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+      <Provider store={store}>
+        <RouterProvider router={router} />
+      </Provider>
+    </SnackbarProvider>
   </ConfigProvider>
 );
