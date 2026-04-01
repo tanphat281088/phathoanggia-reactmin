@@ -140,31 +140,6 @@ export default function ChamCongQuanLy() {
       width: 220,
       ellipsis: true,
     },
-{
-      title: "Selfie",
-      dataIndex: "selfie_url",
-      key: "selfie_url",
-      width: 110,
-      render: (v: string | null) =>
-        v ? (
-          <a href={v} target="_blank" rel="noreferrer">
-            <img
-              src={v}
-              alt="selfie"
-              style={{
-                width: 56,
-                height: 56,
-                objectFit: "cover",
-                borderRadius: 8,
-                border: "1px solid #e5e7eb",
-                display: "block",
-              }}
-            />
-          </a>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
     {
       title: "Loại",
       dataIndex: "type",
@@ -258,7 +233,32 @@ export default function ChamCongQuanLy() {
       width: 120,
       ellipsis: true,
     },
-        {
+    {
+      title: "Selfie",
+      dataIndex: "selfie_url",
+      key: "selfie_url",
+      width: 110,
+      render: (v: string | null) =>
+        v ? (
+          <a href={v} target="_blank" rel="noreferrer">
+            <img
+              src={v}
+              alt="selfie"
+              style={{
+                width: 56,
+                height: 56,
+                objectFit: "cover",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                display: "block",
+              }}
+            />
+          </a>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+    },
+    {
       title: "Mô tả",
       dataIndex: "short_desc",
       key: "short_desc",

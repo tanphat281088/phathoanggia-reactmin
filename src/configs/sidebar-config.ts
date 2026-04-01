@@ -517,8 +517,8 @@ export const sidebarConfig = (
         }]
       : []),
 
-// === 3 mục QUẢN LÝ: chỉ hiện khi role là super_admin hoặc admin ===
-...(isAdminRole(roleCode)
+// === 3 mục QUẢN LÝ: admin + vai trò trưởng phòng nhân sự ===
+...(isAdminRole(roleCode) || String(roleCode || "").includes("truong_phong")
   ? [
       {
         key: "nhan-su-duyet-cham-cong",
