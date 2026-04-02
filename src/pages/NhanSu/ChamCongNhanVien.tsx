@@ -820,7 +820,7 @@ createForm.resetFields();
         accuracy_m: geo.accuracy ?? undefined,
         device_id: "MOBILE",
         face_image_base64: faceB64,
-        workpoint_id: currentSession.workpoint_id ?? undefined,
+        workpoint_id: selectedWorkpointId ?? currentSession.workpoint_id ?? undefined,
         also_timesheet: true,
         also_payroll: false,
       });
@@ -953,7 +953,7 @@ createForm.resetFields();
           type="info"
           showIcon
           message="Bạn đang có phiên làm việc đang mở"
-          description={`Chấm công ra sẽ được khóa theo đúng địa điểm: ${currentSession.workpoint_ten || "Không rõ địa điểm"}.`}
+          description={`Chấm công ra hợp lệ tại địa điểm phiên mở (${currentSession.workpoint_ten || "Không rõ địa điểm"}) hoặc tại [DD001] Văn phòng PHG.`}
         />
       ) : (
         <Alert
@@ -980,13 +980,19 @@ createForm.resetFields();
         ) : (
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             {workpoints.map((wp) => {
+              const wpCode = String(extractWorkpointCode(wp) || "").trim().toUpperCase();
+              const isCompanyOffice = wpCode === "DD001";
+
               const selected =
-                currentSession?.workpoint_id != null
-                  ? currentSession.workpoint_id === wp.id
-                  : selectedWorkpointId === wp.id;
+                selectedWorkpointId != null
+                  ? selectedWorkpointId === wp.id
+                  : currentSession?.workpoint_id === wp.id;
 
               const lockedByOpenSession =
-                !!currentSession && currentSession.workpoint_id != null && currentSession.workpoint_id !== wp.id;
+                !!currentSession &&
+                currentSession.workpoint_id != null &&
+                currentSession.workpoint_id !== wp.id &&
+                !isCompanyOffice;
 
               return (
                 <Card
@@ -994,7 +1000,7 @@ createForm.resetFields();
                   size="small"
                   hoverable={!lockedByOpenSession}
                   onClick={() => {
-                    if (!currentSession) {
+                    if (!currentSession || isCompanyOffice) {
                       setSelectedWorkpointId(wp.id);
                     }
                   }}
@@ -1034,7 +1040,7 @@ createForm.resetFields();
                       </Text>
                     </Space>
 
-                    {!currentSession ? (
+                    {!currentSession || isCompanyOffice ? (
                       <Button
                         type={selected ? "primary" : "default"}
                         onClick={(e) => {
@@ -1139,7 +1145,7 @@ createForm.resetFields();
           <Text type="secondary">
             Lưu ý:
             <br />- Chấm công vào: phải chọn đúng địa điểm trước khi mở phiên.
-            <br />- Chấm công ra: hệ thống tự khóa theo địa điểm của phiên đang mở.
+            <br />- Chấm công ra: hợp lệ tại địa điểm của phiên đang mở hoặc tại [DD001] Văn phòng PHG.
             <br />- Tạo địa điểm mới chỉ dùng khi không có điểm phù hợp gần vị trí hiện tại.
             <br />- Ảnh selfie dùng để chấm công phải được chụp trực tiếp từ camera.
           </Text>

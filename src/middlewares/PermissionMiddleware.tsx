@@ -83,6 +83,10 @@ const MODULE_ALIAS: Record<string, string> = {
   // ✅ HR → Thiết lập lương (UI)
   "thiet-lap-luong": "payroll-profile",
 
+  // ✅ Thông báo công ty
+  "thong-bao": "thong-bao-cong-ty",
+  "quan-tri-thong-bao": "thong-bao-cong-ty-admin",
+
 
  // Gói dịch vụ (3 tầng)
   "nhom-danh-muc-goi-dich-vu": "goi-dich-vu-groups",

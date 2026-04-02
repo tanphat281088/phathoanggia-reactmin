@@ -139,6 +139,14 @@ HOP_DONG_PREVIEW: (id: number | string) =>
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/nhan-su/holiday", // GET/POST; PATCH/DELETE kèm id
 
+  // 🔹 Thông báo công ty
+  NHAN_SU_THONG_BAO: "/nhan-su/thong-bao",
+  NHAN_SU_THONG_BAO_ID: (id: number | string) => `/nhan-su/thong-bao/${id}`,
+  NHAN_SU_THONG_BAO_FILE: (id: number | string) => `/nhan-su/thong-bao-file/${id}`,
+  NHAN_SU_THONG_BAO_ADMIN: "/nhan-su/thong-bao-admin",
+  NHAN_SU_THONG_BAO_ADMIN_ID: (id: number | string) => `/nhan-su/thong-bao-admin/${id}`,
+  NHAN_SU_THONG_BAO_ADMIN_FILE: (id: number | string) => `/nhan-su/thong-bao-admin-file/${id}`,
+
   // 🔹 Quản lý địa điểm
   NHAN_SU_WORKPOINT_MANAGE: "/nhan-su/workpoints-admin",
   NHAN_SU_WORKPOINT_MANAGE_ID: (id: number | string) => `/nhan-su/workpoints-admin/${id}`,
@@ -346,6 +354,10 @@ CASHFLOW_AUDIT: "/admin/quan-ly-thu-chi/cashflow?tab=audit",
 
   // 🔹 Holiday (ngày lễ)
   NHAN_SU_HOLIDAY: "/admin/quan-ly-nhan-su/holiday",
+
+  // 🔹 Thông báo công ty
+  NHAN_SU_THONG_BAO: "/admin/quan-ly-nhan-su/thong-bao",
+  NHAN_SU_THONG_BAO_ADMIN: "/admin/quan-ly-nhan-su/quan-tri-thong-bao",
 
   // 🔹 Quản lý địa điểm
   NHAN_SU_QUAN_LY_DIA_DIEM: "/admin/quan-ly-nhan-su/quan-ly-dia-diem",

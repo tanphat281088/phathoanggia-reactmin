@@ -508,6 +508,24 @@ export const sidebarConfig = (
       onClick: () => navigate(URL_CONSTANTS.NHAN_SU_HOLIDAY),
     },
 
+    ...(can(permJson, "thong-bao-cong-ty", "showMenu")
+      ? [{
+          key: "nhan-su-thong-bao",
+          label: "Thông báo công ty",
+          icon: React.createElement(NotepadText, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_THONG_BAO),
+        }]
+      : []),
+
+    ...(can(permJson, "thong-bao-cong-ty-admin", "showMenu")
+      ? [{
+          key: "nhan-su-quan-tri-thong-bao",
+          label: "Quản trị thông báo",
+          icon: React.createElement(ShieldUser, { style: iconStyle }),
+          onClick: () => navigate(URL_CONSTANTS.NHAN_SU_THONG_BAO_ADMIN),
+        }]
+      : []),
+
     ...(isManagerRole(roleCode)
       ? [{
           key: "nhan-su-quan-ly-dia-diem",

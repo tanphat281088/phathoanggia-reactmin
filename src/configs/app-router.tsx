@@ -61,6 +61,8 @@ import DonTuQuanLy from "../pages/NhanSu/DonTuQuanLy";
 import BangCongCuaToi from "../pages/NhanSu/BangCongCuaToi";
 import BangCongQuanLy from "../pages/NhanSu/BangCongQuanLy";
 import HolidayAdmin from "../pages/NhanSu/HolidayAdmin";
+import ThongBaoCongTyPage from "../pages/NhanSu/ThongBaoCongTyPage";
+import ThongBaoCongTyAdminPage from "../pages/NhanSu/ThongBaoCongTyAdminPage";
 
 import BangLuongCuaToi from "../pages/NhanSu/BangLuongCuaToi";     // MỚI
 import BangLuongQuanLy from "../pages/NhanSu/BangLuongQuanLy";     // MỚI
@@ -522,6 +524,16 @@ export const router = createBrowserRouter([
             path: "holiday",
             element: <MainLayout />,
             children: [{ index: true, element: <HolidayAdmin /> }],
+          },
+          {
+            path: "thong-bao",
+            element: <MainLayout />,
+            children: [{ index: true, element: <ThongBaoCongTyPage /> }],
+          },
+          {
+            path: "quan-tri-thong-bao",
+            element: <MainLayout />,
+            children: [{ index: true, element: <ThongBaoCongTyAdminPage /> }],
           },
 
           {
