@@ -639,12 +639,6 @@ const attachStreamToVideo = async () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (geo.lat == null || geo.lng == null) return;
-    fetchWorkpoints(selectedWorkpointId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geo.lat, geo.lng]);
-
 
   useEffect(() => {
     if (currentSession?.workpoint_id) {

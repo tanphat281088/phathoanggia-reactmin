@@ -427,19 +427,12 @@ export default function ChamCongNhanVien() {
 
       setWorkpoints(items);
 
-      const hasId = (id?: number) =>
-        typeof id === "number" && items.some((x) => x.id === id);
-
-      if (currentSession?.workpoint_id && hasId(currentSession.workpoint_id)) {
+      if (currentSession?.workpoint_id) {
         setSelectedWorkpointId(currentSession.workpoint_id);
-      } else if (keepSelectionId && hasId(keepSelectionId)) {
+      } else if (keepSelectionId && items.some((x) => x.id === keepSelectionId)) {
         setSelectedWorkpointId(keepSelectionId);
-      } else if (selectedWorkpointId && hasId(selectedWorkpointId)) {
-        setSelectedWorkpointId(selectedWorkpointId);
-      } else if (!currentSession && items.length > 0) {
+      } else if (!selectedWorkpointId && items.length > 0) {
         setSelectedWorkpointId(items[0].id);
-      } else {
-        setSelectedWorkpointId(undefined);
       }
     } catch (err: any) {
       console.error("fetchWorkpoints error:", err);
@@ -639,12 +632,6 @@ const attachStreamToVideo = async () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (geo.lat == null || geo.lng == null) return;
-    fetchWorkpoints(selectedWorkpointId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geo.lat, geo.lng]);
-
 
   useEffect(() => {
     if (currentSession?.workpoint_id) {
@@ -754,7 +741,7 @@ createForm.resetFields();
       return;
     }
 
-    if (!selectedWorkpoint) {
+    if (!selectedWorkpointId) {
       message.warning("Vui lòng chọn địa điểm chấm công.");
       return;
     }
@@ -773,7 +760,7 @@ createForm.resetFields();
         accuracy_m: geo.accuracy ?? undefined,
         device_id: "MOBILE",
         face_image_base64: faceB64,
-        workpoint_id: selectedWorkpoint.id,
+        workpoint_id: selectedWorkpointId,
         also_timesheet: true,
       });
 
@@ -827,16 +814,13 @@ createForm.resetFields();
     setSubmitting("out");
 
     try {
-      const checkoutWorkpointId =
-        selectedWorkpoint?.id ?? currentSession.workpoint_id ?? undefined;
-
       const resp = await attendanceCheckout({
         lat: geo.lat,
         lng: geo.lng,
         accuracy_m: geo.accuracy ?? undefined,
         device_id: "MOBILE",
         face_image_base64: faceB64,
-        workpoint_id: checkoutWorkpointId,
+        workpoint_id: selectedWorkpointId ?? currentSession.workpoint_id ?? undefined,
         also_timesheet: true,
         also_payroll: false,
       });
@@ -880,7 +864,7 @@ createForm.resetFields();
     geo.lat === null ||
     geo.lng === null ||
     !!currentSession ||
-    !selectedWorkpoint ||
+    !selectedWorkpointId ||
     !faceB64;
 
   const disabledCheckout =
