@@ -123,14 +123,6 @@ function cleanDisplayName(name: string) {
     .trim();
 }
 
-function isAllowedCheckoutOverrideCode(code?: string | null) {
-  const normalized = String(code || "").trim().toUpperCase();
-  const m = normalized.match(/^DD(\d{3})$/);
-  if (!m) return false;
-  const n = Number(m[1]);
-  return n >= 1 && n <= 16;
-}
-
 function mergeDuplicateWorkpoint(prev: WorkpointItem, next: WorkpointItem): WorkpointItem {
   const prevDistance =
     typeof prev.distance_m === "number" ? prev.distance_m : Number.MAX_SAFE_INTEGER;
@@ -977,7 +969,7 @@ createForm.resetFields();
           type="info"
           showIcon
           message="Bạn đang có phiên làm việc đang mở"
-          description={`Chấm công ra hợp lệ tại địa điểm phiên mở (${currentSession.workpoint_ten || "Không rõ địa điểm"}) hoặc tại các địa điểm DD001 đến DD016.`}
+          description={`Chấm công ra hợp lệ tại địa điểm phiên mở (${currentSession.workpoint_ten || "Không rõ địa điểm"}) hoặc tại [DD001] Văn phòng PHG.`}
         />
       ) : (
         <Alert
@@ -1005,7 +997,7 @@ createForm.resetFields();
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             {workpoints.map((wp) => {
               const wpCode = String(extractWorkpointCode(wp) || "").trim().toUpperCase();
-              const isAllowedCheckoutOverride = isAllowedCheckoutOverrideCode(wpCode);
+              const isCompanyOffice = wpCode === "DD001";
 
               const selected =
                 selectedWorkpointId != null
@@ -1016,7 +1008,7 @@ createForm.resetFields();
                 !!currentSession &&
                 currentSession.workpoint_id != null &&
                 currentSession.workpoint_id !== wp.id &&
-                !isAllowedCheckoutOverride;
+                !isCompanyOffice;
 
               return (
                 <Card
@@ -1024,7 +1016,7 @@ createForm.resetFields();
                   size="small"
                   hoverable={!lockedByOpenSession}
                   onClick={() => {
-                    if (!currentSession || isAllowedCheckoutOverride) {
+                    if (!currentSession || isCompanyOffice) {
                       setSelectedWorkpointId(wp.id);
                     }
                   }}
@@ -1064,7 +1056,7 @@ createForm.resetFields();
                       </Text>
                     </Space>
 
-                    {!currentSession || isAllowedCheckoutOverride ? (
+                    {!currentSession || isCompanyOffice ? (
                       <Button
                         type={selected ? "primary" : "default"}
                         onClick={(e) => {
@@ -1169,7 +1161,7 @@ createForm.resetFields();
           <Text type="secondary">
             Lưu ý:
             <br />- Chấm công vào: phải chọn đúng địa điểm trước khi mở phiên.
-            <br />- Chấm công ra: hợp lệ tại địa điểm của phiên đang mở hoặc tại các địa điểm DD001 đến DD016.
+            <br />- Chấm công ra: hợp lệ tại địa điểm của phiên đang mở hoặc tại [DD001] Văn phòng PHG.
             <br />- Tạo địa điểm mới chỉ dùng khi không có điểm phù hợp gần vị trí hiện tại.
             <br />- Ảnh selfie dùng để chấm công phải được chụp trực tiếp từ camera.
           </Text>
